@@ -1,3 +1,6 @@
 [workspace]
 resolver = "3"
 members = ["driver"]
+
+[workspace.dependencies]
+moteus = { git = "https://github.com/mjbots/moteus", branch = "rust", package = "moteus", features = ["tokio", "clap"] }
