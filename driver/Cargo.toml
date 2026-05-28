@@ -2,7 +2,13 @@
 name = "driver"
 version = "0.1.0"
 edition = "2024"
+build = "build.rs"
 
 [dependencies]
+axum = "0.8.7"
 clap = "4.6.1"
+mime_guess = "2.0.5"
 moteus = { workspace = true }
+rust-embed = "8.9.0"
+serde = { version = "1.0.228", features = ["derive"] }
+tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread", "net", "sync", "time"] }
