@@ -302,7 +302,7 @@ jobs:
           LINUX_URL=""
           if [[ -n "$LINUX_ARCHIVE" ]]; then
             LINUX_SIG=$(cat "${LINUX_ARCHIVE}.sig" 2>/dev/null || echo "")
-            LINUX_URL="https://github.com/${REPO}/releases/download/${TAG}/$(basename "$LINUX_ARCHIVE")"
+            LINUX_URL="https://github.com/${REPO}/releases/download/${TAG}/$(basename "$LINUX_ARCHIVE" | sed 's/ /./g')"
           fi
 
           WINDOWS_ARCHIVE=$(ls dist/*.msi.zip 2>/dev/null | head -1)
@@ -310,7 +310,7 @@ jobs:
           WINDOWS_URL=""
           if [[ -n "$WINDOWS_ARCHIVE" ]]; then
             WINDOWS_SIG=$(cat "${WINDOWS_ARCHIVE}.sig" 2>/dev/null || echo "")
-            WINDOWS_URL="https://github.com/${REPO}/releases/download/${TAG}/$(basename "$WINDOWS_ARCHIVE")"
+            WINDOWS_URL="https://github.com/${REPO}/releases/download/${TAG}/$(basename "$WINDOWS_ARCHIVE" | sed 's/ /./g')"
           fi
 
           jq -n \
