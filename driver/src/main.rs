@@ -2,7 +2,6 @@ use std::env;
 use std::net::SocketAddr;
 
 mod api;
-mod assets;
 mod follower;
 mod localizer;
 mod motor;
@@ -30,7 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::thread::spawn(move || run_motor_loop(motor_state));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
-    println!("Rover UI listening on http://{addr}");
+    println!("Rover API listening on http://{addr}");
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, api::router(state)).await?;
     Ok(())

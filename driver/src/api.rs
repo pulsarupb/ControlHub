@@ -1,14 +1,22 @@
-use crate::assets::static_handler;
 use crate::follower::{
     FollowerStatus, clamp_relative_target, relative_to_world_target,
 };
 use crate::localizer::Pose2d;
 use crate::state::{AppState, ControlRequest, FollowTargetRequest, StatusResponse};
 use axum::{Json, Router, extract::State, http::StatusCode, response::IntoResponse, routing::get, routing::post};
+use serde::Serialize;
 use std::time::Instant;
+use tower_http::cors::CorsLayer;
+
+#[derive(Debug, Serialize)]
+struct HealthResponse {
+    service: &'static str,
+    ok: bool,
+}
 
 pub(crate) fn router(state: AppState) -> Router {
     Router::new()
+        .route("/api/health", get(api_health))
         .route("/api/status", get(api_status))
         .route("/api/control", post(api_control))
         .route("/api/follow-target", post(api_follow_target))
@@ -16,8 +24,15 @@ pub(crate) fn router(state: AppState) -> Router {
         .route("/api/heartbeat", post(api_heartbeat))
         .route("/api/stop", post(api_stop))
         .route("/api/reset", post(api_reset))
-        .fallback(static_handler)
         .with_state(state)
+        .layer(CorsLayer::permissive())
+}
+
+async fn api_health() -> Json<HealthResponse> {
+    Json(HealthResponse {
+        service: "pulsar-rover",
+        ok: true,
+    })
 }
 
 async fn api_status(State(state): State<AppState>) -> Json<StatusResponse> {

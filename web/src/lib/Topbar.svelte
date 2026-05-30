@@ -16,6 +16,8 @@
   import Presets from "./icons/Presets.svelte"
   import Bell from "./icons/Bell.svelte"
   import AllNotifications from "./AllNotifications.svelte"
+  import RoverConnectionOverlay from "$lib/moteus/RoverConnectionOverlay.svelte"
+  import { roverConnection } from "$lib/rover-connection.svelte"
 
   const contextManager = getContext("manager") as Manager | (() => Manager)
   let manager = $state(
@@ -33,23 +35,37 @@
 
   <Navlets bind:manager />
 
-  <Overlay
-    triggerStyle="display: flex;justify-content: center;align-items: center;"
-  >
-    {#snippet trigger()}
-      <Bell />
-    {/snippet}
-    {#snippet overlay()}
-      <div class="bell-menu">
-        <h1>Notifications</h1>
-        {#if global.notifications.length > 0}
-          <AllNotifications />
-        {:else}
-          <p>No notifications</p>
-        {/if}
-      </div>
-    {/snippet}
-  </Overlay>
+  <div class="right-actions">
+    <Overlay
+      triggerStyle="display: flex;justify-content: center;align-items: center;"
+    >
+      {#snippet trigger()}
+        <span class="rover-trigger" class:online={roverConnection.state === "online"}>
+          Rover
+        </span>
+      {/snippet}
+      {#snippet overlay()}
+        <RoverConnectionOverlay />
+      {/snippet}
+    </Overlay>
+
+    <Overlay
+      triggerStyle="display: flex;justify-content: center;align-items: center;"
+    >
+      {#snippet trigger()}
+        <Bell />
+      {/snippet}
+      {#snippet overlay()}
+        <div class="bell-menu">
+          <h1>Notifications</h1>
+          {#if global.notifications.length > 0}
+            <AllNotifications />
+          {:else}
+            <p>No notifications</p>
+          {/if}
+        </div>
+      {/snippet}
+    </Overlay>
 
   <Overlay
     triggerStyle="display: flex;justify-content: center;align-items: center;"
@@ -173,6 +189,7 @@
       </div>
     {/snippet}
   </Overlay>
+  </div>
 </nav>
 
 <style>
@@ -244,6 +261,25 @@
   .bell-menu {
     min-width: 300px;
     max-width: 420px;
+  }
+  .right-actions {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--padding) / 2);
+    margin-left: auto;
+  }
+  .rover-trigger {
+    border: 1px solid rgba(249, 115, 22, 0.45);
+    border-radius: 999px;
+    padding: 0.38rem 0.75rem;
+    background: rgba(249, 115, 22, 0.12);
+    color: #fed7aa;
+    font-size: 0.9rem;
+  }
+  .rover-trigger.online {
+    border-color: rgba(45, 212, 191, 0.45);
+    background: rgba(45, 212, 191, 0.12);
+    color: #ccfbf1;
   }
   nav {
     background-color: var(--bgMedium);

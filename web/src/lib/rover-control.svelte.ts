@@ -1,6 +1,7 @@
 import { DEFAULT_POSE, ZERO_JOYSTICK } from "$lib/constants";
 import { clamp } from "$lib/math";
 import type { ConnectionState, FollowerStatus, JoystickPosition, PathPoint, Pose, RoverControl, RoverStatus } from "$lib/moteus-types";
+import { roverConnection } from "$lib/rover-connection.svelte";
 
 const IDLE_FOLLOWER: FollowerStatus = {
   active: false,
@@ -38,7 +39,7 @@ function createRoverControl(): RoverControl {
   const followerActive = $derived(Boolean(follower.active));
 
   async function api(path: string, options: RequestInit = {}): Promise<RoverStatus> {
-    const response = await fetch(path, {
+    const response = await fetch(roverConnection.apiUrl(path), {
       headers: { "content-type": "application/json" },
       ...options,
     });
@@ -49,14 +50,20 @@ function createRoverControl(): RoverControl {
 
     state.status = (await response.json()) as RoverStatus;
     state.connectionState = "online";
+    roverConnection.setState("online", "Rover API online");
     return state.status;
+  }
+
+  function markOffline(): void {
+    state.connectionState = "offline";
+    roverConnection.setState("offline", "Rover API request failed");
   }
 
   async function refreshStatus(): Promise<void> {
     try {
       await api("/api/status");
     } catch (error) {
-      state.connectionState = "offline";
+      markOffline();
     }
   }
 
@@ -70,7 +77,7 @@ function createRoverControl(): RoverControl {
         body: JSON.stringify({ throttle: state.throttle, steering: state.steering }),
       });
     } catch (error) {
-      state.connectionState = "offline";
+      markOffline();
     } finally {
       state.pendingRequest = false;
     }
@@ -89,7 +96,7 @@ function createRoverControl(): RoverControl {
     try {
       await api("/api/stop", { method: "POST" });
     } catch (error) {
-      state.connectionState = "offline";
+      markOffline();
     }
   }
 
@@ -99,7 +106,7 @@ function createRoverControl(): RoverControl {
     try {
       await api("/api/reset", { method: "POST" });
     } catch (error) {
-      state.connectionState = "offline";
+      markOffline();
     }
   }
 
@@ -135,7 +142,7 @@ function createRoverControl(): RoverControl {
         body: JSON.stringify({ x_m, y_m }),
       });
     } catch (error) {
-      state.connectionState = "offline";
+      markOffline();
     }
   }
 
@@ -145,7 +152,7 @@ function createRoverControl(): RoverControl {
     try {
       await api("/api/follow-target/cancel", { method: "POST" });
     } catch (error) {
-      state.connectionState = "offline";
+      markOffline();
     }
   }
 
