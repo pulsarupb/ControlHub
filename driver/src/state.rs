@@ -1,3 +1,4 @@
+use crate::follower::{FollowerStatus, FollowerTarget};
 use crate::localizer::Pose2d;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -28,6 +29,8 @@ pub(crate) struct RoverState {
     pub(crate) path: Vec<Pose2d>,
     pub(crate) motors: [MotorTelemetry; 4],
     pub(crate) last_error: Option<String>,
+    pub(crate) follower_target: Option<FollowerTarget>,
+    pub(crate) follower_status: FollowerStatus,
 }
 
 impl RoverState {
@@ -48,6 +51,8 @@ impl RoverState {
                 MotorTelemetry::new(4),
             ],
             last_error: None,
+            follower_target: None,
+            follower_status: FollowerStatus::default(),
         }
     }
 
@@ -61,6 +66,7 @@ impl RoverState {
             path: self.path.iter().copied().map(Into::into).collect(),
             motors: self.motors,
             last_error: self.last_error.clone(),
+            follower: self.follower_status,
         }
     }
 }
@@ -90,6 +96,12 @@ pub(crate) struct ControlRequest {
     pub(crate) steering: f32,
 }
 
+#[derive(Debug, Deserialize)]
+pub(crate) struct FollowTargetRequest {
+    pub(crate) x_m: f32,
+    pub(crate) y_m: f32,
+}
+
 #[derive(Debug, Serialize)]
 pub(crate) struct StatusResponse {
     throttle: f32,
@@ -100,6 +112,7 @@ pub(crate) struct StatusResponse {
     path: Vec<Pose2dResponse>,
     motors: [MotorTelemetry; 4],
     last_error: Option<String>,
+    follower: FollowerStatus,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]

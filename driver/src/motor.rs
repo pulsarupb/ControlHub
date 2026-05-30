@@ -1,9 +1,10 @@
+use crate::follower::{FollowerStatus, compute_follower_command};
 use crate::localizer::{Chassis, ChassisConfig, Pose2d};
 use crate::state::{AppState, MotorTelemetry};
 use moteus::{BlockingController, command::PositionCommand};
 use std::time::{Duration, Instant};
 
-const MAX_MOTOR_VELOCITY: f32 = 1.0;
+const MAX_MOTOR_VELOCITY: f32 = 0.5;
 const UI_WATCHDOG_TIMEOUT: Duration = Duration::from_millis(500);
 const MOTOR_PERIOD: Duration = Duration::from_millis(20);
 const MOTEUS_WATCHDOG_TIMEOUT_S: f32 = 0.25;
@@ -45,12 +46,30 @@ fn run_motor_loop_inner(state: AppState) -> Result<(), moteus::Error> {
             if timed_out {
                 rover.throttle = 0.0;
                 rover.steering = 0.0;
+                rover.follower_target = None;
+                rover.follower_status = FollowerStatus::default();
                 rover.watchdog_stopped = true;
             }
 
             let should_stop = rover.emergency_stop || rover.watchdog_stopped;
-            let throttle = if should_stop { 0.0 } else { rover.throttle };
-            let steering = if should_stop { 0.0 } else { rover.steering };
+            let (throttle, steering) = if should_stop {
+                (0.0, 0.0)
+            } else if let Some(target) = rover.follower_target {
+                let command = compute_follower_command(rover.pose, target);
+                rover.follower_status = command.status;
+                if command.status.arrived {
+                    rover.follower_target = None;
+                    rover.throttle = 0.0;
+                    rover.steering = 0.0;
+                } else {
+                    rover.throttle = command.throttle;
+                    rover.steering = command.steering;
+                }
+                (rover.throttle, rover.steering)
+            } else {
+                rover.follower_status = FollowerStatus::default();
+                (rover.throttle, rover.steering)
+            };
             let left = (throttle + steering).clamp(-1.0, 1.0) * MAX_MOTOR_VELOCITY;
             let right = (throttle - steering).clamp(-1.0, 1.0) * MAX_MOTOR_VELOCITY;
             let reset_requested = rover.reset_requested;

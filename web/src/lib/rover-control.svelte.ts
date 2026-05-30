@@ -1,6 +1,14 @@
 import { DEFAULT_POSE, ZERO_JOYSTICK } from "$lib/constants";
 import { clamp } from "$lib/math";
-import type { ConnectionState, JoystickPosition, PathPoint, Pose, RoverControl, RoverStatus } from "$lib/moteus-types";
+import type { ConnectionState, FollowerStatus, JoystickPosition, PathPoint, Pose, RoverControl, RoverStatus } from "$lib/moteus-types";
+
+const IDLE_FOLLOWER: FollowerStatus = {
+  active: false,
+  target: null,
+  distance_m: 0,
+  heading_error_rad: 0,
+  arrived: false,
+};
 
 type RoverState = {
   status: RoverStatus | null;
@@ -26,6 +34,8 @@ function createRoverControl(): RoverControl {
   const pose = $derived<Pose>(state.status?.pose ?? DEFAULT_POSE);
   const path = $derived<PathPoint[]>(state.status?.path ?? []);
   const stopped = $derived(Boolean(state.status?.emergency_stop || state.status?.watchdog_stopped));
+  const follower = $derived<FollowerStatus>(state.status?.follower ?? IDLE_FOLLOWER);
+  const followerActive = $derived(Boolean(follower.active));
 
   async function api(path: string, options: RequestInit = {}): Promise<RoverStatus> {
     const response = await fetch(path, {
@@ -51,7 +61,7 @@ function createRoverControl(): RoverControl {
   }
 
   async function sendControlTick(): Promise<void> {
-    if (state.pendingRequest || state.status?.emergency_stop) return;
+    if (state.pendingRequest || state.status?.emergency_stop || followerActive) return;
 
     state.pendingRequest = true;
     try {
@@ -94,7 +104,7 @@ function createRoverControl(): RoverControl {
   }
 
   function startJoystick(): boolean {
-    if (state.status?.emergency_stop) return false;
+    if (state.status?.emergency_stop || followerActive) return false;
 
     state.joystickActive = true;
     return true;
@@ -114,6 +124,29 @@ function createRoverControl(): RoverControl {
 
   function releaseJoystick(): void {
     zeroControls();
+  }
+
+  async function startFollowerTarget(x_m: number, y_m: number): Promise<void> {
+    zeroControls();
+
+    try {
+      await api("/api/follow-target", {
+        method: "POST",
+        body: JSON.stringify({ x_m, y_m }),
+      });
+    } catch (error) {
+      state.connectionState = "offline";
+    }
+  }
+
+  async function cancelFollowerTarget(): Promise<void> {
+    zeroControls();
+
+    try {
+      await api("/api/follow-target/cancel", { method: "POST" });
+    } catch (error) {
+      state.connectionState = "offline";
+    }
   }
 
   return {
@@ -144,10 +177,18 @@ function createRoverControl(): RoverControl {
     get stopped() {
       return stopped;
     },
+    get follower() {
+      return follower;
+    },
+    get followerActive() {
+      return followerActive;
+    },
     refreshStatus,
     sendControlTick,
     stopRover,
     resetRover,
+    startFollowerTarget,
+    cancelFollowerTarget,
     startJoystick,
     setJoystick,
     releaseJoystick,

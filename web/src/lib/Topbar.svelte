@@ -19,7 +19,7 @@
 
   const contextManager = getContext("manager") as Manager | (() => Manager)
   let manager = $state(
-    typeof contextManager === "function" ? contextManager() : contextManager
+    typeof contextManager === "function" ? contextManager() : contextManager,
   )
   let jsonPreset = $state("")
 </script>
@@ -29,11 +29,13 @@
     <Panels />
   </a>
 
-  <p>Moteus Rover</p>
+  <p>PULSAR</p>
 
   <Navlets bind:manager />
 
-  <Overlay triggerStyle="display: flex;justify-content: center;align-items: center;">
+  <Overlay
+    triggerStyle="display: flex;justify-content: center;align-items: center;"
+  >
     {#snippet trigger()}
       <Bell />
     {/snippet}
@@ -49,7 +51,9 @@
     {/snippet}
   </Overlay>
 
-  <Overlay triggerStyle="display: flex;justify-content: center;align-items: center;">
+  <Overlay
+    triggerStyle="display: flex;justify-content: center;align-items: center;"
+  >
     {#snippet trigger()}
       <Presets />
     {/snippet}
@@ -92,19 +96,28 @@
                     transparent={true}
                     onclick={() => {
                       manager.save()
-                      const temp = manager.unprocessTemplate(manager.presets.data[index])
+                      const temp = manager.unprocessTemplate(
+                        manager.presets.data[index],
+                      )
                       close()
-                      global.notificationsManager.addAction(JSON.stringify(temp), [
-                        {
-                          text: "Copy",
-                          task: () => {
-                            navigator.clipboard.writeText(JSON.stringify(temp)).then(() => {
-                              global.notificationsManager.add("Text copied to clipboard")
-                            })
+                      global.notificationsManager.addAction(
+                        JSON.stringify(temp),
+                        [
+                          {
+                            text: "Copy",
+                            task: () => {
+                              navigator.clipboard
+                                .writeText(JSON.stringify(temp))
+                                .then(() => {
+                                  global.notificationsManager.add(
+                                    "Text copied to clipboard",
+                                  )
+                                })
+                            },
                           },
-                        },
-                        { text: "Close", task: () => {} },
-                      ])
+                          { text: "Close", task: () => {} },
+                        ],
+                      )
                     }}
                   >
                     <Copy />
@@ -128,7 +141,9 @@
             }}
           >
             {#snippet trigger()}
-              <Button style="width: 100%;box-sizing: border-box;">Import</Button>
+              <Button style="width: 100%;box-sizing: border-box;">
+                Import
+              </Button>
             {/snippet}
             {#snippet overlay({ close }: { close: () => void })}
               <div class="new-menu">
@@ -138,8 +153,10 @@
                   onclick={() => {
                     manager.addTemplate(JSON.parse(jsonPreset))
                     close()
-                  }}>Create</Button
+                  }}
                 >
+                  Create
+                </Button>
               </div>
             {/snippet}
           </Overlay>
