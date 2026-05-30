@@ -193,7 +193,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_KEY_PASSWORD }}
         run: |
-          $msi = Get-ChildItem -Path target/release/bundle/msi -Filter *.msi | Select-Object -First 1
+          $msi = Get-ChildItem -Path target/release/bundle/msi -Filter *.msi -ErrorAction SilentlyContinue | Select-Object -First 1
           if ($msi) {
             $archive = "$($msi.FullName).zip"
             Compress-Archive -Path $msi.FullName -DestinationPath $archive -Force
@@ -205,11 +205,11 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path staging
-          if (Test-Path target/release/bundle/msi) {
-            Get-ChildItem -Path target/release/bundle/msi -File | Copy-Item -Destination staging
+          if (Test-Path web/target/release/bundle/msi) {
+            Get-ChildItem -Path web/target/release/bundle/msi -File | Copy-Item -Destination staging
           }
-          if (Test-Path target/release/bundle/nsis) {
-            Get-ChildItem -Path target/release/bundle/nsis -File | Copy-Item -Destination staging
+          if (Test-Path web/target/release/bundle/nsis) {
+            Get-ChildItem -Path web/target/release/bundle/nsis -File | Copy-Item -Destination staging
           }
 
       - uses: actions/upload-artifact@v7
