@@ -6,6 +6,7 @@ mod follower;
 mod localizer;
 mod motor;
 mod state;
+mod wifi;
 
 use motor::{read_motor_continuously, run_motor_loop};
 use state::AppState;
@@ -22,6 +23,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         read_motor_continuously(motor_id)?;
         return Ok(());
     }
+
+    let (ssid, password) = wifi::ensure_hotspot();
+    println!("WiFi network: {ssid}");
+    println!("Password: {password}");
 
     let state = AppState::new();
 
