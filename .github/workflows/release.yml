@@ -137,6 +137,14 @@ jobs:
       - run: bun run tauri build
         working-directory: web
 
+      - name: Debug - list bundle outputs
+        working-directory: web
+        run: |
+          echo "=== appimage dir ==="
+          ls -la target/release/bundle/appimage/ 2>/dev/null || echo "(no appimage dir)"
+          echo "=== all bundles ==="
+          find target/release/bundle -type f 2>/dev/null || true
+
       - name: Create updater archive and sign (Linux)
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -147,7 +155,18 @@ jobs:
           if [[ -n "$APPIMAGE" ]]; then
             ARCHIVE="${APPIMAGE}.tar.gz"
             tar czf "$ARCHIVE" -C "$(dirname "$APPIMAGE")" "$(basename "$APPIMAGE")"
-            bun run tauri signer sign "$ARCHIVE" > "${ARCHIVE}.sig"
+            bun run tauri signer sign "$ARCHIVE" 2>/dev/null | python3 << 'PYEOF' > "${ARCHIVE}.sig"
+import sys
+raw = sys.stdin.read()
+marker = "Public signature:"
+idx = raw.find(marker)
+if idx >= 0:
+    sig = raw[idx + len(marker):].strip()
+    end = sig.find("Make sure")
+    if end >= 0:
+        sig = sig[:end].strip()
+    sys.stdout.write(sig)
+PYEOF
           fi
 
       - run: |
@@ -197,8 +216,13 @@ jobs:
           if ($msi) {
             $archive = "$($msi.FullName).zip"
             Compress-Archive -Path $msi.FullName -DestinationPath $archive -Force
-            $sig = bun run tauri signer sign $archive
-            Set-Content -Path "$archive.sig" -Value $sig
+            $sig_raw = bun run tauri signer sign $archive 2>$null
+            if ($sig_raw -match '(?s)Public signature:\s*\r?\n(.+?)\r?\n\s*Make sure') {
+              $cleaned = $matches[1].Trim()
+            } else {
+              $cleaned = $sig_raw
+            }
+            Set-Content -Path "$archive.sig" -Value $cleaned -NoNewline -Encoding ascii
           }
 
       - name: Stage installer files (Windows)
@@ -250,6 +274,21 @@ jobs:
 
       - name: Build updater manifest
         run: |
+          extract_sig() {
+            python3 << 'PYEOF'
+import sys
+raw = sys.stdin.read()
+marker = "Public signature:"
+idx = raw.find(marker)
+if idx >= 0:
+    sig = raw[idx + len(marker):].strip()
+    end = sig.find("Make sure")
+    if end >= 0:
+        sig = sig[:end].strip()
+    sys.stdout.write(sig)
+PYEOF
+          }
+
           TAG="${{ needs.resolve_tag.outputs.release_tag }}"
           VERSION="${TAG#v}"
           PUB_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -260,7 +299,7 @@ jobs:
           LINUX_SIG=""
           LINUX_URL=""
           if [[ -n "$LINUX_ARCHIVE" ]]; then
-            LINUX_SIG=$(cat "${LINUX_ARCHIVE}.sig" 2>/dev/null || echo "")
+            LINUX_SIG=$(cat "${LINUX_ARCHIVE}.sig" 2>/dev/null | extract_sig || echo "")
             LINUX_URL="https://github.com/${REPO}/releases/download/${TAG}/$(basename "$LINUX_ARCHIVE")"
           fi
 
@@ -268,7 +307,7 @@ jobs:
           WINDOWS_SIG=""
           WINDOWS_URL=""
           if [[ -n "$WINDOWS_ARCHIVE" ]]; then
-            WINDOWS_SIG=$(cat "${WINDOWS_ARCHIVE}.sig" 2>/dev/null || echo "")
+            WINDOWS_SIG=$(cat "${WINDOWS_ARCHIVE}.sig" 2>/dev/null | extract_sig || echo "")
             WINDOWS_URL="https://github.com/${REPO}/releases/download/${TAG}/$(basename "$WINDOWS_ARCHIVE")"
           fi
 
