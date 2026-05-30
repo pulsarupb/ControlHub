@@ -301,7 +301,7 @@ jobs:
           LINUX_SIG=""
           LINUX_URL=""
           if [[ -n "$LINUX_ARCHIVE" ]]; then
-            LINUX_SIG=$(cat "${LINUX_ARCHIVE}.sig" 2>/dev/null | extract_sig || echo "")
+            LINUX_SIG=$(cat "${LINUX_ARCHIVE}.sig" 2>/dev/null || echo "")
             LINUX_URL="https://github.com/${REPO}/releases/download/${TAG}/$(basename "$LINUX_ARCHIVE")"
           fi
 
@@ -309,7 +309,7 @@ jobs:
           WINDOWS_SIG=""
           WINDOWS_URL=""
           if [[ -n "$WINDOWS_ARCHIVE" ]]; then
-            WINDOWS_SIG=$(cat "${WINDOWS_ARCHIVE}.sig" 2>/dev/null | extract_sig || echo "")
+            WINDOWS_SIG=$(cat "${WINDOWS_ARCHIVE}.sig" 2>/dev/null || echo "")
             WINDOWS_URL="https://github.com/${REPO}/releases/download/${TAG}/$(basename "$WINDOWS_ARCHIVE")"
           fi
 
