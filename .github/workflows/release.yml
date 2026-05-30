@@ -163,18 +163,19 @@ jobs:
           if [[ -n "$APPIMAGE" ]]; then
             ARCHIVE="${APPIMAGE}.tar.gz"
             tar czf "$ARCHIVE" -C "$(dirname "$APPIMAGE")" "$(basename "$APPIMAGE")"
-            bun run tauri signer sign "$ARCHIVE" 2>/dev/null | python3 << 'PYEOF' > "${ARCHIVE}.sig"
+            SIG_RAW=$(bun run tauri signer sign "$ARCHIVE" 2>/dev/null)
+            echo "$SIG_RAW" | python3 -c "
 import sys
 raw = sys.stdin.read()
-marker = "Public signature:"
+marker = 'Public signature:'
 idx = raw.find(marker)
 if idx >= 0:
     sig = raw[idx + len(marker):].strip()
-    end = sig.find("Make sure")
+    end = sig.find('Make sure')
     if end >= 0:
         sig = sig[:end].strip()
     sys.stdout.write(sig)
-PYEOF
+" > "${ARCHIVE}.sig"
           fi
 
       - run: |
@@ -298,18 +299,18 @@ PYEOF
       - name: Build updater manifest
         run: |
           extract_sig() {
-            python3 << 'PYEOF'
+            python3 -c "
 import sys
 raw = sys.stdin.read()
-marker = "Public signature:"
+marker = 'Public signature:'
 idx = raw.find(marker)
 if idx >= 0:
     sig = raw[idx + len(marker):].strip()
-    end = sig.find("Make sure")
+    end = sig.find('Make sure')
     if end >= 0:
         sig = sig[:end].strip()
     sys.stdout.write(sig)
-PYEOF
+"
           }
 
           TAG="${{ needs.resolve_tag.outputs.release_tag }}"
