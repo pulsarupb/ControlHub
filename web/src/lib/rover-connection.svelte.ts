@@ -8,6 +8,7 @@ const MODE_KEY = "roverMode"
 type HealthResponse = {
   service?: string
   ok?: boolean
+  version?: string
 }
 
 type ValidationResult = {
@@ -50,6 +51,7 @@ class RoverConnection {
   latencyMs = $state<number | null>(null)
   lastCheckedAt = $state<number | null>(null)
   isChecking = $state(false)
+  serverVersion = $state<string | null>(null)
 
   roverSsid = $state("Pulsar-Rover")
 
@@ -99,6 +101,7 @@ class RoverConnection {
         throw new Error("Healthcheck did not identify a Pulsar rover")
       }
 
+      this.serverVersion = data.version ?? null
       this.baseUrl = normalizedUrl
       this.draftUrl = normalizedUrl
       this.state = "online"

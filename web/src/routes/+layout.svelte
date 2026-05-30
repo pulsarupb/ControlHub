@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, setContext, type Snippet } from "svelte"
   import Topbar from "$lib/Topbar.svelte"
+  import VersionDisclaimer from "$lib/VersionDisclaimer.svelte"
   import "./global.css"
 
   import NotificationsUi from "$lib/NotificationsUI.svelte"
@@ -36,6 +37,7 @@
   let { children }: { children?: Snippet } = $props()
 </script>
 
+<VersionDisclaimer />
 <NotificationsUi />
 <section>
   <Topbar />

@@ -12,6 +12,7 @@ use tower_http::cors::CorsLayer;
 struct HealthResponse {
     service: &'static str,
     ok: bool,
+    version: &'static str,
 }
 
 pub(crate) fn router(state: AppState) -> Router {
@@ -32,6 +33,7 @@ async fn api_health() -> Json<HealthResponse> {
     Json(HealthResponse {
         service: "pulsar-rover",
         ok: true,
+        version: env!("CARGO_PKG_VERSION"),
     })
 }
 
