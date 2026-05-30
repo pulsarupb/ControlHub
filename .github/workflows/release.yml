@@ -205,7 +205,7 @@ jobs:
         working-directory: web
         run: |
           $raw = Get-Content ../Cargo.toml -Raw
-          if ($raw -match '^version = "([^"]+)"') {
+          if ($raw -match '(?m)^version = "([^"]+)"') {
             $version = $matches[1]
             $config = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
             $config.version = $version
