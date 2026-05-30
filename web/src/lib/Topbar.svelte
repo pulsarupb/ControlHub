@@ -50,6 +50,8 @@
 
   async function downloadAndInstall() {
     downloading = true
+    let downloaded = 0
+    let contentLength = 0
     try {
       if (!pendingUpdate?.available) {
         downloading = false
@@ -57,7 +59,16 @@
         return
       }
       await pendingUpdate.downloadAndInstall((e) => {
-        if (e.event === "DownloadProgress") downloadProgress = e.data.progress
+        if (e.event === "Started") {
+          downloaded = 0
+          contentLength = e.data.contentLength ?? 0
+          downloadProgress = 0
+        }
+        if (e.event === "Progress") {
+          downloaded += e.data.chunkLength
+          downloadProgress = contentLength > 0 ? downloaded / contentLength : 0
+        }
+        if (e.event === "Finished") downloadProgress = 1
       })
       await relaunch()
     } catch (e) {

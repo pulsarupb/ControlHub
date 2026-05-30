@@ -144,6 +144,9 @@ jobs:
 
       - run: bun run tauri build
         working-directory: web
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_KEY_PASSWORD }}
 
       - name: Debug - list bundle outputs
         working-directory: web
@@ -153,32 +156,15 @@ jobs:
           echo "=== all bundles ==="
           find ../target/release/bundle -type f 2>/dev/null || true
 
-      - name: Create updater archive and sign (Linux)
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_KEY_PASSWORD }}
-        working-directory: web
-        run: |
-          APPIMAGE=$(ls ../target/release/bundle/appimage/*.AppImage 2>/dev/null | head -1)
-          if [[ -n "$APPIMAGE" ]]; then
-            ARCHIVE="${APPIMAGE}.tar.gz"
-            tar czf "$ARCHIVE" -C "$(dirname "$APPIMAGE")" "$(basename "$APPIMAGE")"
-            SIG_RAW=$(bun run tauri signer sign "$ARCHIVE" 2>&1)
-            echo "$SIG_RAW" | python3 -c "import re,sys;r=sys.stdin.read();m=re.search(r'Public signature:\s*([A-Za-z0-9+/=]+)', r);sys.stdout.write(m.group(1) if m else '')" > "${ARCHIVE}.sig"
-            test -s "${ARCHIVE}.sig"
-          else
-            echo "ERROR: No AppImage bundle found for Linux updater archive."
-            exit 1
-          fi
-
       - run: |
           mkdir -p staging
           cp target/release/bundle/appimage/*.AppImage staging/ 2>/dev/null || true
-          cp target/release/bundle/appimage/*.tar.gz staging/ 2>/dev/null || true
+          cp target/release/bundle/appimage/*.AppImage.sig staging/ 2>/dev/null || true
           cp target/release/bundle/appimage/*.sig staging/ 2>/dev/null || true
           cp target/release/bundle/deb/*.deb staging/ 2>/dev/null || true
           cp target/release/bundle/rpm/*.rpm staging/ 2>/dev/null || true
-          test -n "$(find staging -maxdepth 1 -type f -name '*.AppImage.tar.gz' -print -quit)"
+          test -n "$(find staging -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
+          test -n "$(find staging -maxdepth 1 -type f -name '*.AppImage.sig' -print -quit)"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -222,28 +208,9 @@ jobs:
 
       - run: bun run tauri build
         working-directory: web
-
-      - name: Create updater archive and sign (Windows)
-        shell: pwsh
-        working-directory: web
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_KEY_PASSWORD }}
-        run: |
-          $msi = Get-ChildItem -Path ../target/release/bundle/msi -Filter *.msi -ErrorAction SilentlyContinue | Select-Object -First 1
-          if ($msi) {
-            $archive = "$($msi.FullName).zip"
-            Compress-Archive -Path $msi.FullName -DestinationPath $archive -Force
-            $sig_raw = (bun run tauri signer sign $archive 2>&1) | Out-String
-            if ($sig_raw -match 'Public signature:\s*([A-Za-z0-9+/=]+)') {
-              $cleaned = $matches[1]
-            } else {
-              throw "Could not extract Tauri updater signature from signer output: $sig_raw"
-            }
-            Set-Content -Path "$archive.sig" -Value $cleaned -NoNewline -Encoding ascii
-          } else {
-            throw "No MSI bundle found for Windows updater archive."
-          }
 
       - name: Stage installer files (Windows)
         shell: pwsh
@@ -260,6 +227,9 @@ jobs:
             if ($exe) {
               Copy-Item -Path $exe.FullName -Destination staging
             }
+          }
+          if (-not (Get-ChildItem -Path staging -Filter "*.msi.sig" -File -ErrorAction SilentlyContinue) -and -not (Get-ChildItem -Path staging -Filter "*.exe.sig" -File -ErrorAction SilentlyContinue)) {
+            throw "No Windows updater signature (*.msi.sig or *.exe.sig) found."
           }
 
       - uses: actions/upload-artifact@v7
@@ -300,9 +270,9 @@ jobs:
           REPO="${{ github.repository }}"
           NOTES="https://github.com/${REPO}/releases/tag/${TAG}"
 
-          LINUX_ARCHIVE=$(find dist -maxdepth 1 -type f -name '*.AppImage.tar.gz' -print -quit)
+          LINUX_ARCHIVE=$(find dist -maxdepth 1 -type f -name '*.AppImage' -print -quit)
           if [[ -z "$LINUX_ARCHIVE" ]]; then
-            echo "ERROR: Missing Linux updater archive (*.AppImage.tar.gz)."
+            echo "ERROR: Missing Linux updater artifact (*.AppImage)."
             exit 1
           fi
           if [[ ! -s "${LINUX_ARCHIVE}.sig" ]]; then
@@ -312,9 +282,12 @@ jobs:
           LINUX_SIG=$(cat "${LINUX_ARCHIVE}.sig")
           LINUX_URL="https://github.com/${REPO}/releases/download/${TAG}/$(basename "$LINUX_ARCHIVE" | sed 's/ /./g')"
 
-          WINDOWS_ARCHIVE=$(find dist -maxdepth 1 -type f -name '*.msi.zip' -print -quit)
+          WINDOWS_ARCHIVE=$(find dist -maxdepth 1 -type f -name '*.msi' -print -quit)
           if [[ -z "$WINDOWS_ARCHIVE" ]]; then
-            echo "ERROR: Missing Windows updater archive (*.msi.zip)."
+            WINDOWS_ARCHIVE=$(find dist -maxdepth 1 -type f -name '*.exe' -print -quit)
+          fi
+          if [[ -z "$WINDOWS_ARCHIVE" ]]; then
+            echo "ERROR: Missing Windows updater artifact (*.msi or *.exe)."
             exit 1
           fi
           if [[ ! -s "${WINDOWS_ARCHIVE}.sig" ]]; then
