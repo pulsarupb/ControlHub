@@ -4,7 +4,7 @@
   "pub_date": "2026-05-30T20:40:24Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "Your file was signed successfully, You can find the signature here:D:\\a\\ControlHub\\ControlHub\\target\\release\\bundle\\msi\\Panels ERC Edition_0.1.20_x64_en-US.msi.zip.sigPublic signature:dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNjdub0NpanhvWENBNys2TnZpTTljb1VhNHphY3htOXhxSEU5eGJCSStCb3JleC84b3V2a24relQ3WXd0cDVGVkcrMVIraHpwWVdIUkk0bU9rVm1OZXdnWDJsNFlJS0E4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwMTczNjA2CWZpbGU6UGFuZWxzIEVSQyBFZGl0aW9uXzAuMS4yMF94NjRfZW4tVVMubXNpLnppcApEc3dLS0dNMEpGSnBxNTZKTlFQMEF0dDRNaHNNODIrYzUxVG53L1k2QnJ0bkxzbVNvOXhZSkNZdTMyWUQrR0srVUpsUG8rK3RoWjR2ZWJrVzVkK2lDZz09Cg==Make sure to include this into the signature field of your update server.",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNjdub0NpanhvWENBNys2TnZpTTljb1VhNHphY3htOXhxSEU5eGJCSStCb3JleC84b3V2a24relQ3WXd0cDVGVkcrMVIraHpwWVdIUkk0bU9rVm1OZXdnWDJsNFlJS0E4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwMTczNjA2CWZpbGU6UGFuZWxzIEVSQyBFZGl0aW9uXzAuMS4yMF94NjRfZW4tVVMubXNpLnppcApEc3dLS0dNMEpGSnBxNTZKTlFQMEF0dDRNaHNNODIrYzUxVG53L1k2QnJ0bkxzbVNvOXhZSkNZdTMyWUQrR0srVUpsUG8rK3RoWjR2ZWJrVzVkK2lDZz09Cg==",
       "url": "https://github.com/pulsarupb/ControlHub/releases/download/v0.1.20/Panels ERC Edition_0.1.20_x64_en-US.msi.zip"
     }
   }

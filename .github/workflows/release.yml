@@ -230,7 +230,7 @@ jobs:
             $archive = "$($msi.FullName).zip"
             Compress-Archive -Path $msi.FullName -DestinationPath $archive -Force
             $sig_raw = bun run tauri signer sign $archive 2>$null
-            if ($sig_raw -match '(?s)Public signature:\s*\r?\n(.+?)\r?\n\s*Make sure') {
+            if ($sig_raw -match '(?s)Public signature:(.+?)Make sure') {
               $cleaned = $matches[1].Trim()
             } else {
               $cleaned = $sig_raw

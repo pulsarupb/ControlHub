@@ -33,11 +33,13 @@
   let downloading = $state(false)
   let downloadProgress = $state(0)
   let polling = $state<ReturnType<typeof setInterval> | null>(null)
+  let pendingUpdate: Awaited<ReturnType<typeof check>> = $state(null)
 
   async function pollForUpdate() {
     try {
       const update = await check()
       if (update?.available) {
+        pendingUpdate = update
         updateAvailable = true
         updateError = false
       }
@@ -49,17 +51,17 @@
   async function downloadAndInstall() {
     downloading = true
     try {
-      const update = await check()
-      if (!update?.available) {
+      if (!pendingUpdate?.available) {
         downloading = false
         updateAvailable = false
         return
       }
-      await update.downloadAndInstall((e) => {
+      await pendingUpdate.downloadAndInstall((e) => {
         if (e.event === "DownloadProgress") downloadProgress = e.data.progress
       })
       await relaunch()
-    } catch {
+    } catch (e) {
+      console.error("Update failed:", e)
       updateError = true
       downloading = false
     }
