@@ -8,6 +8,7 @@
   import { STATUS_RATE_MS, UI_RATE_MS } from "$lib/constants"
   import { rover } from "$lib/rover-control.svelte"
   import { global } from "$lib"
+  import { startGamepad, stopGamepad } from "$lib/gamepad-control.svelte"
   import CanvasRender from "$lib/grid/CanvasRender.svelte"
 
   setContext("manager", manager.manager)
@@ -24,11 +25,14 @@
     window.addEventListener("blur", release)
     document.addEventListener("visibilitychange", releaseWhenHidden)
 
+    startGamepad()
+
     return () => {
       clearInterval(controlTimer)
       clearInterval(statusTimer)
       window.removeEventListener("blur", release)
       document.removeEventListener("visibilitychange", releaseWhenHidden)
+      stopGamepad()
       rover.stopRover()
     }
   })

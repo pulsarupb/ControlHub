@@ -26,36 +26,22 @@ export class RoverData {
 
   samples = $state<{ t: number; battery: number; signal: number; speed: number }[]>([])
 
+  _intervalId: ReturnType<typeof setInterval> | null = null
+
   start() {
-    if (typeof window === "undefined") return
+    if (typeof window === "undefined" || this._intervalId) return
     this.pushSample()
-    this.pollGamepad()
-    window.setInterval(() => {
+    this._intervalId = window.setInterval(() => {
       this.tick += 1
       this.pushSample()
     }, 1000)
-    const frame = () => {
-      this.pollGamepad()
-      window.requestAnimationFrame(frame)
-    }
-    window.requestAnimationFrame(frame)
   }
 
-  private pollGamepad() {
-    if (typeof navigator === "undefined" || !navigator.getGamepads) return
-    const gamepad = Array.from(navigator.getGamepads()).find(Boolean)
-    if (!gamepad) {
-      this.gamepadConnected = false
-      this.gamepadId = "No gamepad connected"
-      this.gamepadAxes = [0, 0, 0, 0]
-      this.gamepadButtons = Array.from({ length: 17 }, () => false)
-      return
+  stop() {
+    if (this._intervalId !== null) {
+      clearInterval(this._intervalId)
+      this._intervalId = null
     }
-
-    this.gamepadConnected = true
-    this.gamepadId = gamepad.id
-    this.gamepadAxes = Array.from({ length: 4 }, (_, index) => gamepad.axes[index] ?? 0)
-    this.gamepadButtons = Array.from({ length: 17 }, (_, index) => gamepad.buttons[index]?.pressed ?? false)
   }
 
   private pushSample() {
