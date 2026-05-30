@@ -1,11 +1,11 @@
 {
-  "version": "0.1.11",
-  "notes": "https://github.com/pulsarupb/ControlHub/releases/tag/v0.1.11",
-  "pub_date": "2026-05-30T19:36:08Z",
+  "version": "0.1.12",
+  "notes": "https://github.com/pulsarupb/ControlHub/releases/tag/v0.1.12",
+  "pub_date": "2026-05-30T19:36:23Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "\r\nYour file was signed successfully, You can find the signature here:\r\nD:\\a\\ControlHub\\ControlHub\\target\\release\\bundle\\msi\\Panels ERC Edition_0.1.4_x64_en-US.msi.zip.sig\r\n\r\nPublic signature:\r\ndW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNjdub0NpanhvWEZWcFJsdllpV0JmSHlvT21na0NGUzRCOUc2L25CN0c3RThwbllUSmpMTGd1ZWxySmxFVmNSTzZwcUJHSnM4NVNiTWhkeW5VZFJmYzc5MjUvZ2N2VFFFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwMTY5NzU3CWZpbGU6UGFuZWxzIEVSQyBFZGl0aW9uXzAuMS40X3g2NF9lbi1VUy5tc2kuemlwCnhzemRseFkvUnV4clorMFVhb29HZkI1Y0tlVCt6V0luQk5tcHJscC8wT2NQMjU1ckloQURKaTZZSjRLZHc4S2tqeWNPTjc4NFNIWXR1OUdKVUNTQUJ3PT0K\r\n\r\nMake sure to include this into the signature field of your update server.\r",
-      "url": "https://github.com/pulsarupb/ControlHub/releases/download/v0.1.11/Panels ERC Edition_0.1.4_x64_en-US.msi.zip"
+      "signature": "\r\nYour file was signed successfully, You can find the signature here:\r\nD:\\a\\ControlHub\\ControlHub\\target\\release\\bundle\\msi\\Panels ERC Edition_0.1.4_x64_en-US.msi.zip.sig\r\n\r\nPublic signature:\r\ndW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNjdub0NpanhvWE9DNFFCWWhSUTVnY2ZTYW5EV1hPaFk4OWUvcDhlUHBhMFlGa2tGMVFpRUF1Tnc4Y0x1RzhBTUk0aVNxaEt2WVo0T0kvYmljaVArTHRxVzJXaDJzN2drPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwMTY5NzY2CWZpbGU6UGFuZWxzIEVSQyBFZGl0aW9uXzAuMS40X3g2NF9lbi1VUy5tc2kuemlwCjhMQkZreCtReDM1bDJIRlZRYjZYeVo5K21vOU51YnRES0lIbk1YczdzRlpuUUJ5b0ZiamkrN1B5dGNDWmQvNlJDT1pxalNQcVA5R0tJcDY3VlQzVEJRPT0K\r\n\r\nMake sure to include this into the signature field of your update server.\r",
+      "url": "https://github.com/pulsarupb/ControlHub/releases/download/v0.1.12/Panels ERC Edition_0.1.4_x64_en-US.msi.zip"
     }
   }
 }
