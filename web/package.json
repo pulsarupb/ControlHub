@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@sveltejs/adapter-static": "^3.0.10",
+    "@tauri-apps/api": "^2.11.0",
     "html2canvas": "^1.4.1",
     "svelte-portal": "^2.2.1"
   }
