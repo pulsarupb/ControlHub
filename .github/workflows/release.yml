@@ -134,6 +134,14 @@ jobs:
       - run: bun install
         working-directory: web
 
+      - name: Sync tauri.conf.json version with workspace
+        working-directory: web
+        run: |
+          VERSION=$(grep -m1 '^version = ' ../Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+          jq ".version = \"$VERSION\"" src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp
+          mv src-tauri/tauri.conf.json.tmp src-tauri/tauri.conf.json
+          echo "Synced tauri.conf.json version to $VERSION"
+
       - run: bun run tauri build
         working-directory: web
 
@@ -201,6 +209,21 @@ PYEOF
 
       - run: bun install
         working-directory: web
+
+      - name: Sync tauri.conf.json version with workspace
+        shell: pwsh
+        working-directory: web
+        run: |
+          $raw = Get-Content ../Cargo.toml -Raw
+          if ($raw -match '^version = "([^"]+)"') {
+            $version = $matches[1]
+            $config = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+            $config.version = $version
+            $config | ConvertTo-Json -Depth 10 | Set-Content src-tauri/tauri.conf.json -Encoding ascii
+            Write-Output "Synced tauri.conf.json version to $version"
+          } else {
+            throw "Could not extract version from Cargo.toml"
+          }
 
       - run: bun run tauri build
         working-directory: web
