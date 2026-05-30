@@ -1,11 +1,15 @@
 {
-  "version": "0.1.23",
-  "notes": "https://github.com/pulsarupb/ControlHub/releases/tag/v0.1.23",
-  "pub_date": "2026-05-30T21:15:16Z",
+  "version": "0.1.25",
+  "notes": "https://github.com/pulsarupb/ControlHub/releases/tag/v0.1.25",
+  "pub_date": "2026-05-30T21:33:53Z",
   "platforms": {
+    "linux-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNjdub0NpanhvWE5DS1FOTG1KUTNHZzZjRU9LRFU4aDVBYllFRW1OM0FZblhDdEduM21MS1N5YVV4MXN1NzRLc2U3eWN6c1B4S3BCc0daUC9ubmhWVlNsMzdSdWtEK3dVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwMTc2NzMyCWZpbGU6UGFuZWxzIEVSQyBFZGl0aW9uXzAuMS4yNV9hbWQ2NC5BcHBJbWFnZS50YXIuZ3oKV1VwV1BOSUxXa3Y5VExNZ1NUaTNlaHFIUUVQMGJuTlNGQ2wwaDJXY1dvaE1yZlVwbTlEczJHNTJzdFFtYWxNR1NuQ1BLakpuVE1VOWh3NDFLb3hiQVE9PQo=",
+      "url": "https://github.com/pulsarupb/ControlHub/releases/download/v0.1.25/Panels.ERC.Edition_0.1.25_amd64.AppImage.tar.gz"
+    },
     "windows-x86_64": {
-      "signature": "Your file was signed successfully, You can find the signature here:D:\\a\\ControlHub\\ControlHub\\target\\release\\bundle\\msi\\Panels ERC Edition_0.1.23_x64_en-US.msi.zip.sigPublic signature:dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNjdub0NpanhvWEhMeW9oS2RUVnVTSmNLaFY4YTVVaStNNmJ3OEVPSVBoeVNsWDNRbUxHZk5KRkpMTUZybHRCM2pZSWgwcWJNZ3JETGNlL3g2VXU2S1hXZVhrbDA2dVFRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwMTc1NzAzCWZpbGU6UGFuZWxzIEVSQyBFZGl0aW9uXzAuMS4yM194NjRfZW4tVVMubXNpLnppcApHSVNaR1h5dnlyb01zN0ZNVDQwSGVtMmxqNkhkTmhTc2V6ckpzSlk3ZkZWc0RFOTUwQkNBUnZZcUJvNlJCSUNudkpTcnI4TkU4L3BuY25QWExFb3JCZz09Cg==Make sure to include this into the signature field of your update server.",
-      "url": "https://github.com/pulsarupb/ControlHub/releases/download/v0.1.23/Panels.ERC.Edition_0.1.23_x64_en-US.msi.zip"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNjdub0NpanhvWEd3Q0txNTJKaWQ2N1lTTWUrMmdmb1NiOVZnai9sS3lmaDRpZjNOZktCdXVWcHNOM1FBbmUwV0J0aHkxc0ZjenI5U2w2UXZTOWE5ZDh2Mldnbzk5aHdzPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwMTc2ODE4CWZpbGU6UGFuZWxzIEVSQyBFZGl0aW9uXzAuMS4yNV94NjRfZW4tVVMubXNpLnppcApoR3lYVFpQdUJuUXA4UTc3RHBhTVF1SktOa1BqNXVnT1hKMWVneExhNHpyRkVTQzV1OVBFYW8weU5xV1hjSmdzbEhncUJpZ0dsa2pzTS94TlI3ZzdCQT09Cg==",
+      "url": "https://github.com/pulsarupb/ControlHub/releases/download/v0.1.25/Panels.ERC.Edition_0.1.25_x64_en-US.msi.zip"
     }
   }
 }
