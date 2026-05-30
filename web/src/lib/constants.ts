@@ -1,4 +1,4 @@
-import type { JoystickPosition, Pose } from "$lib/types";
+import type { JoystickPosition, Pose } from "$lib/moteus-types";
 
 export const UI_RATE_MS = 50;
 export const STATUS_RATE_MS = 200;

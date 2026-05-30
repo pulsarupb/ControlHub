@@ -1,6 +1,6 @@
 import { DEFAULT_POSE, ZERO_JOYSTICK } from "$lib/constants";
 import { clamp } from "$lib/math";
-import type { ConnectionState, JoystickPosition, PathPoint, Pose, RoverControl, RoverStatus } from "$lib/types";
+import type { ConnectionState, JoystickPosition, PathPoint, Pose, RoverControl, RoverStatus } from "$lib/moteus-types";
 
 type RoverState = {
   status: RoverStatus | null;
@@ -157,3 +157,5 @@ function createRoverControl(): RoverControl {
 export function roverControl(): RoverControl {
   return createRoverControl();
 }
+
+export const rover = roverControl();

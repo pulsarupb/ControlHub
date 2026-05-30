@@ -1,6 +1,6 @@
 import { ROVER_LENGTH_M, ROVER_WIDTH_M } from "$lib/constants";
 import { radiansToDegrees } from "$lib/math";
-import type { MapSize, PathPoint, Pose } from "$lib/types";
+import type { MapSize, PathPoint, Pose } from "$lib/moteus-types";
 
 export function mapScale(points: PathPoint[], mapSize: MapSize): number {
   const footprintRadius = Math.hypot(ROVER_LENGTH_M, ROVER_WIDTH_M) * 0.5;
