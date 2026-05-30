@@ -67,10 +67,10 @@ impl RoverState {
 
 #[derive(Debug, Clone, Copy, Serialize)]
 pub(crate) struct MotorTelemetry {
-    id: u8,
-    position: f32,
-    velocity: f32,
-    fault: i8,
+    pub(crate) id: u8,
+    pub(crate) position: f32,
+    pub(crate) velocity: f32,
+    pub(crate) fault: i8,
 }
 
 impl MotorTelemetry {
@@ -80,15 +80,6 @@ impl MotorTelemetry {
             position: 0.0,
             velocity: 0.0,
             fault: 0,
-        }
-    }
-
-    pub(crate) fn from_feedback(id: u8, feedback: &moteus::QueryResult) -> Self {
-        Self {
-            id,
-            position: feedback.position,
-            velocity: feedback.velocity,
-            fault: feedback.fault,
         }
     }
 }

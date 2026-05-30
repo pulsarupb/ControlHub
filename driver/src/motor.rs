@@ -118,10 +118,30 @@ fn run_motor_loop_inner(state: AppState) -> Result<(), moteus::Error> {
                 }
 
                 rover.motors = [
-                    MotorTelemetry::from_feedback(1, feedback1),
-                    MotorTelemetry::from_feedback(2, feedback2),
-                    MotorTelemetry::from_feedback(3, feedback3),
-                    MotorTelemetry::from_feedback(4, feedback4),
+                    MotorTelemetry {
+                        id: 1,
+                        position: feedback1.position,
+                        velocity: feedback1.velocity,
+                        fault: feedback1.fault,
+                    },
+                    MotorTelemetry {
+                        id: 2,
+                        position: feedback2.position,
+                        velocity: feedback2.velocity,
+                        fault: feedback2.fault,
+                    },
+                    MotorTelemetry {
+                        id: 3,
+                        position: feedback3.position,
+                        velocity: feedback3.velocity,
+                        fault: feedback3.fault,
+                    },
+                    MotorTelemetry {
+                        id: 4,
+                        position: feedback4.position,
+                        velocity: feedback4.velocity,
+                        fault: feedback4.fault,
+                    },
                 ];
                 rover.last_error = None;
             }
