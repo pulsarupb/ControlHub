@@ -1,11 +1,11 @@
 {
-  "version": "0.1.20",
-  "notes": "https://github.com/pulsarupb/ControlHub/releases/tag/v0.1.20",
-  "pub_date": "2026-05-30T20:40:24Z",
+  "version": "0.1.21",
+  "notes": "https://github.com/pulsarupb/ControlHub/releases/tag/v0.1.21",
+  "pub_date": "2026-05-30T20:58:17Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNjdub0NpanhvWENBNys2TnZpTTljb1VhNHphY3htOXhxSEU5eGJCSStCb3JleC84b3V2a24relQ3WXd0cDVGVkcrMVIraHpwWVdIUkk0bU9rVm1OZXdnWDJsNFlJS0E4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwMTczNjA2CWZpbGU6UGFuZWxzIEVSQyBFZGl0aW9uXzAuMS4yMF94NjRfZW4tVVMubXNpLnppcApEc3dLS0dNMEpGSnBxNTZKTlFQMEF0dDRNaHNNODIrYzUxVG53L1k2QnJ0bkxzbVNvOXhZSkNZdTMyWUQrR0srVUpsUG8rK3RoWjR2ZWJrVzVkK2lDZz09Cg==",
-      "url": "https://github.com/pulsarupb/ControlHub/releases/download/v0.1.20/Panels ERC Edition_0.1.20_x64_en-US.msi.zip"
+      "signature": "Your file was signed successfully, You can find the signature here:D:\\a\\ControlHub\\ControlHub\\target\\release\\bundle\\msi\\Panels ERC Edition_0.1.21_x64_en-US.msi.zip.sigPublic signature:dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNjdub0NpanhvWEFwcjlJclUrTjJBaEVQMjlsUW1OQlIvK3FXcW5lTHk5ZDhuSWNveW83L0VGL1gzaWQzSjcrMG90UFZjN1ZTaWZCYm5xMXQ2REJvTzI2MHNxMmg5WFEwPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwMTc0Njg1CWZpbGU6UGFuZWxzIEVSQyBFZGl0aW9uXzAuMS4yMV94NjRfZW4tVVMubXNpLnppcApVcDhZT2lkcVJYQ0RjUlNta204bVEzL3lnOGNDaFVrOXFDVzl4cUN3S1RVZWVjR3NGdW1oYzBHNmh2T3FscnRYZ3ljR3NMVXVyUEVXZ2c0bWs5cFJBdz09Cg==Make sure to include this into the signature field of your update server.",
+      "url": "https://github.com/pulsarupb/ControlHub/releases/download/v0.1.21/Panels ERC Edition_0.1.21_x64_en-US.msi.zip"
     }
   }
 }
