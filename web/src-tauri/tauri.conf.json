@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Panels ERC Edition",
-  "version": "0.1.0",
+  "version": "0.1.4",
   "identifier": "com.bylazar.panels-erc-edition",
   "build": {
     "frontendDist": "../build",
@@ -22,6 +22,14 @@
     ],
     "security": {
       "csp": null
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVDNjgzQzhBMDI3QUVFQkEKUldTNjdub0NpanhvWEhwVFRHZlVaOHRIZ3FYSFoyN2pDNi9DL1I0dHJ3WjlLajIxaVhlTWxxaDkK",
+      "endpoints": [
+        "https://raw.githubusercontent.com/bylazar/Moteus-Testing/main/updates.json"
+      ]
     }
   },
   "bundle": {

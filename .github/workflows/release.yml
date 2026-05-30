@@ -137,9 +137,25 @@ jobs:
       - run: bun run tauri build
         working-directory: web
 
+      - name: Create updater archive and sign (Linux)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_KEY_PASSWORD }}
+        run: |
+          APPIMAGE=$(ls target/release/bundle/appimage/*.AppImage 2>/dev/null | head -1)
+          if [[ -n "$APPIMAGE" ]]; then
+            ARCHIVE="${APPIMAGE}.tar.gz"
+            tar czf "$ARCHIVE" -C "$(dirname "$APPIMAGE")" "$(basename "$APPIMAGE")"
+            bun run tauri signer sign "$ARCHIVE" > "${ARCHIVE}.sig"
+          fi
+
       - run: |
           mkdir -p staging
-          find target/release/bundle -type f -exec cp {} staging/ \;
+          cp target/release/bundle/appimage/*.AppImage staging/ 2>/dev/null || true
+          cp target/release/bundle/appimage/*.tar.gz staging/ 2>/dev/null || true
+          cp target/release/bundle/appimage/*.sig staging/ 2>/dev/null || true
+          cp target/release/bundle/deb/*.deb staging/ 2>/dev/null || true
+          cp target/release/bundle/rpm/*.rpm staging/ 2>/dev/null || true
 
       - uses: actions/upload-artifact@v4
         with:
@@ -169,10 +185,30 @@ jobs:
       - run: bun run tauri build
         working-directory: web
 
-      - shell: pwsh
+      - name: Create updater archive and sign (Windows)
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_KEY_PASSWORD }}
+        run: |
+          $msi = Get-ChildItem -Path target/release/bundle/msi -Filter *.msi | Select-Object -First 1
+          if ($msi) {
+            $archive = "$($msi.FullName).zip"
+            Compress-Archive -Path $msi.FullName -DestinationPath $archive -Force
+            $sig = bun run tauri signer sign $archive
+            Set-Content -Path "$archive.sig" -Value $sig
+          }
+
+      - name: Stage installer files (Windows)
+        shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path staging
-          Get-ChildItem -Path target/release/bundle -Recurse -File | Copy-Item -Destination staging
+          if (Test-Path target/release/bundle/msi) {
+            Get-ChildItem -Path target/release/bundle/msi -File | Copy-Item -Destination staging
+          }
+          if (Test-Path target/release/bundle/nsis) {
+            Get-ChildItem -Path target/release/bundle/nsis -File | Copy-Item -Destination staging
+          }
 
       - uses: actions/upload-artifact@v4
         with:
@@ -185,6 +221,11 @@ jobs:
     needs: [resolve_tag, linux-server, linux-panels, windows-panels]
 
     steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.resolve_tag.outputs.source_ref }}
+          fetch-depth: 0
+
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -199,8 +240,63 @@ jobs:
           sha256sum * > SHA256SUMS
           cat SHA256SUMS
 
+      - name: Build updater manifest
+        run: |
+          TAG="${{ needs.resolve_tag.outputs.release_tag }}"
+          VERSION="${TAG#v}"
+          PUB_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          REPO="${{ github.repository }}"
+          NOTES="https://github.com/${REPO}/releases/tag/${TAG}"
+
+          LINUX_ARCHIVE=$(ls dist/*.AppImage.tar.gz 2>/dev/null | head -1)
+          LINUX_SIG=""
+          LINUX_URL=""
+          if [[ -n "$LINUX_ARCHIVE" ]]; then
+            LINUX_SIG=$(cat "${LINUX_ARCHIVE}.sig" 2>/dev/null || echo "")
+            LINUX_URL="https://github.com/${REPO}/releases/download/${TAG}/$(basename "$LINUX_ARCHIVE")"
+          fi
+
+          WINDOWS_ARCHIVE=$(ls dist/*.msi.zip 2>/dev/null | head -1)
+          WINDOWS_SIG=""
+          WINDOWS_URL=""
+          if [[ -n "$WINDOWS_ARCHIVE" ]]; then
+            WINDOWS_SIG=$(cat "${WINDOWS_ARCHIVE}.sig" 2>/dev/null || echo "")
+            WINDOWS_URL="https://github.com/${REPO}/releases/download/${TAG}/$(basename "$WINDOWS_ARCHIVE")"
+          fi
+
+          jq -n \
+            --arg v "$VERSION" \
+            --arg d "$PUB_DATE" \
+            --arg n "$NOTES" \
+            --arg lsu "$LINUX_URL" \
+            --arg lss "$LINUX_SIG" \
+            --arg wsu "$WINDOWS_URL" \
+            --arg wss "$WINDOWS_SIG" \
+            '{
+              version: $v,
+              notes: $n,
+              pub_date: $d,
+              platforms: (
+                (if $lss != "" then { "linux-x86_64": { signature: $lss, url: $lsu } } else {} end) +
+                (if $wss != "" then { "windows-x86_64": { signature: $wss, url: $wsu } } else {} end)
+              )
+            }' > dist/updates.json
+
+          cat dist/updates.json
+
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.resolve_tag.outputs.release_tag }}
           target_commitish: ${{ needs.resolve_tag.outputs.source_ref }}
           files: dist/*
+
+      - name: Commit updates.json to main
+        run: |
+          git fetch origin main
+          git checkout main
+          cp dist/updates.json updates.json
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add updates.json
+          git diff --cached --quiet || git commit -m "Update updater manifest for ${{ needs.resolve_tag.outputs.release_tag }}"
+          git push

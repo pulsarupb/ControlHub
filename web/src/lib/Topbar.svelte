@@ -21,12 +21,62 @@
   import WindowControls from "./WindowControls.svelte"
 
   import { getCurrentWindow } from "@tauri-apps/api/window"
+  import { check } from "@tauri-apps/plugin-updater"
+  import { relaunch } from "@tauri-apps/plugin-process"
+  import { onMount, onDestroy } from "svelte"
 
   declare const __APP_VERSION__: string
 
   let versionDismissed = $state(false)
+  let updateAvailable = $state(false)
+  let updateError = $state(false)
+  let downloading = $state(false)
+  let downloadProgress = $state(0)
+  let polling = $state<ReturnType<typeof setInterval> | null>(null)
+
+  async function pollForUpdate() {
+    try {
+      const update = await check()
+      if (update?.available) {
+        updateAvailable = true
+        updateError = false
+      }
+    } catch {
+      // silent — don't nag on transient failures
+    }
+  }
+
+  async function downloadAndInstall() {
+    downloading = true
+    try {
+      const update = await check()
+      if (!update?.available) {
+        downloading = false
+        updateAvailable = false
+        return
+      }
+      await update.downloadAndInstall((e) => {
+        if (e.event === "DownloadProgress") downloadProgress = e.data.progress
+      })
+      await relaunch()
+    } catch {
+      updateError = true
+      downloading = false
+    }
+  }
+
+  onMount(() => {
+    pollForUpdate()
+    polling = setInterval(pollForUpdate, 600_000)
+  })
+
+  onDestroy(() => {
+    if (polling) clearInterval(polling)
+  })
   let showVersionWarning = $derived(
-    !versionDismissed && roverConnection.serverVersion !== null && roverConnection.serverVersion !== __APP_VERSION__
+    !versionDismissed &&
+      roverConnection.serverVersion !== null &&
+      roverConnection.serverVersion !== __APP_VERSION__,
   )
 
   const contextManager = getContext("manager") as Manager | (() => Manager)
@@ -37,7 +87,8 @@
 
   function onNavMouseDown(e: MouseEvent) {
     const target = e.target as HTMLElement
-    if (target.closest("button, a, input, select, textarea, .right-section")) return
+    if (target.closest("button, a, input, select, textarea, .right-section"))
+      return
     if (e.buttons !== 1) return
     if (e.detail === 2) {
       getCurrentWindow().toggleMaximize()
@@ -53,16 +104,31 @@
       <Panels />
     </a>
 
-    <p>PULSAR</p>
-
     <Navlets bind:manager />
   </div>
 
   <div class="right-section">
     <div class="right-actions">
       {#if showVersionWarning}
-        <button class="version-warning" onclick={() => versionDismissed = true}>
+        <button
+          class="version-warning"
+          onclick={() => (versionDismissed = true)}
+        >
           ⚠ v{__APP_VERSION__} - v{roverConnection.serverVersion}
+        </button>
+      {/if}
+
+      {#if downloading}
+        <button class="update-btn downloading" disabled>
+          {Math.round(downloadProgress * 100)}%
+        </button>
+      {:else if updateAvailable}
+        <button class="update-btn available" onclick={downloadAndInstall}>
+          Update available
+        </button>
+      {:else if updateError}
+        <button class="update-btn error" onclick={downloadAndInstall}>
+          Update failed - Retry
         </button>
       {/if}
 
@@ -70,7 +136,10 @@
         triggerStyle="display: flex;justify-content: center;align-items: center;"
       >
         {#snippet trigger()}
-          <span class="rover-trigger" class:online={roverConnection.state === "online"}>
+          <span
+            class="rover-trigger"
+            class:online={roverConnection.state === "online"}
+          >
             Rover
           </span>
         {/snippet}
@@ -97,128 +166,131 @@
         {/snippet}
       </Overlay>
 
-    <Overlay
-      triggerStyle="display: flex;justify-content: center;align-items: center;"
-    >
-      {#snippet trigger()}
-        <Presets />
-      {/snippet}
-      {#snippet overlay({ close }: { close: () => void })}
-        <div class="presets-overlay">
-          <h1>Presets</h1>
-          {#each manager.presets.data as preset, index}
-            <div class="preset">
-              <Button
-                selected={manager.presets.selected === index}
-                onclick={() => {
-                  manager.change(index)
+      <Overlay
+        triggerStyle="display: flex;justify-content: center;align-items: center;"
+      >
+        {#snippet trigger()}
+          <Presets />
+        {/snippet}
+        {#snippet overlay({ close }: { close: () => void })}
+          <div class="presets-overlay">
+            <h1>Presets</h1>
+            {#each manager.presets.data as preset, index}
+              <div class="preset">
+                <Button
+                  selected={manager.presets.selected === index}
+                  onclick={() => {
+                    manager.change(index)
+                  }}
+                >
+                  {preset.name}
+                </Button>
+                <Overlay>
+                  {#snippet trigger()}
+                    <Options />
+                  {/snippet}
+                  {#snippet overlay({ close }: { close: () => void })}
+                    <div class="menu">
+                      <TextInput
+                        bind:value={manager.presets.data[index].name}
+                        oninput={() => {
+                          manager.save()
+                        }}
+                      />
+                      <Button
+                        transparent={true}
+                        disabled={manager.presets.data.length === 1}
+                        onclick={() => {
+                          manager.deletePreset(index)
+                          close()
+                        }}
+                      >
+                        <Delete />
+                      </Button>
+                      <Button
+                        transparent={true}
+                        onclick={() => {
+                          manager.save()
+                          const temp = manager.unprocessTemplate(
+                            manager.presets.data[index],
+                          )
+                          close()
+                          global.notificationsManager.addAction(
+                            JSON.stringify(temp),
+                            [
+                              {
+                                text: "Copy",
+                                task: () => {
+                                  navigator.clipboard
+                                    .writeText(JSON.stringify(temp))
+                                    .then(() => {
+                                      global.notificationsManager.add(
+                                        "Text copied to clipboard",
+                                      )
+                                    })
+                                },
+                              },
+                              { text: "Close", task: () => {} },
+                            ],
+                          )
+                        }}
+                      >
+                        <Copy />
+                      </Button>
+                    </div>
+                  {/snippet}
+                </Overlay>
+              </div>
+            {/each}
+            <TemplatesChoose
+              set={(t) => {
+                manager.addTemplate(t)
+                close()
+              }}
+            />
+            <div class="preset-actions">
+              <Overlay
+                triggerStyle="width: 100%;min-width: 0;"
+                onStateChange={(isOpen) => {
+                  if (isOpen) jsonPreset = ""
                 }}
               >
-                {preset.name}
-              </Button>
-              <Overlay>
                 {#snippet trigger()}
-                  <Options />
+                  <Button style="width: 100%;box-sizing: border-box;">
+                    Import
+                  </Button>
                 {/snippet}
                 {#snippet overlay({ close }: { close: () => void })}
-                  <div class="menu">
+                  <div class="new-menu">
                     <TextInput
-                      bind:value={manager.presets.data[index].name}
-                      oninput={() => {
-                        manager.save()
-                      }}
+                      bind:value={jsonPreset}
+                      placeholder="JSON Preset"
                     />
                     <Button
-                      transparent={true}
-                      disabled={manager.presets.data.length === 1}
+                      style="width: 100%;box-sizing: border-box;"
                       onclick={() => {
-                        manager.deletePreset(index)
+                        manager.addTemplate(JSON.parse(jsonPreset))
                         close()
                       }}
                     >
-                      <Delete />
-                    </Button>
-                    <Button
-                      transparent={true}
-                      onclick={() => {
-                        manager.save()
-                        const temp = manager.unprocessTemplate(
-                          manager.presets.data[index],
-                        )
-                        close()
-                        global.notificationsManager.addAction(
-                          JSON.stringify(temp),
-                          [
-                            {
-                              text: "Copy",
-                              task: () => {
-                                navigator.clipboard
-                                  .writeText(JSON.stringify(temp))
-                                  .then(() => {
-                                    global.notificationsManager.add(
-                                      "Text copied to clipboard",
-                                    )
-                                  })
-                              },
-                            },
-                            { text: "Close", task: () => {} },
-                          ],
-                        )
-                      }}
-                    >
-                      <Copy />
+                      Create
                     </Button>
                   </div>
                 {/snippet}
               </Overlay>
+              <Button
+                style="width: 42px;align-self: stretch;padding: 0;display: grid;place-items: center;"
+                onclick={() => {
+                  manager.newPreset()
+                  close()
+                }}
+              >
+                <Add />
+              </Button>
             </div>
-          {/each}
-          <TemplatesChoose
-            set={(t) => {
-              manager.addTemplate(t)
-              close()
-            }}
-          />
-          <div class="preset-actions">
-            <Overlay
-              triggerStyle="width: 100%;min-width: 0;"
-              onStateChange={(isOpen) => {
-                if (isOpen) jsonPreset = ""
-              }}
-            >
-              {#snippet trigger()}
-                <Button style="width: 100%;box-sizing: border-box;">
-                  Import
-                </Button>
-              {/snippet}
-              {#snippet overlay({ close }: { close: () => void })}
-                <div class="new-menu">
-                  <TextInput bind:value={jsonPreset} placeholder="JSON Preset" />
-                  <Button
-                    style="width: 100%;box-sizing: border-box;"
-                    onclick={() => {
-                      manager.addTemplate(JSON.parse(jsonPreset))
-                      close()
-                    }}
-                  >
-                    Create
-                  </Button>
-                </div>
-              {/snippet}
-            </Overlay>
-            <Button
-              style="width: 42px;align-self: stretch;padding: 0;display: grid;place-items: center;"
-              onclick={() => {
-                manager.newPreset()
-                close()
-              }}
-            >
-              <Add />
-            </Button>
           </div>
-        </div>
-      {/snippet}
-    </Overlay>
+        {/snippet}
+      </Overlay>
     </div>
 
     <WindowControls />
@@ -308,6 +380,32 @@
   }
   .version-warning:hover {
     background: rgba(185, 28, 28, 0.25);
+  }
+  .update-btn {
+    border-radius: 999px;
+    padding: 0.38rem 0.75rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+    border: 1px solid rgba(34, 197, 94, 0.5);
+    background: rgba(34, 197, 94, 0.12);
+    color: #86efac;
+  }
+  .update-btn:hover:not(:disabled) {
+    background: rgba(34, 197, 94, 0.25);
+  }
+  .update-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+  }
+  .update-btn.error {
+    border-color: rgba(239, 68, 68, 0.5);
+    background: rgba(239, 68, 68, 0.12);
+    color: #fca5a5;
+  }
+  .update-btn.error:hover {
+    background: rgba(239, 68, 68, 0.25);
   }
   .rover-trigger {
     border: 1px solid rgba(249, 115, 22, 0.45);
