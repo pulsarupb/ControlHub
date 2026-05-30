@@ -163,8 +163,12 @@ jobs:
           if [[ -n "$APPIMAGE" ]]; then
             ARCHIVE="${APPIMAGE}.tar.gz"
             tar czf "$ARCHIVE" -C "$(dirname "$APPIMAGE")" "$(basename "$APPIMAGE")"
-            SIG_RAW=$(bun run tauri signer sign "$ARCHIVE" 2>/dev/null)
-            echo "$SIG_RAW" | python3 -c "import sys;r=sys.stdin.read();m='Public signature:';i=r.find(m);s=(r[i+len(m):].strip() if i>=0 else '');e=s.find('Make sure');sys.stdout.write(s[:e].strip() if e>=0 else s)" > "${ARCHIVE}.sig"
+            SIG_RAW=$(bun run tauri signer sign "$ARCHIVE" 2>&1)
+            echo "$SIG_RAW" | python3 -c "import re,sys;r=sys.stdin.read();m=re.search(r'Public signature:\s*([A-Za-z0-9+/=]+)', r);sys.stdout.write(m.group(1) if m else '')" > "${ARCHIVE}.sig"
+            test -s "${ARCHIVE}.sig"
+          else
+            echo "ERROR: No AppImage bundle found for Linux updater archive."
+            exit 1
           fi
 
       - run: |
@@ -229,13 +233,15 @@ jobs:
           if ($msi) {
             $archive = "$($msi.FullName).zip"
             Compress-Archive -Path $msi.FullName -DestinationPath $archive -Force
-            $sig_raw = bun run tauri signer sign $archive 2>$null
-            if ($sig_raw -match '(?s)Public signature:(.+?)Make sure') {
-              $cleaned = $matches[1].Trim()
+            $sig_raw = (bun run tauri signer sign $archive 2>&1) | Out-String
+            if ($sig_raw -match 'Public signature:\s*([A-Za-z0-9+/=]+)') {
+              $cleaned = $matches[1]
             } else {
-              $cleaned = $sig_raw
+              throw "Could not extract Tauri updater signature from signer output: $sig_raw"
             }
             Set-Content -Path "$archive.sig" -Value $cleaned -NoNewline -Encoding ascii
+          } else {
+            throw "No MSI bundle found for Windows updater archive."
           }
 
       - name: Stage installer files (Windows)
@@ -287,31 +293,35 @@ jobs:
 
       - name: Build updater manifest
         run: |
-          extract_sig() {
-            python3 -c "import sys;r=sys.stdin.read();m='Public signature:';i=r.find(m);s=(r[i+len(m):].strip() if i>=0 else '');e=s.find('Make sure');sys.stdout.write(s[:e].strip() if e>=0 else s)"
-          }
-
           TAG="${{ needs.resolve_tag.outputs.release_tag }}"
           VERSION="${TAG#v}"
           PUB_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           REPO="${{ github.repository }}"
           NOTES="https://github.com/${REPO}/releases/tag/${TAG}"
 
-          LINUX_ARCHIVE=$(ls dist/*.AppImage.tar.gz 2>/dev/null | head -1)
-          LINUX_SIG=""
-          LINUX_URL=""
-          if [[ -n "$LINUX_ARCHIVE" ]]; then
-            LINUX_SIG=$(cat "${LINUX_ARCHIVE}.sig" 2>/dev/null || echo "")
-            LINUX_URL="https://github.com/${REPO}/releases/download/${TAG}/$(basename "$LINUX_ARCHIVE" | sed 's/ /./g')"
+          LINUX_ARCHIVE=$(find dist -maxdepth 1 -type f -name '*.AppImage.tar.gz' -print -quit)
+          if [[ -z "$LINUX_ARCHIVE" ]]; then
+            echo "ERROR: Missing Linux updater archive (*.AppImage.tar.gz)."
+            exit 1
           fi
+          if [[ ! -s "${LINUX_ARCHIVE}.sig" ]]; then
+            echo "ERROR: Missing Linux updater signature (${LINUX_ARCHIVE}.sig)."
+            exit 1
+          fi
+          LINUX_SIG=$(cat "${LINUX_ARCHIVE}.sig")
+          LINUX_URL="https://github.com/${REPO}/releases/download/${TAG}/$(basename "$LINUX_ARCHIVE" | sed 's/ /./g')"
 
-          WINDOWS_ARCHIVE=$(ls dist/*.msi.zip 2>/dev/null | head -1)
-          WINDOWS_SIG=""
-          WINDOWS_URL=""
-          if [[ -n "$WINDOWS_ARCHIVE" ]]; then
-            WINDOWS_SIG=$(cat "${WINDOWS_ARCHIVE}.sig" 2>/dev/null || echo "")
-            WINDOWS_URL="https://github.com/${REPO}/releases/download/${TAG}/$(basename "$WINDOWS_ARCHIVE" | sed 's/ /./g')"
+          WINDOWS_ARCHIVE=$(find dist -maxdepth 1 -type f -name '*.msi.zip' -print -quit)
+          if [[ -z "$WINDOWS_ARCHIVE" ]]; then
+            echo "ERROR: Missing Windows updater archive (*.msi.zip)."
+            exit 1
           fi
+          if [[ ! -s "${WINDOWS_ARCHIVE}.sig" ]]; then
+            echo "ERROR: Missing Windows updater signature (${WINDOWS_ARCHIVE}.sig)."
+            exit 1
+          fi
+          WINDOWS_SIG=$(cat "${WINDOWS_ARCHIVE}.sig")
+          WINDOWS_URL="https://github.com/${REPO}/releases/download/${TAG}/$(basename "$WINDOWS_ARCHIVE" | sed 's/ /./g')"
 
           jq -n \
             --arg v "$VERSION" \
@@ -325,10 +335,10 @@ jobs:
               version: $v,
               notes: $n,
               pub_date: $d,
-              platforms: (
-                (if $lss != "" then { "linux-x86_64": { signature: $lss, url: $lsu } } else {} end) +
-                (if $wss != "" then { "windows-x86_64": { signature: $wss, url: $wsu } } else {} end)
-              )
+              platforms: {
+                "linux-x86_64": { signature: $lss, url: $lsu },
+                "windows-x86_64": { signature: $wss, url: $wsu }
+              }
             }' > dist/updates.json
 
           cat dist/updates.json
