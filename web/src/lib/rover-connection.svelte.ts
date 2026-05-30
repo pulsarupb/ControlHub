@@ -44,7 +44,14 @@ function normalizeUrl(value: string): string {
 
 class RoverConnection {
   baseUrl = $state(storedUrl())
-  draftUrl = $state(storedUrl())
+  #draftUrl = $state(storedUrl())
+  get draftUrl() { return this.#draftUrl }
+  set draftUrl(value: string) {
+    this.#draftUrl = value
+    if (typeof localStorage !== "undefined" && this.connectionMode === "remote") {
+      localStorage.setItem(STORAGE_KEY, value)
+    }
+  }
   connectionMode = $state<"local" | "remote">(storedMode())
   state = $state<ConnectionState>("connecting")
   message = $state("Choose a rover and run healthcheck")
@@ -66,7 +73,7 @@ class RoverConnection {
 
   useLocal() {
     this.connectionMode = "local"
-    this.draftUrl = ROVER_LOCAL_URL
+    this.#draftUrl = ROVER_LOCAL_URL
     if (typeof localStorage !== "undefined") {
       localStorage.setItem(MODE_KEY, "local")
     }
@@ -76,6 +83,7 @@ class RoverConnection {
     this.connectionMode = "remote"
     if (typeof localStorage !== "undefined") {
       localStorage.setItem(MODE_KEY, "remote")
+      this.#draftUrl = localStorage.getItem(STORAGE_KEY) || DEFAULT_REMOTE_URL
     }
   }
 

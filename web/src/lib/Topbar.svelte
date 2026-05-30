@@ -22,6 +22,13 @@
 
   import { getCurrentWindow } from "@tauri-apps/api/window"
 
+  declare const __APP_VERSION__: string
+
+  let versionDismissed = $state(false)
+  let showVersionWarning = $derived(
+    !versionDismissed && roverConnection.serverVersion !== null && roverConnection.serverVersion !== __APP_VERSION__
+  )
+
   const contextManager = getContext("manager") as Manager | (() => Manager)
   let manager = $state(
     typeof contextManager === "function" ? contextManager() : contextManager,
@@ -53,6 +60,12 @@
 
   <div class="right-section">
     <div class="right-actions">
+      {#if showVersionWarning}
+        <button class="version-warning" onclick={() => versionDismissed = true}>
+          ⚠ v{__APP_VERSION__} - v{roverConnection.serverVersion}
+        </button>
+      {/if}
+
       <Overlay
         triggerStyle="display: flex;justify-content: center;align-items: center;"
       >
@@ -281,6 +294,20 @@
   .bell-menu {
     min-width: 300px;
     max-width: 420px;
+  }
+  .version-warning {
+    border: 1px solid rgba(185, 28, 28, 0.5);
+    border-radius: 999px;
+    padding: 0.38rem 0.75rem;
+    background: rgba(185, 28, 28, 0.15);
+    color: #fca5a5;
+    font-size: 0.8rem;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .version-warning:hover {
+    background: rgba(185, 28, 28, 0.25);
   }
   .rover-trigger {
     border: 1px solid rgba(249, 115, 22, 0.45);
