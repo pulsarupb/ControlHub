@@ -164,18 +164,7 @@ jobs:
             ARCHIVE="${APPIMAGE}.tar.gz"
             tar czf "$ARCHIVE" -C "$(dirname "$APPIMAGE")" "$(basename "$APPIMAGE")"
             SIG_RAW=$(bun run tauri signer sign "$ARCHIVE" 2>/dev/null)
-            echo "$SIG_RAW" | python3 -c "
-import sys
-raw = sys.stdin.read()
-marker = 'Public signature:'
-idx = raw.find(marker)
-if idx >= 0:
-    sig = raw[idx + len(marker):].strip()
-    end = sig.find('Make sure')
-    if end >= 0:
-        sig = sig[:end].strip()
-    sys.stdout.write(sig)
-" > "${ARCHIVE}.sig"
+            echo "$SIG_RAW" | python3 -c "import sys;r=sys.stdin.read();m='Public signature:';i=r.find(m);s=(r[i+len(m):].strip() if i>=0 else '');e=s.find('Make sure');sys.stdout.write(s[:e].strip() if e>=0 else s)" > "${ARCHIVE}.sig"
           fi
 
       - run: |
@@ -299,18 +288,7 @@ if idx >= 0:
       - name: Build updater manifest
         run: |
           extract_sig() {
-            python3 -c "
-import sys
-raw = sys.stdin.read()
-marker = 'Public signature:'
-idx = raw.find(marker)
-if idx >= 0:
-    sig = raw[idx + len(marker):].strip()
-    end = sig.find('Make sure')
-    if end >= 0:
-        sig = sig[:end].strip()
-    sys.stdout.write(sig)
-"
+            python3 -c "import sys;r=sys.stdin.read();m='Public signature:';i=r.find(m);s=(r[i+len(m):].strip() if i>=0 else '');e=s.find('Make sure');sys.stdout.write(s[:e].strip() if e>=0 else s)"
           }
 
           TAG="${{ needs.resolve_tag.outputs.release_tag }}"
