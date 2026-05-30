@@ -149,9 +149,9 @@ jobs:
         working-directory: web
         run: |
           echo "=== appimage dir ==="
-          ls -la target/release/bundle/appimage/ 2>/dev/null || echo "(no appimage dir)"
+          ls -la ../target/release/bundle/appimage/ 2>/dev/null || echo "(no appimage dir)"
           echo "=== all bundles ==="
-          find target/release/bundle -type f 2>/dev/null || true
+          find ../target/release/bundle -type f 2>/dev/null || true
 
       - name: Create updater archive and sign (Linux)
         env:
@@ -159,7 +159,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_KEY_PASSWORD }}
         working-directory: web
         run: |
-          APPIMAGE=$(ls target/release/bundle/appimage/*.AppImage 2>/dev/null | head -1)
+          APPIMAGE=$(ls ../target/release/bundle/appimage/*.AppImage 2>/dev/null | head -1)
           if [[ -n "$APPIMAGE" ]]; then
             ARCHIVE="${APPIMAGE}.tar.gz"
             tar czf "$ARCHIVE" -C "$(dirname "$APPIMAGE")" "$(basename "$APPIMAGE")"
@@ -178,6 +178,7 @@ jobs:
           cp target/release/bundle/appimage/*.sig staging/ 2>/dev/null || true
           cp target/release/bundle/deb/*.deb staging/ 2>/dev/null || true
           cp target/release/bundle/rpm/*.rpm staging/ 2>/dev/null || true
+          test -n "$(find staging -maxdepth 1 -type f -name '*.AppImage.tar.gz' -print -quit)"
 
       - uses: actions/upload-artifact@v7
         with:
