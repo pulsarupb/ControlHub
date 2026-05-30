@@ -1,6 +1,11 @@
 {
-  "version": "0.1.8",
-  "notes": "https://github.com/pulsarupb/ControlHub/releases/tag/v0.1.8",
-  "pub_date": "2026-05-30T19:00:42Z",
-  "platforms": {}
+  "version": "0.1.9",
+  "notes": "https://github.com/pulsarupb/ControlHub/releases/tag/v0.1.9",
+  "pub_date": "2026-05-30T19:11:19Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "\r\nYour file was signed successfully, You can find the signature here:\r\nD:\\a\\ControlHub\\ControlHub\\target\\release\\bundle\\msi\\Panels ERC Edition_0.1.4_x64_en-US.msi.zip.sig\r\n\r\nPublic signature:\r\ndW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNjdub0NpanhvWEgvcFpiTWxZTnk5dUZKcjgyYm0vem51OXJPUXdHUi9WMVlEa3FqUGMwdVdoRjJBckRHaU1LRlZqU2V6R1Y2UE93dVY3c0M5M3BGQzQ0bTFVNXpWL1FrPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwMTY4MjYyCWZpbGU6UGFuZWxzIEVSQyBFZGl0aW9uXzAuMS40X3g2NF9lbi1VUy5tc2kuemlwCnNxWmRUZnpQc1VmU0VneEFwWTV5TTc5RDNqei9zbWc5Z3RZR3kzZGR1amx3YXFlYXdxNHFMcnBuSkwzWFpwbk9Lam5Oc0FIaDRTcTNBZXljK2xITUR3PT0K\r\n\r\nMake sure to include this into the signature field of your update server.\r",
+      "url": "https://github.com/pulsarupb/ControlHub/releases/download/v0.1.9/Panels ERC Edition_0.1.4_x64_en-US.msi.zip"
+    }
+  }
 }
