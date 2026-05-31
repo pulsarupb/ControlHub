@@ -129,7 +129,7 @@ jobs:
 
       - run: cargo build -p driver --release --target aarch64-unknown-linux-gnu
         env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER: ""
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER: "true"
 
       - run: |
           mkdir -p staging
