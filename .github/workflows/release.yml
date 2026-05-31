@@ -115,21 +115,26 @@ jobs:
           ref: ${{ needs.resolve_tag.outputs.source_ref }}
 
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-linux-gnu
 
       - name: Install system deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y libudev-dev
+          sudo apt-get install -y libudev-dev python3-pip
+
+      - name: Install cargo-zigbuild
+        run: pip3 install cargo-zigbuild
 
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: linux-server-arm64
 
-      - run: cargo build -p driver --release
+      - run: cargo zigbuild -p driver --release --target aarch64-unknown-linux-gnu.2.31
 
       - run: |
           mkdir -p staging
-          cp target/release/driver staging/driver-linux-aarch64
+          cp target/aarch64-unknown-linux-gnu/release/driver staging/driver-linux-aarch64
 
       - uses: actions/upload-artifact@v7
         with:
