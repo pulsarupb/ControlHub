@@ -18,9 +18,7 @@
   import AllNotifications from "./AllNotifications.svelte"
   import RoverConnectionOverlay from "$lib/moteus/RoverConnectionOverlay.svelte"
   import { roverConnection } from "$lib/rover-connection.svelte"
-  import WindowControls from "./WindowControls.svelte"
 
-  import { getCurrentWindow } from "@tauri-apps/api/window"
   import { check } from "@tauri-apps/plugin-updater"
   import { relaunch } from "@tauri-apps/plugin-process"
   import { onMount, onDestroy } from "svelte"
@@ -98,20 +96,9 @@
   )
   let jsonPreset = $state("")
 
-  function onNavMouseDown(e: MouseEvent) {
-    const target = e.target as HTMLElement
-    if (target.closest("button, a, input, select, textarea, .right-section"))
-      return
-    if (e.buttons !== 1) return
-    if (e.detail === 2) {
-      getCurrentWindow().toggleMaximize()
-    } else {
-      getCurrentWindow().startDragging()
-    }
-  }
 </script>
 
-<nav onmousedown={onNavMouseDown}>
+<nav>
   <div class="drag-area">
     <a href="/" aria-label="Dashboard home">
       <Panels />
@@ -306,7 +293,6 @@
       </Overlay>
     </div>
 
-    <WindowControls />
   </div>
 </nav>
 
