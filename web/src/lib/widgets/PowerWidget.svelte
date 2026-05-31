@@ -26,7 +26,7 @@
     align-items: baseline;
   }
   span {
-    opacity: 0.75;
+    color: var(--textMuted);
   }
   strong {
     font-size: clamp(2.4rem, 8vw, 5rem);
@@ -35,17 +35,18 @@
   .bar {
     height: 1rem;
     overflow: hidden;
-    border-radius: 99rem;
+    border-radius: 0.35rem;
     background: var(--bgDark);
+    border: 1px solid var(--border);
   }
   .bar span {
     display: block;
     height: 100%;
     border-radius: inherit;
-    background: linear-gradient(90deg, #2dd4bf, #facc15);
+    background: var(--success);
   }
   p {
     margin: 0;
-    opacity: 0.7;
+    color: var(--textMuted);
   }
 </style>

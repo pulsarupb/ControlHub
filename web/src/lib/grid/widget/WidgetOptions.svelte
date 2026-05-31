@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Options from "$lib/icons/Options.svelte"
+  import IconDotsThreeVerticalRegular from "phosphor-icons-svelte/IconDotsThreeVerticalRegular.svelte"
   import Button from "$lib/ui/Button.svelte"
   import Overlay from "$lib/ui/Overlay.svelte"
   import { type ExtendedWidgetGroup } from "../widgets.svelte"
@@ -12,7 +12,7 @@
 
 <Overlay>
   {#snippet trigger()}
-    <button class="icon"><Options /></button>
+    <button class="icon"><IconDotsThreeVerticalRegular /></button>
   {/snippet}
   {#snippet overlay({ close }: { close: () => void })}
     <div

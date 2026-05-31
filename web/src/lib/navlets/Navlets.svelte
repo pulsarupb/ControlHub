@@ -1,13 +1,13 @@
 <script lang="ts">
-  import Options from "$lib/icons/Options.svelte"
+  import IconDotsThreeVerticalRegular from "phosphor-icons-svelte/IconDotsThreeVerticalRegular.svelte"
+  import IconPlusRegular from "phosphor-icons-svelte/IconPlusRegular.svelte"
+  import IconTrashRegular from "phosphor-icons-svelte/IconTrashRegular.svelte"
   import Button from "$lib/ui/Button.svelte"
   import Overlay from "$lib/ui/Overlay.svelte"
   import NavletContent from "$lib/navlets/NavletContent.svelte"
   import NavletsChoose from "./NavletsChoose.svelte"
   import { setContext } from "svelte"
   import type { Manager } from "$lib/grid/widgets.svelte"
-  import Add from "$lib/icons/Add.svelte"
-  import Delete from "$lib/icons/Delete.svelte"
 
   let {
     manager = $bindable(),
@@ -30,7 +30,7 @@
   <Overlay triggerStyle={"margin-top: 6px;"}>
     {#snippet trigger()}
       <div class="options">
-        <Options />
+        <IconDotsThreeVerticalRegular />
       </div>
     {/snippet}
     {#snippet overlay({ close }: { close: () => void })}
@@ -44,7 +44,7 @@
               style="width: 36px;height: 36px;padding: 0;display: grid;place-items: center;"
               onclick={() => manager.removeNavlet(index)}
             >
-              <span class="delete-icon"><Delete /></span>
+              <span class="delete-icon"><IconTrashRegular /></span>
             </Button>
           {:else}
             <NavletsChoose
@@ -61,7 +61,7 @@
             manager.addNavlet()
           }}
         >
-          <Add />
+          <IconPlusRegular />
         </Button>
       </div>
     {/snippet}

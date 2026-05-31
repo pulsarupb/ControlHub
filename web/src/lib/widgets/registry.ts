@@ -1,5 +1,4 @@
 import type { DashboardComponent, Template } from "$lib/types"
-import ControlsNavlet from "$lib/moteus/ControlsNavlet.svelte"
 import EmergencyWidget from "$lib/moteus/EmergencyWidget.svelte"
 import GamepadWidget from "./GamepadWidget.svelte"
 import JoystickWidget from "$lib/moteus/JoystickWidget.svelte"
@@ -14,15 +13,14 @@ export const components: DashboardComponent[] = [
   { id: "target-follower", name: "Target Follower", type: "widget", component: TargetFollowerWidget, minW: 4, minH: 4 },
   { id: "minimap", name: "Minimap", type: "widget", component: MinimapWidget, minW: 5, minH: 4 },
   { id: "motors", name: "Motor Telemetry", type: "widget", component: MotorTelemetryWidget, minW: 4, minH: 3 },
-  { id: "gamepad", name: "Gamepad", type: "widget", component: GamepadWidget, minW: 5, minH: 4 },
+  { id: "gamepad", name: "Xbox Controller", type: "widget", component: GamepadWidget, minW: 5, minH: 4 },
   { id: "status", name: "Status", type: "navlet", component: StatusNavlet },
-  { id: "controls", name: "Controls", type: "navlet", component: ControlsNavlet },
 ]
 
 export const templates: Template[] = [
   {
     name: "Moteus Overview",
-    navlets: [{ navletID: "status" }, { navletID: "controls" }],
+    navlets: [{ navletID: "status" }],
     widgets: [
       { x: 0, y: 0, w: 4, h: 6, widgets: [{ widgetID: "emergency" }] },
       { x: 4, y: 0, w: 5, h: 6, widgets: [{ widgetID: "joystick" }] },
@@ -34,7 +32,7 @@ export const templates: Template[] = [
   },
   {
     name: "Driving Focus",
-    navlets: [{ navletID: "status" }, { navletID: "controls" }],
+    navlets: [{ navletID: "status" }],
     widgets: [
       { x: 0, y: 0, w: 5, h: 7, widgets: [{ widgetID: "joystick" }] },
       { x: 5, y: 0, w: 8, h: 7, widgets: [{ widgetID: "minimap" }] },

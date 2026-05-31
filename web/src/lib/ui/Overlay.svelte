@@ -114,9 +114,9 @@
     top: var(--top);
     z-index: 1001;
     background: var(--bgMedium);
-    border: 1px solid var(--bgLight);
-    border-radius: 1rem;
-    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border);
+    border-radius: 0.6rem;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.32);
     max-width: calc(100vw - 16px);
     max-height: calc(100vh - 16px);
     overflow: auto;

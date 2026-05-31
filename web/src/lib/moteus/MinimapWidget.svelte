@@ -32,10 +32,7 @@
 </script>
 
 <div class="map-widget" bind:this={mapEl}>
-  <header>
-    <span>Minimap</span>
-    <strong>{poseDetail}</strong>
-  </header>
+  <strong class="pose">{poseDetail}</strong>
 
   <svg viewBox={`0 0 ${mapSize.width} ${mapSize.height}`} preserveAspectRatio="none">
     <defs>
@@ -67,49 +64,41 @@
     gap: 0.6rem;
     overflow: hidden;
   }
-  header {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    font-family: "JetBrains Mono", "SFMono-Regular", monospace;
-    text-transform: uppercase;
-  }
-  header strong {
+  .pose {
     color: var(--accent);
     font-size: 0.75rem;
     text-align: right;
+    text-transform: uppercase;
   }
   svg {
     display: block;
     width: 100%;
     height: 100%;
     min-height: 0;
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: 0.9rem;
-    background: radial-gradient(circle, rgba(28, 66, 74, 0.92), rgba(7, 17, 22, 0.94));
-    box-shadow: inset 0 0 42px rgba(0, 0, 0, 0.74), 0 0 0 5px rgba(0, 0, 0, 0.18);
+    border: 1px solid var(--border);
+    border-radius: 0.55rem;
+    background: var(--bgDark);
   }
   .origin {
-    stroke: rgba(56, 189, 248, 0.22);
+    stroke: color-mix(in srgb, var(--accent) 35%, transparent);
     stroke-dasharray: 7 9;
   }
   .trail {
     fill: none;
-    stroke: #facc15;
+    stroke: var(--warning);
     stroke-linecap: round;
     stroke-linejoin: round;
     stroke-width: 5;
   }
   .robot path {
-    fill: #fff7ed;
-    filter: drop-shadow(0 0 8px rgba(249, 115, 22, 0.85));
+    fill: var(--text);
   }
   .robot rect {
-    fill: #08121c;
+    fill: var(--bgDark);
     stroke: var(--accent);
     stroke-width: 1.5;
   }
   .robot circle {
-    fill: #2dd4bf;
+    fill: var(--success);
   }
 </style>

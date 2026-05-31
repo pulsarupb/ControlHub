@@ -23,10 +23,7 @@
 </script>
 
 <div class="joystick-widget">
-  <header>
-    <span>Joystick</span>
-    <strong>T {rover.throttle.toFixed(2)} / S {rover.steering.toFixed(2)}</strong>
-  </header>
+  <strong class="readout">T {rover.throttle.toFixed(2)} / S {rover.steering.toFixed(2)}</strong>
 
   <div
     class="joystick"
@@ -44,7 +41,6 @@
     <div class="axis vertical"></div>
     <div class="stick" style={`transform: translate(${rover.joystick.x * 78}px, ${rover.joystick.y * 78}px)`}></div>
   </div>
-  <p>Release, tab away, or lose signal and the backend cuts throttle.</p>
 </div>
 
 <style>
@@ -55,17 +51,11 @@
     align-content: start;
     overflow: hidden;
   }
-  header {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    font-family: "JetBrains Mono", "SFMono-Regular", monospace;
-    text-transform: uppercase;
-  }
-  header strong {
+  .readout {
     color: var(--accent);
     font-size: 0.82rem;
     text-align: right;
+    text-transform: uppercase;
   }
   .joystick {
     position: relative;
@@ -74,15 +64,15 @@
     width: min(54vw, 240px);
     aspect-ratio: 1;
     margin: 0 auto;
-    border: 1px solid rgba(255, 255, 255, 0.14);
+    border: 1px solid var(--borderStrong);
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(249, 115, 22, 0.2) 0 18%, rgba(30, 54, 78, 0.92) 19% 42%, rgba(4, 12, 20, 0.82) 43% 100%), conic-gradient(from 45deg, rgba(249, 115, 22, 0.22), rgba(56, 189, 248, 0.18), rgba(249, 115, 22, 0.22));
-    box-shadow: inset 0 0 34px rgba(0, 0, 0, 0.68), 0 0 0 3px rgba(255, 255, 255, 0.08);
+    background: var(--bgDark);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
     touch-action: none;
   }
   .axis {
     position: absolute;
-    background: rgba(56, 189, 248, 0.34);
+    background: var(--borderStrong);
   }
   .axis.horizontal {
     width: 76%;
@@ -96,18 +86,12 @@
     width: 4.7rem;
     aspect-ratio: 1;
     border-radius: 50%;
-    background: linear-gradient(145deg, #facc15, #f97316);
-    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.44), inset 0 6px 12px rgba(255, 255, 255, 0.34), 0 0 26px rgba(249, 115, 22, 0.26);
+    background: var(--surfaceRaised);
+    border: 1px solid var(--borderStrong);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.32);
     transition: transform 80ms ease-out;
   }
   .joystick.active .stick {
     transition: none;
-  }
-  p {
-    margin: 0;
-    color: rgba(255, 255, 255, 0.72);
-    font-family: "JetBrains Mono", "SFMono-Regular", monospace;
-    font-size: 0.9rem;
-    line-height: 1.45;
   }
 </style>

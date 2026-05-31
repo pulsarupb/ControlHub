@@ -6,7 +6,7 @@
 
 <style>
   span {
-    color: #38bdf8;
+    color: var(--accent);
     font-weight: 600;
   }
 </style>

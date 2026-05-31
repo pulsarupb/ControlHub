@@ -3,10 +3,9 @@
 </script>
 
 <div class="telemetry-card">
-  <header>
-    <span>Motor Telemetry</span>
-    <strong>{rover.status?.last_error ?? "nominal"}</strong>
-  </header>
+  {#if rover.status?.last_error}
+    <strong class="status">{rover.status.last_error}</strong>
+  {/if}
   <div class="motor-grid">
     {#each rover.status?.motors ?? [] as motor}
       <div class="motor">
@@ -29,17 +28,11 @@
     gap: 0.7rem;
     overflow: auto;
   }
-  header {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    font-family: "JetBrains Mono", "SFMono-Regular", monospace;
-    text-transform: uppercase;
-  }
-  header strong {
+  .status {
     color: var(--accent);
     font-size: 0.82rem;
     text-align: right;
+    text-transform: uppercase;
   }
   .motor-grid {
     display: grid;
@@ -50,15 +43,15 @@
   .motor {
     display: grid;
     gap: 0.35rem;
-    border: 1px solid rgba(56, 189, 248, 0.24);
-    border-radius: 0.75rem;
-    background: rgba(4, 12, 20, 0.48);
+    border: 1px solid var(--border);
+    border-radius: 0.45rem;
+    background: var(--bgDark);
     font-family: "JetBrains Mono", "SFMono-Regular", monospace;
     padding: 0.65rem;
   }
   .motor span,
   p {
-    color: rgba(255, 255, 255, 0.72);
+    color: var(--textMuted);
     font-size: 0.88rem;
   }
   p {

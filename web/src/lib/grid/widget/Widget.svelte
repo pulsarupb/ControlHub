@@ -90,15 +90,17 @@
     position: relative;
     flex-grow: 1;
     background-color: var(--bgMedium);
+    border: 1px solid var(--border);
     overflow: hidden;
 
     display: flex;
     flex-direction: column;
 
-    border-radius: 1rem;
+    border-radius: 0.55rem;
   }
   .content.invalid {
-    background-color: red;
+    background-color: rgba(199, 93, 85, 0.2);
+    border-color: var(--danger);
   }
   .transparent {
     opacity: 0.5;

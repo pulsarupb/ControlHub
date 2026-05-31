@@ -6,15 +6,16 @@
   import { global } from "$lib"
   import Navlets from "./navlets/Navlets.svelte"
 
-  import Options from "./icons/Options.svelte"
+  import IconBellRegular from "phosphor-icons-svelte/IconBellRegular.svelte"
+  import IconCopyRegular from "phosphor-icons-svelte/IconCopyRegular.svelte"
+  import IconPlusRegular from "phosphor-icons-svelte/IconPlusRegular.svelte"
+  import IconRobotRegular from "phosphor-icons-svelte/IconRobotRegular.svelte"
+  import IconSlidersHorizontalRegular from "phosphor-icons-svelte/IconSlidersHorizontalRegular.svelte"
+  import IconTrashRegular from "phosphor-icons-svelte/IconTrashRegular.svelte"
+  import IconDotsThreeVerticalRegular from "phosphor-icons-svelte/IconDotsThreeVerticalRegular.svelte"
   import { getContext } from "svelte"
   import type { Manager } from "./grid/widgets.svelte"
   import TemplatesChoose from "./grid/TemplatesChoose.svelte"
-  import Delete from "./icons/Delete.svelte"
-  import Add from "./icons/Add.svelte"
-  import Copy from "./icons/Copy.svelte"
-  import Presets from "./icons/Presets.svelte"
-  import Bell from "./icons/Bell.svelte"
   import AllNotifications from "./AllNotifications.svelte"
   import RoverConnectionOverlay from "$lib/moteus/RoverConnectionOverlay.svelte"
   import { roverConnection } from "$lib/rover-connection.svelte"
@@ -137,10 +138,11 @@
       >
         {#snippet trigger()}
           <span
-            class="rover-trigger"
+            class="topbar-icon"
             class:online={roverConnection.state === "online"}
+            aria-label="Rover connection"
           >
-            Rover
+            <IconRobotRegular />
           </span>
         {/snippet}
         {#snippet overlay()}
@@ -152,7 +154,7 @@
         triggerStyle="display: flex;justify-content: center;align-items: center;"
       >
         {#snippet trigger()}
-          <Bell />
+          <span class="topbar-icon" aria-label="Notifications"><IconBellRegular /></span>
         {/snippet}
         {#snippet overlay()}
           <div class="bell-menu">
@@ -170,7 +172,7 @@
         triggerStyle="display: flex;justify-content: center;align-items: center;"
       >
         {#snippet trigger()}
-          <Presets />
+          <span class="topbar-icon" aria-label="Presets"><IconSlidersHorizontalRegular /></span>
         {/snippet}
         {#snippet overlay({ close }: { close: () => void })}
           <div class="presets-overlay">
@@ -187,7 +189,7 @@
                 </Button>
                 <Overlay>
                   {#snippet trigger()}
-                    <Options />
+                    <IconDotsThreeVerticalRegular />
                   {/snippet}
                   {#snippet overlay({ close }: { close: () => void })}
                     <div class="menu">
@@ -205,7 +207,7 @@
                           close()
                         }}
                       >
-                        <Delete />
+                        <IconTrashRegular />
                       </Button>
                       <Button
                         transparent={true}
@@ -235,7 +237,7 @@
                           )
                         }}
                       >
-                        <Copy />
+                        <IconCopyRegular />
                       </Button>
                     </div>
                   {/snippet}
@@ -285,7 +287,7 @@
                   close()
                 }}
               >
-                <Add />
+                <IconPlusRegular />
               </Button>
             </div>
           </div>
@@ -367,63 +369,65 @@
     max-width: 420px;
   }
   .version-warning {
-    border: 1px solid rgba(185, 28, 28, 0.5);
-    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--danger) 65%, transparent);
+    border-radius: 0.4rem;
     padding: 0.38rem 0.75rem;
-    background: rgba(185, 28, 28, 0.15);
-    color: #fca5a5;
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
+    color: #e7b3ae;
     font-size: 0.8rem;
     cursor: pointer;
     font-family: inherit;
     white-space: nowrap;
   }
   .version-warning:hover {
-    background: rgba(185, 28, 28, 0.25);
+    background: color-mix(in srgb, var(--danger) 18%, transparent);
   }
   .update-btn {
-    border-radius: 999px;
+    border-radius: 0.4rem;
     padding: 0.38rem 0.75rem;
     font-size: 0.8rem;
     cursor: pointer;
     font-family: inherit;
     white-space: nowrap;
-    border: 1px solid rgba(34, 197, 94, 0.5);
-    background: rgba(34, 197, 94, 0.12);
-    color: #86efac;
+    border: 1px solid color-mix(in srgb, var(--success) 60%, transparent);
+    background: color-mix(in srgb, var(--success) 12%, transparent);
+    color: #bfd7b7;
   }
   .update-btn:hover:not(:disabled) {
-    background: rgba(34, 197, 94, 0.25);
+    background: color-mix(in srgb, var(--success) 18%, transparent);
   }
   .update-btn:disabled {
     cursor: not-allowed;
     opacity: 0.65;
   }
   .update-btn.error {
-    border-color: rgba(239, 68, 68, 0.5);
-    background: rgba(239, 68, 68, 0.12);
-    color: #fca5a5;
+    border-color: color-mix(in srgb, var(--danger) 60%, transparent);
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
+    color: #e7b3ae;
   }
   .update-btn.error:hover {
-    background: rgba(239, 68, 68, 0.25);
+    background: color-mix(in srgb, var(--danger) 18%, transparent);
   }
-  .rover-trigger {
-    border: 1px solid rgba(249, 115, 22, 0.45);
-    border-radius: 999px;
-    padding: 0.38rem 0.75rem;
-    background: rgba(249, 115, 22, 0.12);
-    color: #fed7aa;
-    font-size: 0.9rem;
+  .topbar-icon {
+    width: 28px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    color: var(--textMuted);
+    font-size: 1.3rem;
   }
-  .rover-trigger.online {
-    border-color: rgba(45, 212, 191, 0.45);
-    background: rgba(45, 212, 191, 0.12);
-    color: #ccfbf1;
+  .topbar-icon:hover {
+    color: var(--text);
+  }
+  .topbar-icon.online {
+    color: #cfe0c8;
   }
   nav {
     background-color: var(--bgMedium);
     display: flex;
     align-items: stretch;
-    border-radius: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.55rem;
     margin: 0.5rem;
     margin-bottom: 0;
     gap: var(--padding);

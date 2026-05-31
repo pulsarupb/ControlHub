@@ -9,18 +9,20 @@
     min-height: 160px;
     position: relative;
     overflow: hidden;
-    border-radius: 0.75rem;
-    background: linear-gradient(135deg, #111827, #292524);
+    border: 1px solid var(--border);
+    border-radius: 0.55rem;
+    background: var(--bgDark);
   }
   .noise {
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at 20% 30%, rgba(255,255,255,.16), transparent 12%), radial-gradient(circle at 70% 55%, rgba(249,115,22,.18), transparent 16%);
+    background-image: linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.06) 1px, transparent 1px);
+    background-size: 28px 28px;
   }
   p {
     position: absolute;
     inset: auto 1rem 1rem;
     margin: 0;
-    opacity: 0.8;
+    color: var(--textMuted);
   }
 </style>

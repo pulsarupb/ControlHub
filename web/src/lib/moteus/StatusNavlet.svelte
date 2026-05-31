@@ -8,17 +8,17 @@
 
 <style>
   .pill {
-    border: 1px solid rgba(45, 212, 191, 0.4);
-    border-radius: 99rem;
+    border: 1px solid color-mix(in srgb, var(--success) 55%, transparent);
+    border-radius: 0.4rem;
     padding: 0.35rem 0.75rem;
-    background: rgba(45, 212, 191, 0.12);
-    color: #ccfbf1;
+    background: color-mix(in srgb, var(--success) 10%, transparent);
+    color: #cfe0c8;
     white-space: nowrap;
   }
   .pill.offline,
   .pill.stopped {
-    border-color: rgba(249, 115, 22, 0.5);
-    background: rgba(249, 115, 22, 0.14);
-    color: #fed7aa;
+    border-color: color-mix(in srgb, var(--warning) 60%, transparent);
+    background: color-mix(in srgb, var(--warning) 12%, transparent);
+    color: #e5cf9e;
   }
 </style>

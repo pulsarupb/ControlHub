@@ -13,7 +13,6 @@
 <div class="rover-connect">
   <div class="heading">
     <div>
-      <p class="eyebrow">Rover Link</p>
       <h1>Connect to rover</h1>
     </div>
     <span class="status" class:online={roverConnection.state === "online"}>
@@ -103,44 +102,44 @@
     display: flex;
     flex-direction: column;
     gap: 0.45rem;
-    color: rgba(255, 255, 255, 0.78);
+    color: var(--textMuted);
   }
   label :global(input) {
     width: 100%;
   }
   .status {
-    border: 1px solid rgba(249, 115, 22, 0.45);
-    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--warning) 60%, transparent);
+    border-radius: 0.4rem;
     padding: 0.35rem 0.7rem;
-    background: rgba(249, 115, 22, 0.12);
-    color: #fed7aa;
+    background: color-mix(in srgb, var(--warning) 10%, transparent);
+    color: #e5cf9e;
     white-space: nowrap;
   }
   .status.online {
-    border-color: rgba(45, 212, 191, 0.45);
-    background: rgba(45, 212, 191, 0.12);
-    color: #ccfbf1;
+    border-color: color-mix(in srgb, var(--success) 55%, transparent);
+    background: color-mix(in srgb, var(--success) 10%, transparent);
+    color: #cfe0c8;
   }
   .tabs {
     display: flex;
     gap: 0;
-    border-radius: 0.5rem;
+    border-radius: 0.4rem;
     overflow: hidden;
-    border: 1px solid var(--bgLight);
+    border: 1px solid var(--border);
   }
   .tab {
     flex: 1;
     padding: 0.5rem 1rem;
     background: transparent;
-    color: rgba(255, 255, 255, 0.55);
+    color: var(--textSubtle);
     border: none;
     cursor: pointer;
     font-size: 0.9rem;
     transition: background 0.15s, color 0.15s;
   }
   .tab:hover {
-    background: rgba(255, 255, 255, 0.05);
-    color: rgba(255, 255, 255, 0.85);
+    background: var(--surfaceRaised);
+    color: var(--text);
   }
   .tab.active {
     background: var(--bgLight);
@@ -148,43 +147,41 @@
     font-weight: 600;
   }
   .local-info {
-    border: 1px solid var(--bgLight);
-    border-radius: 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
     padding: 0.85rem;
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
-    background: linear-gradient(135deg, rgba(251, 191, 36, 0.08), transparent 42%), var(--bgDark);
+    background: var(--bgDark);
   }
   .local-info p {
     margin: 0;
-    color: rgba(255, 255, 255, 0.78);
+    color: var(--textMuted);
     font-size: 0.9rem;
   }
   .local-info strong {
     color: var(--text);
   }
   .rover-ip code {
-    background: rgba(0, 0, 0, 0.3);
+    background: var(--surfaceRaised);
     padding: 0.15rem 0.5rem;
     border-radius: 0.35rem;
     color: var(--accent);
     font-size: 0.95rem;
   }
   .health-card {
-    border: 1px solid var(--bgLight);
-    border-radius: 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
     padding: 0.85rem;
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
-    background:
-      linear-gradient(135deg, rgba(56, 189, 248, 0.08), transparent 42%),
-      var(--bgDark);
+    background: var(--bgDark);
   }
   .health-card span,
   .health-card small {
-    color: rgba(255, 255, 255, 0.62);
+    color: var(--textSubtle);
   }
   .health-card strong {
     color: var(--text);

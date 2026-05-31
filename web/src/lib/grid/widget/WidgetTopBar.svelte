@@ -3,6 +3,7 @@
   import Portal from "svelte-portal"
   import WidgetDrag from "./WidgetDrag.svelte"
   import WidgetOptions from "./WidgetOptions.svelte"
+  import { getComponent } from "$lib/widgets/registry"
   import { getContext } from "svelte"
   import type { Manager } from "../widgets.svelte"
   const manager = getContext("manager") as Manager
@@ -26,7 +27,7 @@
     if (isPossible) return
     console.log("Started move of", movingIndex)
 
-    manager.tabName = widget.widgets[movingIndex].widgetID || "Empty"
+    manager.tabName = getWidgetName(widget.widgets[movingIndex].widgetID)
 
     window.addEventListener("mousemove", onMove)
     document.body.classList.add("no-select")
@@ -48,6 +49,10 @@
     tabX = e.clientX
     tabY = e.clientY
     window.addEventListener("mouseup", stopMove)
+  }
+
+  function getWidgetName(widgetID: string) {
+    return getComponent(widgetID, "widget")?.name ?? "Empty"
   }
 
   function onMove(e: MouseEvent) {
@@ -198,7 +203,7 @@
             block: "nearest",
             inline: "center",
           })
-        }}>{w.widgetID || "Empty"}</button
+        }}>{getWidgetName(w.widgetID)}</button
       >
       {#if manager.tabWidgetID === widget.id && manager.tabIndex === index}
         <button class="tab moving">{manager.tabName}</button>
@@ -241,16 +246,18 @@
     all: unset;
     cursor: pointer;
     padding: 0.25em 0.5em;
-    border: 1px solid currentColor;
-    border-radius: 0.25rem;
+    border: 1px solid var(--border);
+    border-radius: 0.35rem;
     text-wrap: nowrap;
-    opacity: 0.5;
+    color: var(--textMuted);
     user-select: none;
     -webkit-user-select: none;
     touch-action: none;
   }
   .tab.selected {
-    opacity: 1;
+    color: var(--text);
+    border-color: var(--borderStrong);
+    background: var(--surfaceRaised);
   }
   .emptyMoving{
     opacity: 0.25;

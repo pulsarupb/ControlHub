@@ -65,7 +65,7 @@ function poll() {
         controlRover.startJoystick()
         wasInDeadZone = false
       }
-      controlRover.setJoystick(x, -y)
+      controlRover.setJoystick(x, y)
     }
 
     const curr = gamepad.buttons

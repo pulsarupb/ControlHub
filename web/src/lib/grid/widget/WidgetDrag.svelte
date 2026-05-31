@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Move from "$lib/icons/Move.svelte"
+  import IconArrowsOutCardinalRegular from "phosphor-icons-svelte/IconArrowsOutCardinalRegular.svelte"
   import { getContext } from "svelte"
   import { type ExtendedWidgetGroup } from "../widgets.svelte"
   import type { Manager } from "../widgets.svelte"
@@ -54,7 +54,7 @@
   }
 </script>
 
-<button class="icon" onmousedown={startDrag}><Move /></button>
+<button class="icon" onmousedown={startDrag}><IconArrowsOutCardinalRegular /></button>
 
 <style>
   .icon {

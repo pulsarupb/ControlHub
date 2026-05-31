@@ -6,7 +6,7 @@
 
 <style>
   span {
-    color: #facc15;
+    color: var(--warning);
     font-weight: 600;
   }
 </style>

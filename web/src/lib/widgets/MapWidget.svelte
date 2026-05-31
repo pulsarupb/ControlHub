@@ -13,13 +13,14 @@
     position: relative;
     min-height: 100%;
     overflow: hidden;
-    border-radius: 0.75rem;
-    background: radial-gradient(circle at 35% 40%, rgba(250, 204, 21, 0.18), transparent 28%), #151717;
+    border: 1px solid var(--border);
+    border-radius: 0.55rem;
+    background: var(--bgDark);
   }
   .grid {
     position: absolute;
     inset: 0;
-    background-image: linear-gradient(rgba(255,255,255,.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.08) 1px, transparent 1px);
+    background-image: linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.07) 1px, transparent 1px);
     background-size: 32px 32px;
   }
   .rover {
@@ -27,7 +28,7 @@
     left: 50%;
     top: 50%;
     translate: -50% -50%;
-    color: #f97316;
+    color: var(--warning);
     font-size: 2rem;
   }
   p {

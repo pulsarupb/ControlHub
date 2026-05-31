@@ -26,16 +26,18 @@
   button {
     all: unset;
     cursor: pointer;
-    border-radius: 0.6rem;
-    padding: 0.45em 0.85em;
-    background: var(--bgLight);
+    border-radius: 0.4rem;
+    padding: 0.5em 0.85em;
+    background: var(--surfaceRaised);
     color: var(--text);
-    border: 1px solid transparent;
+    border: 1px solid var(--border);
     text-align: center;
+    font-weight: 500;
   }
   button.selected,
   button:hover:not(:disabled) {
-    border-color: var(--primary);
+    border-color: var(--borderStrong);
+    background: var(--bgLight);
   }
   button.transparent {
     background: transparent;

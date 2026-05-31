@@ -39,10 +39,9 @@
 </script>
 
 <div class="target-follower-widget">
-  <header>
-    <span>Target follower</span>
-    <strong>{rover.followerActive ? "FOLLOWING" : "READY"}</strong>
-  </header>
+  {#if rover.followerActive}
+    <strong class="state">FOLLOWING</strong>
+  {/if}
 
   <div
     class="target-pad"
@@ -72,8 +71,6 @@
     <p class="status">Follower active: {rover.follower.distance_m.toFixed(2)}m remaining.</p>
   {:else if activeTarget && rover.follower.arrived}
     <p class="status">Target reached. Manual joystick is available.</p>
-  {:else}
-    <p class="status">Pick a point inside the 1m circle. Joystick input is rejected while following.</p>
   {/if}
 
   <div class="actions">
@@ -91,31 +88,27 @@
     overflow: hidden;
     user-select: none;
   }
-  header,
+  .state,
   .readout,
   .status,
   button {
-    font-family: "JetBrains Mono", "SFMono-Regular", monospace;
+    font-variant-numeric: tabular-nums;
   }
-  header {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    text-transform: uppercase;
-  }
-  header strong {
+  .state {
     color: var(--accent);
     font-size: 0.82rem;
+    text-align: right;
+    text-transform: uppercase;
   }
   .target-pad {
     position: relative;
     width: min(54vw, 250px);
     aspect-ratio: 1;
     margin: 0 auto;
-    border: 1px solid rgba(255, 255, 255, 0.16);
+    border: 1px solid var(--borderStrong);
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(45, 212, 191, 0.16) 0 17%, rgba(18, 45, 53, 0.95) 18% 57%, rgba(5, 15, 21, 0.92) 58% 100%), conic-gradient(from 0deg, rgba(45, 212, 191, 0.18), rgba(250, 204, 21, 0.2), rgba(45, 212, 191, 0.18));
-    box-shadow: inset 0 0 38px rgba(0, 0, 0, 0.7), 0 0 0 4px rgba(255, 255, 255, 0.07);
+    background: var(--bgDark);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
@@ -127,7 +120,7 @@
   .ring {
     position: absolute;
     inset: 25%;
-    border: 1px dashed rgba(255, 255, 255, 0.22);
+    border: 1px dashed var(--borderStrong);
     border-radius: 50%;
   }
   .ring.full {
@@ -135,7 +128,7 @@
   }
   .axis {
     position: absolute;
-    color: rgba(255, 255, 255, 0.42);
+    color: var(--textSubtle);
     font-size: 0.7rem;
     letter-spacing: 0.08em;
     pointer-events: none;
@@ -163,14 +156,13 @@
     top: 50%;
     width: 1.25rem;
     aspect-ratio: 1;
-    background: #fff7ed;
-    box-shadow: 0 0 16px rgba(255, 247, 237, 0.72);
+    background: var(--text);
   }
   .target-marker {
     width: 1.05rem;
     aspect-ratio: 1;
-    background: #facc15;
-    box-shadow: 0 0 18px rgba(250, 204, 21, 0.86);
+    background: var(--warning);
+    border: 1px solid rgba(0, 0, 0, 0.32);
   }
   .target-line {
     position: absolute;
@@ -178,19 +170,19 @@
     top: 50%;
     height: 2px;
     transform-origin: left center;
-    background: linear-gradient(90deg, rgba(250, 204, 21, 0.9), rgba(250, 204, 21, 0));
+    background: var(--warning);
   }
   .readout {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
     gap: 0.45rem;
-    color: var(--accent);
+    color: var(--textMuted);
     font-size: 0.84rem;
   }
   .status {
     margin: 0;
-    color: rgba(255, 255, 255, 0.72);
+    color: var(--textMuted);
     font-size: 0.86rem;
     line-height: 1.4;
     text-align: center;
@@ -201,18 +193,18 @@
     gap: 0.6rem;
   }
   button {
-    border: 1px solid rgba(250, 204, 21, 0.55);
-    border-radius: 999rem;
+    border: 1px solid var(--borderStrong);
+    border-radius: 0.4rem;
     padding: 0.45rem 0.9rem;
-    background: linear-gradient(135deg, #facc15, #f97316);
-    color: #071117;
-    font-weight: 800;
+    background: var(--surfaceRaised);
+    color: var(--text);
+    font-weight: 700;
     cursor: pointer;
   }
   button.secondary {
-    border-color: rgba(255, 255, 255, 0.22);
-    background: rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.86);
+    border-color: var(--border);
+    background: transparent;
+    color: var(--textMuted);
   }
   button:disabled {
     cursor: not-allowed;

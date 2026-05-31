@@ -1,5 +1,5 @@
 <script lang="ts">
-  let { title, detail }: { title: string; detail?: string } = $props();
+  let { title, detail }: { title: string; detail?: string } = $props()
 </script>
 
 <div class="card-title">
@@ -15,18 +15,17 @@
     justify-content: space-between;
     gap: 1rem;
     margin-bottom: 0.6rem;
-    font-family: "Courier New", monospace;
     text-transform: uppercase;
   }
 
   h2 {
     margin: 0;
-    font-size: 1.15rem;
-    letter-spacing: -0.04em;
+    font-size: 1rem;
+    letter-spacing: 0.04em;
   }
 
   span {
-    color: #8fe8ff;
+    color: var(--textMuted);
     font-size: 0.82rem;
     text-align: right;
   }
