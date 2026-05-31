@@ -4,7 +4,7 @@ use crate::state::{AppState, MotorTelemetry};
 use moteus::{BlockingController, command::PositionCommand};
 use std::time::{Duration, Instant};
 
-const MAX_MOTOR_VELOCITY: f32 = 0.5;
+const MAX_MOTOR_VELOCITY: f32 = 0.25;
 const UI_WATCHDOG_TIMEOUT: Duration = Duration::from_millis(500);
 const MOTOR_PERIOD: Duration = Duration::from_millis(20);
 const MOTEUS_WATCHDOG_TIMEOUT_S: f32 = 0.25;
@@ -81,10 +81,17 @@ fn run_motor_loop_inner(state: AppState) -> Result<(), moteus::Error> {
             let mut left = throttle;
             let mut right = throttle;
 
-            if steering > 0.0 {
-                right *= 1.0 - steering;
-            } else if steering < 0.0 {
-                left *= 1.0 + steering;
+            let is_tank_drive = true;
+
+            if is_tank_drive {
+                left = throttle + steering;
+                right = throttle - steering;
+            } else {
+                if steering > 0.0 {
+                    right *= 1.0 - steering;
+                } else if steering < 0.0 {
+                    left *= 1.0 + steering;
+                }
             }
 
             let left = left.clamp(-1.0, 1.0) * MAX_MOTOR_VELOCITY;
