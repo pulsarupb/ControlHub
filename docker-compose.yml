@@ -1,0 +1,18 @@
+services:
+  driver:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: moteus-testing-driver:jetson
+    container_name: moteus-testing-driver
+    platform: linux/arm64
+    restart: unless-stopped
+    network_mode: host
+    privileged: true
+    init: true
+    volumes:
+      - /dev:/dev
+      - /run/dbus/system_bus_socket:/run/dbus/system_bus_socket
+      - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket
+    environment:
+      RUST_BACKTRACE: "1"
