@@ -74,8 +74,22 @@ fn run_motor_loop_inner(state: AppState) -> Result<(), moteus::Error> {
                 rover.follower_status = FollowerStatus::default();
                 (rover.throttle, rover.steering)
             };
-            let left = (throttle + steering).clamp(-1.0, 1.0) * MAX_MOTOR_VELOCITY;
-            let right = (throttle - steering).clamp(-1.0, 1.0) * MAX_MOTOR_VELOCITY;
+
+            let steering = steering.clamp(-1.0, 1.0);
+            let throttle = throttle.clamp(-1.0, 1.0);
+
+            let mut left = throttle;
+            let mut right = throttle;
+
+            if steering > 0.0 {
+                right *= 1.0 - steering;
+            } else if steering < 0.0 {
+                left *= 1.0 + steering;
+            }
+
+            let left = left.clamp(-1.0, 1.0) * MAX_MOTOR_VELOCITY;
+            let right = right.clamp(-1.0, 1.0) * MAX_MOTOR_VELOCITY;
+
             let reset_requested = rover.reset_requested;
             rover.reset_requested = false;
             (left, right, should_stop, reset_requested)
@@ -121,7 +135,12 @@ fn run_motor_loop_inner(state: AppState) -> Result<(), moteus::Error> {
             &left_back_result,
             &right_back_result,
         ) {
-            (Ok(left_front_feedback), Ok(right_front_feedback), Ok(left_back_feedback), Ok(right_back_feedback)) => {
+            (
+                Ok(left_front_feedback),
+                Ok(right_front_feedback),
+                Ok(left_back_feedback),
+                Ok(right_back_feedback),
+            ) => {
                 let pose = chassis.update_from_four_motors(
                     left_front_feedback.position,
                     left_back_feedback.position,
