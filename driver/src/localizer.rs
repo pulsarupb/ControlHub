@@ -12,9 +12,13 @@ pub struct ChassisConfig {
     pub wheel_radius_m: f32,
     pub track_width_m: f32,
     pub motor_rotations_per_wheel_rotation: f32,
+    pub left_front_id: u8,
     pub left_front_direction: f32,
+    pub right_front_id: u8,
     pub right_front_direction: f32,
+    pub left_back_id: u8,
     pub left_back_direction: f32,
+    pub right_back_id: u8,
     pub right_back_direction: f32,
 }
 
@@ -44,10 +48,6 @@ impl Chassis {
             last_right_front_motor_rotations: None,
             last_right_back_motor_rotations: None,
         }
-    }
-
-    pub fn pose(&self) -> Pose2d {
-        self.pose
     }
 
     pub fn reset_pose(&mut self, pose: Pose2d) {
@@ -107,34 +107,6 @@ impl Chassis {
 
         let left_delta_m = (left_front_delta_m + left_back_delta_m) * 0.5;
         let right_delta_m = (right_front_delta_m + right_back_delta_m) * 0.5;
-
-        self.integrate(left_delta_m, right_delta_m)
-    }
-
-    pub fn update_from_sides(
-        &mut self,
-        left_motor_rotations: f32,
-        right_motor_rotations: f32,
-    ) -> Pose2d {
-        let Some(last_left_motor_rotations) = self.last_left_front_motor_rotations else {
-            self.last_left_front_motor_rotations = Some(left_motor_rotations);
-            self.last_right_front_motor_rotations = Some(right_motor_rotations);
-            return self.pose;
-        };
-
-        let last_right_motor_rotations = self
-            .last_right_front_motor_rotations
-            .expect("right encoder should initialize with left encoder");
-
-        let left_delta_m = self
-            .config
-            .motor_rotations_to_meters(left_motor_rotations - last_left_motor_rotations);
-        let right_delta_m = self
-            .config
-            .motor_rotations_to_meters(right_motor_rotations - last_right_motor_rotations);
-
-        self.last_left_front_motor_rotations = Some(left_motor_rotations);
-        self.last_right_front_motor_rotations = Some(right_motor_rotations);
 
         self.integrate(left_delta_m, right_delta_m)
     }

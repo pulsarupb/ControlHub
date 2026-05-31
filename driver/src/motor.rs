@@ -13,9 +13,13 @@ const CHASSIS_CONFIG: ChassisConfig = ChassisConfig {
     wheel_radius_m: 21.59 / 2.0 / 100.0,
     track_width_m: 44.0 / 100.0,
     motor_rotations_per_wheel_rotation: 1.0,
+    left_front_id: 1,
     left_front_direction: 1.0,
+    right_front_id: 3,
     right_front_direction: -1.0,
+    left_back_id: 4,
     left_back_direction: -1.0,
+    right_back_id: 2,
     right_back_direction: 1.0,
 };
 
@@ -29,10 +33,10 @@ pub(crate) fn run_motor_loop(state: AppState) {
 }
 
 fn run_motor_loop_inner(state: AppState) -> Result<(), moteus::Error> {
-    let mut ctrl1 = create_stopped_controller(1)?;
-    let mut ctrl2 = create_stopped_controller(2)?;
-    let mut ctrl3 = create_stopped_controller(3)?;
-    let mut ctrl4 = create_stopped_controller(4)?;
+    let mut left_front = create_stopped_controller(CHASSIS_CONFIG.left_front_id)?;
+    let mut right_front = create_stopped_controller(CHASSIS_CONFIG.right_front_id)?;
+    let mut left_back = create_stopped_controller(CHASSIS_CONFIG.left_back_id)?;
+    let mut right_back = create_stopped_controller(CHASSIS_CONFIG.right_back_id)?;
 
     let mut chassis = Chassis::new(CHASSIS_CONFIG);
     let mut next_tick = Instant::now();
@@ -81,43 +85,48 @@ fn run_motor_loop_inner(state: AppState) -> Result<(), moteus::Error> {
             chassis.reset_pose(Pose2d::default());
         }
 
-        let result1;
-        let result2;
-        let result3;
-        let result4;
+        let left_front_result;
+        let right_front_result;
+        let left_back_result;
+        let right_back_result;
 
         if should_stop {
-            ctrl1.set_stop()?;
-            ctrl2.set_stop()?;
-            ctrl3.set_stop()?;
-            ctrl4.set_stop()?;
-            result1 = ctrl1.query();
-            result2 = ctrl2.query();
-            result3 = ctrl3.query();
-            result4 = ctrl4.query();
+            left_front.set_stop()?;
+            right_front.set_stop()?;
+            left_back.set_stop()?;
+            right_back.set_stop()?;
+            left_front_result = left_front.query();
+            right_front_result = right_front.query();
+            left_back_result = left_back.query();
+            right_back_result = right_back.query();
         } else {
-            result1 = ctrl1.set_position(velocity_command(
+            left_front_result = left_front.set_position(velocity_command(
                 left_velocity * CHASSIS_CONFIG.left_front_direction,
             ));
-            result2 = ctrl2.set_position(velocity_command(
-                right_velocity * CHASSIS_CONFIG.right_back_direction,
-            ));
-            result3 = ctrl3.set_position(velocity_command(
+            right_front_result = right_front.set_position(velocity_command(
                 right_velocity * CHASSIS_CONFIG.right_front_direction,
             ));
-            result4 = ctrl4.set_position(velocity_command(
+            left_back_result = left_back.set_position(velocity_command(
                 left_velocity * CHASSIS_CONFIG.left_back_direction,
+            ));
+            right_back_result = right_back.set_position(velocity_command(
+                right_velocity * CHASSIS_CONFIG.right_back_direction,
             ));
         }
 
         let mut rover = state.rover.lock().expect("rover state poisoned");
-        match (&result1, &result2, &result3, &result4) {
-            (Ok(feedback1), Ok(feedback2), Ok(feedback3), Ok(feedback4)) => {
+        match (
+            &left_front_result,
+            &right_front_result,
+            &left_back_result,
+            &right_back_result,
+        ) {
+            (Ok(left_front_feedback), Ok(right_front_feedback), Ok(left_back_feedback), Ok(right_back_feedback)) => {
                 let pose = chassis.update_from_four_motors(
-                    feedback1.position,
-                    feedback4.position,
-                    feedback3.position,
-                    feedback2.position,
+                    left_front_feedback.position,
+                    left_back_feedback.position,
+                    right_front_feedback.position,
+                    right_back_feedback.position,
                 );
                 rover.pose = pose;
 
@@ -138,28 +147,28 @@ fn run_motor_loop_inner(state: AppState) -> Result<(), moteus::Error> {
 
                 rover.motors = [
                     MotorTelemetry {
-                        id: 1,
-                        position: feedback1.position,
-                        velocity: feedback1.velocity,
-                        fault: feedback1.fault,
+                        id: CHASSIS_CONFIG.left_front_id,
+                        position: left_front_feedback.position,
+                        velocity: left_front_feedback.velocity,
+                        fault: left_front_feedback.fault,
                     },
                     MotorTelemetry {
-                        id: 2,
-                        position: feedback2.position,
-                        velocity: feedback2.velocity,
-                        fault: feedback2.fault,
+                        id: CHASSIS_CONFIG.right_front_id,
+                        position: right_front_feedback.position,
+                        velocity: right_front_feedback.velocity,
+                        fault: right_front_feedback.fault,
                     },
                     MotorTelemetry {
-                        id: 3,
-                        position: feedback3.position,
-                        velocity: feedback3.velocity,
-                        fault: feedback3.fault,
+                        id: CHASSIS_CONFIG.left_back_id,
+                        position: left_back_feedback.position,
+                        velocity: left_back_feedback.velocity,
+                        fault: left_back_feedback.fault,
                     },
                     MotorTelemetry {
-                        id: 4,
-                        position: feedback4.position,
-                        velocity: feedback4.velocity,
-                        fault: feedback4.fault,
+                        id: CHASSIS_CONFIG.right_back_id,
+                        position: right_back_feedback.position,
+                        velocity: right_back_feedback.velocity,
+                        fault: right_back_feedback.fault,
                     },
                 ];
                 rover.last_error = None;
