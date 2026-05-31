@@ -73,7 +73,13 @@ function poll() {
     if (curr[Button.CIRCLE]?.pressed && !prevButtons[Button.CIRCLE]) {
       controlRover.stopRover()
     }
+    if (curr[Button.R2]?.pressed && !prevButtons[Button.R2]) {
+      controlRover.stopRover()
+    }
     if (curr[Button.TRIANGLE]?.pressed && !prevButtons[Button.TRIANGLE]) {
+      controlRover.resetRover()
+    }
+    if (curr[Button.R1]?.pressed && !prevButtons[Button.R1]) {
       controlRover.resetRover()
     }
     if (curr[Button.SHARE]?.pressed && !prevButtons[Button.SHARE]) {
