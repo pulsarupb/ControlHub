@@ -130,7 +130,10 @@ jobs:
         with:
           shared-key: linux-server-arm64
 
-      - run: cargo --config "target.'cfg(target_os = \"linux\")'.runner = 'sudo -E'" zigbuild -p driver --release --target aarch64-unknown-linux-gnu.2.31
+      - name: Disable local Cargo runner config
+        run: mv .cargo/config.toml .cargo/config.toml.local
+
+      - run: cargo zigbuild -p driver --release --target aarch64-unknown-linux-gnu.2.31
 
       - run: |
           mkdir -p staging
