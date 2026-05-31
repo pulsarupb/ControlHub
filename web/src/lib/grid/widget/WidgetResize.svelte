@@ -1,5 +1,5 @@
 <script lang="ts">
-  import IconCornersOutRegular from "phosphor-icons-svelte/IconCornersOutRegular.svelte"
+  import IconArrowsOutSimpleRegular from "phosphor-icons-svelte/IconArrowsOutSimpleRegular.svelte"
   import { getContext } from "svelte"
   import type { ExtendedWidgetGroup, Manager } from "../widgets.svelte"
   const manager = getContext("manager") as Manager
@@ -51,7 +51,7 @@
 </script>
 
 <button class="icon resize" onmousedown={startResize}>
-  <IconCornersOutRegular />
+  <IconArrowsOutSimpleRegular />
 </button>
 
 <style>
@@ -63,7 +63,8 @@
   }
   .resize {
     position: absolute;
-    right: 0;
-    bottom: 0;
+    right: 0.35rem;
+    bottom: 0.35rem;
+    color: var(--textSubtle);
   }
 </style>
