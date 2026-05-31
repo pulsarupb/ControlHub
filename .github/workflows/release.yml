@@ -130,9 +130,7 @@ jobs:
         with:
           shared-key: linux-server-arm64
 
-      - run: cargo zigbuild -p driver --release --target aarch64-unknown-linux-gnu.2.31
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER: "true"
+      - run: cargo --config "target.'cfg(target_os = \"linux\")'.runner = 'sudo -E'" zigbuild -p driver --release --target aarch64-unknown-linux-gnu.2.31
 
       - run: |
           mkdir -p staging
