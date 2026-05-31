@@ -1,4 +1,5 @@
 import { DEFAULT_POSE, ZERO_JOYSTICK } from "$lib/constants";
+import { apiFetch } from "$lib/api-client";
 import { clamp } from "$lib/math";
 import type { ConnectionState, FollowerStatus, JoystickPosition, PathPoint, Pose, RoverControl, RoverStatus } from "$lib/moteus-types";
 import { roverConnection } from "$lib/rover-connection.svelte";
@@ -39,7 +40,7 @@ function createRoverControl(): RoverControl {
   const followerActive = $derived(Boolean(follower.active));
 
   async function api(path: string, options: RequestInit = {}): Promise<RoverStatus> {
-    const response = await fetch(roverConnection.apiUrl(path), {
+    const response = await apiFetch(roverConnection.apiUrl(path), {
       headers: { "content-type": "application/json" },
       ...options,
     });

@@ -1,4 +1,5 @@
 import type { ConnectionState } from "$lib/moteus-types"
+import { apiFetch } from "$lib/api-client"
 
 const ROVER_LOCAL_URL = "http://10.42.0.1:8080"
 const DEFAULT_REMOTE_URL = "http://127.0.0.1:8080"
@@ -95,7 +96,7 @@ class RoverConnection {
     try {
       const normalizedUrl = normalizeUrl(url)
       const startedAt = performance.now()
-      const response = await fetch(`${normalizedUrl}/api/health`, {
+      const response = await apiFetch(`${normalizedUrl}/api/health`, {
         headers: { accept: "application/json" },
       })
       const latencyMs = Math.round(performance.now() - startedAt)
