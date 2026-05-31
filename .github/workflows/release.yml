@@ -121,16 +121,15 @@ jobs:
       - name: Install system deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y libudev-dev python3-pip
-
-      - name: Install cargo-zigbuild
-        run: pip3 install cargo-zigbuild
+          sudo apt-get install -y libudev-dev
 
       - uses: Swatinem/rust-cache@v2
         with:
           shared-key: linux-server-arm64
 
-      - run: cargo zigbuild -p driver --release --target aarch64-unknown-linux-gnu.2.31
+      - run: cargo build -p driver --release --target aarch64-unknown-linux-gnu
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER: ""
 
       - run: |
           mkdir -p staging
