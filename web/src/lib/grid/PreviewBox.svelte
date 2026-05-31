@@ -1,10 +1,20 @@
 <script lang="ts">
   import type { Snippet } from "svelte"
 
-  let { children, scale = 1 }: { children?: Snippet; scale: number } = $props()
+  let {
+    children,
+    scale = 1,
+    width = "200px",
+    height = "120px",
+  }: {
+    children?: Snippet
+    scale?: number
+    width?: string
+    height?: string
+  } = $props()
 </script>
 
-<div class="preview-box" style="--scale:{scale};">
+<div class="preview-box" style="--scale:{scale}; --preview-width:{width}; --preview-height:{height};">
   <div class="scaled-preview">
     {@render children?.()}
   </div>
@@ -12,8 +22,8 @@
 
 <style>
   .preview-box {
-    width: 200px;
-    height: 120px;
+    width: var(--preview-width);
+    height: var(--preview-height);
     overflow: hidden;
     border: 1px solid #ccc;
     border-radius: 8px;

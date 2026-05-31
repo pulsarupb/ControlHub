@@ -28,9 +28,11 @@
           >
             <p>Local</p>
             <h4>{w.name}</h4>
-            <PreviewBox scale={1.75}>
-              <NavletContent widgetID={w.id} />
-            </PreviewBox>
+            <div class="navlet-preview">
+              <PreviewBox scale={1} height="48px">
+                <NavletContent widgetID={w.id} />
+              </PreviewBox>
+            </div>
           </button>
       {/each}
     </div>
@@ -44,7 +46,7 @@
     text-align: center;
   }
   h4 {
-    margin-bottom: var(--padding);
+    margin-bottom: calc(var(--padding) / 2);
   }
   .possibilities {
     width: 500px;
@@ -59,5 +61,12 @@
     background-color: var(--bgLight);
     padding: 0.5em;
     border-radius: 0.8rem;
+    display: grid;
+    gap: 0.35rem;
+  }
+  .navlet-preview {
+    display: grid;
+    place-items: center;
+    min-height: 56px;
   }
 </style>
