@@ -30,4 +30,4 @@ curl -L -o driver "$URL"
 chmod +x driver
 
 echo "Done. Installed $(pwd)/driver"
-echo "Run ./driver to start the server."
+echo "Run sudo ./driver to start the server."
