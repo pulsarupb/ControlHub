@@ -4,7 +4,7 @@ use crate::state::{AppState, MotorTelemetry};
 use moteus::{BlockingController, command::PositionCommand};
 use std::time::{Duration, Instant};
 
-const MAX_MOTOR_VELOCITY: f32 = 0.25;
+const MAX_MOTOR_VELOCITY: f32 = 0.25 * 4.0;
 const UI_WATCHDOG_TIMEOUT: Duration = Duration::from_millis(500);
 const MOTOR_PERIOD: Duration = Duration::from_millis(20);
 const MOTEUS_WATCHDOG_TIMEOUT_S: f32 = 0.25;
