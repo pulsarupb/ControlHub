@@ -30,6 +30,7 @@
   let container: HTMLDivElement | undefined = $state()
   let statusText = $state("Loading...")
   let loaded = $state(false)
+  let loadFailed = $state(false)
   let mode: "orbit" | "planar" = $state(saved.mode)
   let followRover = $state(saved.followRover)
 
@@ -327,8 +328,16 @@
     } catch (e) {
       statusText = "Failed to load URDF"
       loaded = true
+      loadFailed = true
       console.error(e)
     }
+  }
+
+  function retryLoadModel() {
+    statusText = "Loading..."
+    loaded = false
+    loadFailed = false
+    loadModel()
   }
 
   onMount(() => {
@@ -671,7 +680,16 @@
   </div>
   <div class="viewport" class:loaded>
     {#if !loaded}
-      <div class="loading-overlay">Loading rover model…</div>
+      <div class="loading-overlay">
+        {#if loadFailed}
+          <div class="retry-group">
+            <span>Failed to load URDF</span>
+            <button class="retry-btn" onclick={retryLoadModel}>Retry</button>
+          </div>
+        {:else}
+          Loading rover model…
+        {/if}
+      </div>
     {/if}
     <div bind:this={container} class="three-inner"></div>
   </div>
@@ -745,5 +763,26 @@
     font-size: 0.8rem;
     z-index: 2;
     border-radius: 0.55rem;
+  }
+  .retry-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .retry-btn {
+    padding: 0.35rem 0.9rem;
+    border-radius: 0.3rem;
+    border: 1px solid var(--border, #343a40);
+    background: var(--surfaceRaised, #202428);
+    color: var(--text, #f2f4f6);
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-family: inherit;
+  }
+  .retry-btn:hover {
+    background: var(--accent, #7aa7c7);
+    border-color: var(--accent, #7aa7c7);
+    color: var(--text, #f2f4f6);
   }
 </style>
