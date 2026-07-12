@@ -9,6 +9,7 @@ type RoverState = {
   throttle: number;
   steering: number;
   joystickActive: boolean;
+  mouseJoystickActive: boolean;
   joystick: JoystickPosition;
   pendingRequest: boolean;
   connectionState: ConnectionState;
@@ -20,6 +21,7 @@ function createRoverControl(): RoverControl {
     throttle: 0,
     steering: 0,
     joystickActive: false,
+    mouseJoystickActive: false,
     joystick: { ...ZERO_JOYSTICK },
     pendingRequest: false,
     connectionState: "connecting",
@@ -132,6 +134,12 @@ function createRoverControl(): RoverControl {
     },
     get joystickActive() {
       return state.joystickActive;
+    },
+    get mouseJoystickActive() {
+      return state.mouseJoystickActive;
+    },
+    set mouseJoystickActive(v: boolean) {
+      state.mouseJoystickActive = v;
     },
     get joystick() {
       return state.joystick;

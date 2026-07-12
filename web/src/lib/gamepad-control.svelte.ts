@@ -49,48 +49,32 @@ function poll() {
     displayRover.gamepadAxes = Array.from({ length: NUM_AXES }, (_, i) => gamepad.axes[i] ?? 0)
     displayRover.gamepadButtons = Array.from({ length: NUM_BUTTONS }, (_, i) => gamepad.buttons[i]?.pressed ?? false)
 
-    const rawThrottle = gamepad.axes[1] ?? 0
-    const rawSteering = gamepad.axes[2] ?? 0
-    const throttle = applyDeadZone(rawThrottle)
-    const steering = applyDeadZone(rawSteering)
-    const throttleInDeadZone = Math.abs(throttle) < 0.01
-    const steeringInDeadZone = Math.abs(steering) < 0.01
-    const bothInDeadZone = throttleInDeadZone && steeringInDeadZone
+    if (!controlRover.mouseJoystickActive && !controlRover.stopped) {
+      const rawThrottle = gamepad.axes[1] ?? 0
+      const rawSteering = gamepad.axes[2] ?? 0
+      const throttle = applyDeadZone(rawThrottle)
+      const steering = applyDeadZone(rawSteering)
+      const throttleInDeadZone = Math.abs(throttle) < 0.01
+      const steeringInDeadZone = Math.abs(steering) < 0.01
+      const bothInDeadZone = throttleInDeadZone && steeringInDeadZone
 
-    if (bothInDeadZone) {
-      if (!wasInDeadZone) {
-        controlRover.releaseJoystick()
-        wasInDeadZone = true
+      if (bothInDeadZone) {
+        if (!wasInDeadZone) {
+          controlRover.releaseJoystick()
+          wasInDeadZone = true
+        }
+      } else {
+        if (wasInDeadZone) {
+          controlRover.startJoystick()
+          wasInDeadZone = false
+        }
+        controlRover.setThrottle(-throttle)
+        controlRover.setSteering(steering)
       }
-    } else {
-      if (wasInDeadZone) {
-        controlRover.startJoystick()
-        wasInDeadZone = false
-      }
-      controlRover.setThrottle(-throttle)
-      controlRover.setSteering(steering)
-    }
-
-    const curr = gamepad.buttons
-
-    if (curr[Button.CIRCLE]?.pressed && !prevButtons[Button.CIRCLE]) {
-      controlRover.stopRover()
-    }
-    if (curr[Button.R2]?.pressed && !prevButtons[Button.R2]) {
-      controlRover.stopRover()
-    }
-    if (curr[Button.TRIANGLE]?.pressed && !prevButtons[Button.TRIANGLE]) {
-      controlRover.resetRover()
-    }
-    if (curr[Button.R1]?.pressed && !prevButtons[Button.R1]) {
-      controlRover.resetRover()
-    }
-    if (curr[Button.SHARE]?.pressed && !prevButtons[Button.SHARE]) {
-      controlRover.stopRover()
     }
 
     for (let i = 0; i < NUM_BUTTONS; i++) {
-      prevButtons[i] = curr[i]?.pressed ?? false
+      prevButtons[i] = gamepad.buttons[i]?.pressed ?? false
     }
 
     prevConnected = true

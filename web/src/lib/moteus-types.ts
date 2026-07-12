@@ -39,6 +39,7 @@ export type RoverControl = {
   readonly throttle: number;
   readonly steering: number;
   readonly joystickActive: boolean;
+  mouseJoystickActive: boolean;
   readonly joystick: JoystickPosition;
   readonly connectionState: ConnectionState;
   readonly pose: Pose;
