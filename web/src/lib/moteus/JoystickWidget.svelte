@@ -164,10 +164,14 @@
   }
   .labels {
     display: flex;
-    justify-content: space-around;
+    gap: 0.5rem;
     font-size: 0.7rem;
     color: var(--textDim);
     text-transform: uppercase;
     letter-spacing: 0.04em;
+  }
+  .labels span {
+    flex: 1;
+    text-align: center;
   }
 </style>
