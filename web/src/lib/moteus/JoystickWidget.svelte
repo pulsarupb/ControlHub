@@ -1,54 +1,117 @@
 <script lang="ts">
   import { rover } from "$lib/rover-control.svelte"
 
-  let joystickEl: HTMLDivElement | undefined = $state()
+  let fwdEl: HTMLDivElement | undefined = $state()
+  let spinEl: HTMLDivElement | undefined = $state()
+  let fwdActive = $state(false)
+  let spinActive = $state(false)
 
-  function pointerPosition(event: PointerEvent): void {
-    if (!joystickEl) return
+  const FWD_RANGE = 65
+  const SPIN_RANGE = 40
 
-    const rect = joystickEl.getBoundingClientRect()
-    const radius = Math.min(rect.width, rect.height) * 0.5
-    const centerX = rect.left + rect.width * 0.5
-    const centerY = rect.top + rect.height * 0.5
-
-    rover.setJoystick((event.clientX - centerX) / radius, (event.clientY - centerY) / radius)
+  function fwdPointerPos(event: PointerEvent): void {
+    if (!fwdActive || !fwdEl) return
+    const rect = fwdEl.getBoundingClientRect()
+    const halfHeight = rect.height * 0.5
+    const centerY = rect.top + halfHeight
+    const rawY = (event.clientY - centerY) / halfHeight
+    rover.setThrottle(rawY)
   }
 
-  function handlePointerDown(event: PointerEvent): void {
-    if (!rover.startJoystick()) return
+  function spinPointerPos(event: PointerEvent): void {
+    if (!spinActive || !spinEl) return
+    const rect = spinEl.getBoundingClientRect()
+    const halfWidth = rect.width * 0.5
+    const centerX = rect.left + halfWidth
+    const rawX = (event.clientX - centerX) / halfWidth
+    rover.setSteering(rawX)
+  }
 
-    joystickEl?.setPointerCapture?.(event.pointerId)
-    pointerPosition(event)
+  function handleFwdDown(event: PointerEvent): void {
+    if (!rover.startJoystick()) return
+    fwdEl?.setPointerCapture(event.pointerId)
+    fwdActive = true
+    fwdPointerPos(event)
+  }
+
+  function handleSpinDown(event: PointerEvent): void {
+    if (!rover.startJoystick()) return
+    spinEl?.setPointerCapture(event.pointerId)
+    spinActive = true
+    spinPointerPos(event)
+  }
+
+  function releaseFwd(): void {
+    fwdActive = false
+    rover.setThrottle(0)
+    if (!fwdActive && !spinActive) rover.releaseJoystick()
+  }
+
+  function releaseSpin(): void {
+    spinActive = false
+    rover.setSteering(0)
+    if (!fwdActive && !spinActive) rover.releaseJoystick()
   }
 </script>
 
 <div class="joystick-widget">
   <strong class="readout">T {rover.throttle.toFixed(2)} / S {rover.steering.toFixed(2)}</strong>
 
-  <div
-    class="joystick"
-    class:active={rover.joystickActive}
-    bind:this={joystickEl}
-    role="application"
-    aria-label="Rover joystick controller"
-    onpointerdown={handlePointerDown}
-    onpointermove={pointerPosition}
-    onpointerup={rover.releaseJoystick}
-    onpointercancel={rover.releaseJoystick}
-    onpointerleave={rover.releaseJoystick}
-  >
-    <div class="axis horizontal"></div>
-    <div class="axis vertical"></div>
-    <div class="stick" style={`transform: translate(${rover.joystick.x * 78}px, ${rover.joystick.y * 78}px)`}></div>
+  <div class="sliders">
+    <div
+      class="slider-area vertical"
+      class:active={fwdActive}
+      bind:this={fwdEl}
+      role="slider"
+      tabindex="0"
+      aria-label="Forward and backward"
+      aria-valuemin={-1}
+      aria-valuemax={1}
+      aria-valuenow={rover.throttle}
+      onpointerdown={handleFwdDown}
+      onpointermove={fwdPointerPos}
+      onpointerup={releaseFwd}
+      onpointercancel={releaseFwd}
+      onpointerleave={releaseFwd}
+    >
+      <div class="track"></div>
+      <div class="puck" style={`transform: translateY(${rover.throttle * FWD_RANGE}px)`}></div>
+    </div>
+
+    <div
+      class="slider-area horizontal"
+      class:active={spinActive}
+      bind:this={spinEl}
+      role="slider"
+      tabindex="0"
+      aria-label="Spin left and right"
+      aria-valuemin={-1}
+      aria-valuemax={1}
+      aria-valuenow={rover.steering}
+      onpointerdown={handleSpinDown}
+      onpointermove={spinPointerPos}
+      onpointerup={releaseSpin}
+      onpointercancel={releaseSpin}
+      onpointerleave={releaseSpin}
+    >
+      <div class="track"></div>
+      <div class="puck" style={`transform: translateX(${rover.steering * SPIN_RANGE}px)`}></div>
+    </div>
+  </div>
+
+  <div class="labels">
+    <span>Forward / Back</span>
+    <span>Spin</span>
   </div>
 </div>
 
 <style>
   .joystick-widget {
     min-height: 100%;
+    height: 100%;
     display: grid;
-    gap: 0.7rem;
-    align-content: start;
+    grid-template-rows: auto 1fr auto;
+    gap: 0.5rem;
     overflow: hidden;
   }
   .readout {
@@ -57,41 +120,54 @@
     text-align: right;
     text-transform: uppercase;
   }
-  .joystick {
+  .sliders {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .slider-area {
     position: relative;
+    flex: 1;
     display: grid;
     place-items: center;
-    width: min(54vw, 240px);
-    aspect-ratio: 1;
-    margin: 0 auto;
     border: 1px solid var(--borderStrong);
-    border-radius: 50%;
+    border-radius: 8px;
     background: var(--bgDark);
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
     touch-action: none;
   }
-  .axis {
+  .track {
     position: absolute;
     background: var(--borderStrong);
+    border-radius: 1px;
+    pointer-events: none;
   }
-  .axis.horizontal {
-    width: 76%;
-    height: 2px;
-  }
-  .axis.vertical {
+  .vertical .track {
     width: 2px;
     height: 76%;
   }
-  .stick {
-    width: 4.7rem;
+  .horizontal .track {
+    height: 2px;
+    width: 76%;
+  }
+  .puck {
+    width: 3.5rem;
     aspect-ratio: 1;
     border-radius: 50%;
     background: var(--surfaceRaised);
     border: 1px solid var(--borderStrong);
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.32);
     transition: transform 80ms ease-out;
+    z-index: 1;
   }
-  .joystick.active .stick {
+  .slider-area.active .puck {
     transition: none;
+  }
+  .labels {
+    display: flex;
+    justify-content: space-around;
+    font-size: 0.7rem;
+    color: var(--textDim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
 </style>

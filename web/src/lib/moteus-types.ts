@@ -65,5 +65,7 @@ export type RoverControl = {
   cancelFollowerTarget: () => Promise<void>;
   startJoystick: () => boolean;
   setJoystick: (rawX: number, rawY: number) => void;
+  setThrottle: (value: number) => void;
+  setSteering: (value: number) => void;
   releaseJoystick: () => void;
 };

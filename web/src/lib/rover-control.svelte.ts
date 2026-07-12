@@ -130,6 +130,14 @@ function createRoverControl(): RoverControl {
     state.throttle = clamp(-joystick.y, -1, 1);
   }
 
+  function setThrottle(value: number): void {
+    state.throttle = clamp(value, -1, 1);
+  }
+
+  function setSteering(value: number): void {
+    state.steering = clamp(value, -1, 1);
+  }
+
   function releaseJoystick(): void {
     zeroControls();
   }
@@ -199,6 +207,8 @@ function createRoverControl(): RoverControl {
     cancelFollowerTarget,
     startJoystick,
     setJoystick,
+    setThrottle,
+    setSteering,
     releaseJoystick,
   };
 }
