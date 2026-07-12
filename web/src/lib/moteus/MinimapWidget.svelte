@@ -46,6 +46,21 @@
   let robot!: UrdfRobot
   let animFrameId = 0
 
+  // Trackpad double-tap + drag to pan
+  let tapTimestamps: number[] = []
+  let panModeArmed = false
+  let panModeActive = false
+  let pendingTap = false
+  let pendingTapStart = 0
+  let panModeTimeout: ReturnType<typeof setTimeout> | null = null
+
+  // Touch state (all touch handled ourselves, never reaches OrbitControls)
+  let touchPtrs = new Map<number, { x: number; y: number }>()
+  let touchStart: { x: number; y: number } | null = null
+  let touchMulti: { centroid: { x: number; y: number }; angle: number; distance: number } | null = null
+
+  let cleanupInputHandlers: (() => void) | null = null
+
   const ORBIT_POS = new THREE.Vector3(1.8, 1.2, 2.2)
   const ORTHO_SIZE = 3
 
@@ -107,6 +122,15 @@
     saveState()
     if (!renderer) return
 
+    touchPtrs.clear()
+    touchStart = null
+    touchMulti = null
+
+    if (panModeTimeout) clearTimeout(panModeTimeout)
+    panModeArmed = false
+    panModeActive = false
+    pendingTap = false
+
     activeControls?.dispose()
 
     const rx = roverGroup?.position.x ?? 0
@@ -126,6 +150,16 @@
       const ctrl = new MapControls(orthoCamera, renderer.domElement)
       ctrl.target.set(rx, 0, rz)
       ctrl.enableDamping = true
+      ctrl.enableRotate = false
+      ctrl.mouseButtons = {
+        LEFT: THREE.MOUSE.PAN,
+        MIDDLE: THREE.MOUSE.DOLLY,
+        RIGHT: THREE.MOUSE.DOLLY,
+      }
+      ctrl.touches = {
+        ONE: THREE.TOUCH.PAN,
+        TWO: THREE.TOUCH.DOLLY_PAN,
+      }
       ctrl.update()
       mapControls = ctrl
       activeControls = ctrl
@@ -138,6 +172,11 @@
       ctrl.enableDamping = true
       ctrl.minDistance = 0.3
       ctrl.maxDistance = 15
+      ctrl.mouseButtons = {
+        LEFT: THREE.MOUSE.ROTATE,
+        MIDDLE: THREE.MOUSE.PAN,
+      }
+      ctrl.touches = { ONE: THREE.TOUCH.ROTATE }
       perspCamera.position.set(rx + ORBIT_POS.x, ORBIT_POS.y, rz + ORBIT_POS.z)
       ctrl.update()
       orbitControls = ctrl
@@ -333,6 +372,184 @@
 
     loadModel()
 
+    setupInputHandlers()
+    cleanupInputHandlers = () => teardownInputHandlers()
+
+    function setupInputHandlers() {
+      const DOUBLE_TAP_WINDOW = 500
+      const TAP_MAX_MS = 400
+
+      function onPointerDown(e: PointerEvent) {
+        // --- Double-tap detection (mouse / trackpad) ---
+        if (e.pointerType === 'mouse' && e.button === 0) {
+          if (panModeArmed) {
+            panModeArmed = false
+            panModeActive = true
+            if (mode === "orbit" && orbitControls) {
+              orbitControls.mouseButtons.LEFT = THREE.MOUSE.PAN
+            }
+            return
+          }
+          pendingTap = true
+          pendingTapStart = performance.now()
+        }
+
+        // --- Touch (orbit mode: handle ALL ourselves) ---
+        if (e.pointerType === 'touch') {
+          if (mode !== "orbit" || !orbitControls) return
+          e.stopImmediatePropagation()
+
+          touchPtrs.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+          if (touchPtrs.size === 1) {
+            touchStart = { x: e.clientX, y: e.clientY }
+          } else if (touchPtrs.size === 2) {
+            touchStart = null
+            const pts = Array.from(touchPtrs.values())
+            touchMulti = {
+              centroid: { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 },
+              angle: Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x),
+              distance: Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y),
+            }
+          }
+        }
+      }
+
+      function onPointerMove(e: PointerEvent) {
+        // --- Touch (orbit mode only) ---
+        if (e.pointerType !== 'touch') return
+        if (mode !== "orbit" || !orbitControls) return
+
+        e.stopImmediatePropagation()
+        if (!touchStart && !touchMulti) return
+
+        const ptr = touchPtrs.get(e.pointerId)
+        if (!ptr) return
+        ptr.x = e.clientX
+        ptr.y = e.clientY
+
+        // --- 1-finger orbit ---
+        if (touchPtrs.size === 1 && touchStart) {
+          const dx = e.clientX - touchStart.x
+          const dy = e.clientY - touchStart.y
+          touchStart.x = e.clientX
+          touchStart.y = e.clientY
+
+          if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+            const target = orbitControls.target
+            const offset = new THREE.Vector3().copy(perspCamera.position).sub(target)
+            const spherical = new THREE.Spherical().setFromVector3(offset)
+            spherical.theta -= dx * 0.01
+            spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi - dy * 0.01))
+            perspCamera.position.copy(target).add(new THREE.Vector3().setFromSpherical(spherical))
+            perspCamera.lookAt(target)
+          }
+          return
+        }
+
+        // --- 2-finger pan + rotate + zoom ---
+        if (touchPtrs.size === 2 && touchMulti) {
+          const pts = Array.from(touchPtrs.values())
+          const cx = (pts[0].x + pts[1].x) / 2
+          const cy = (pts[0].y + pts[1].y) / 2
+          const angle = Math.atan2(pts[1].y - pts[0].y, pts[1].x - pts[0].x)
+          const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y)
+
+          const cam = perspCamera
+          const target = orbitControls.target
+          const offset = new THREE.Vector3().copy(cam.position).sub(target)
+          const spherical = new THREE.Spherical().setFromVector3(offset)
+
+          const panX = (cx - touchMulti.centroid.x) * 0.005
+          const panZ = (cy - touchMulti.centroid.y) * 0.005
+          if (Math.abs(panX) > 0.0001 || Math.abs(panZ) > 0.0001) {
+            const right = new THREE.Vector3()
+            const up = new THREE.Vector3(0, 1, 0)
+            right.crossVectors(offset, up).normalize()
+            target.add(right.multiplyScalar(-panX))
+            target.add(up.clone().multiplyScalar(panZ))
+          }
+
+          const dAngle = angle - touchMulti.angle
+          if (Math.abs(dAngle) > 0.002) {
+            spherical.theta += dAngle
+          }
+
+          const dDist = touchMulti.distance - dist
+          if (Math.abs(dDist) > 0.5) {
+            spherical.radius = Math.max(0.3, Math.min(15, spherical.radius * (1 + dDist * 0.003)))
+          }
+
+          cam.position.copy(target).add(new THREE.Vector3().setFromSpherical(spherical))
+          cam.lookAt(target)
+
+          touchMulti.centroid.x = cx
+          touchMulti.centroid.y = cy
+          touchMulti.angle = angle
+          touchMulti.distance = dist
+        }
+      }
+
+      function onPointerUp(e: PointerEvent) {
+        // --- Trackpad ---
+        if (e.pointerType === 'mouse' && e.button === 0) {
+          if (panModeActive) {
+            panModeActive = false
+            if (mode === "orbit" && orbitControls) {
+              orbitControls.mouseButtons.LEFT = THREE.MOUSE.ROTATE
+            }
+            return
+          }
+          if (!pendingTap) return
+          pendingTap = false
+          const duration = performance.now() - pendingTapStart
+          if (duration > TAP_MAX_MS) return
+          const now = performance.now()
+          tapTimestamps = tapTimestamps.filter(t => now - t < DOUBLE_TAP_WINDOW)
+          tapTimestamps.push(now)
+          if (tapTimestamps.length >= 2) {
+            panModeArmed = true
+            if (panModeTimeout) clearTimeout(panModeTimeout)
+            panModeTimeout = setTimeout(() => { panModeArmed = false }, 500)
+          }
+        }
+
+        // --- Touch (orbit mode only) ---
+        if (e.pointerType === 'touch') {
+          if (mode !== "orbit" || !orbitControls) return
+          e.stopImmediatePropagation()
+          touchPtrs.delete(e.pointerId)
+          if (touchPtrs.size === 1) {
+            const remaining = Array.from(touchPtrs.entries())[0]
+            touchStart = { x: remaining[1].x, y: remaining[1].y }
+            touchMulti = null
+          } else if (touchPtrs.size === 0) {
+            touchStart = null
+            touchMulti = null
+          }
+        }
+      }
+
+      function onPointerCancel(e: PointerEvent) {
+        if (e.pointerType === 'touch' && mode === "orbit" && orbitControls) {
+          e.stopImmediatePropagation()
+          touchPtrs.clear()
+          touchStart = null
+          touchMulti = null
+        }
+      }
+
+      container!.addEventListener('pointerdown', onPointerDown, { capture: true })
+      container!.addEventListener('pointerup', onPointerUp, { capture: true })
+      container!.addEventListener('pointermove', onPointerMove, { capture: true })
+      container!.addEventListener('pointercancel', onPointerCancel, { capture: true })
+      container!.addEventListener('pointerleave', onPointerCancel, { capture: true })
+    }
+
+    function teardownInputHandlers() {
+      if (panModeTimeout) clearTimeout(panModeTimeout)
+    }
+
     function animate() {
       animFrameId = requestAnimationFrame(animate)
 
@@ -347,10 +564,19 @@
         gridMat.uniforms.uCenter.value.set(px, pz)
 
         if (followRover) {
-          activeControls?.target.set(px, 0, pz)
           if (mode === "planar" && orthoCamera) {
             orthoCamera.position.set(px, orthoCamera.position.y, pz)
+            activeControls?.target.set(px, 0, pz)
+          } else if (mode === "orbit" && orbitControls) {
+            const offset = new THREE.Vector3().copy(perspCamera.position).sub(orbitControls.target)
+            orbitControls.target.set(px, 0, pz)
+            perspCamera.position.copy(orbitControls.target).add(offset)
+            orbitControls.enablePan = false
+            orbitControls.enableDamping = false
           }
+        } else if (mode === "orbit" && orbitControls) {
+          orbitControls.enablePan = true
+          orbitControls.enableDamping = true
         }
 
         if (rover.path?.length) {
@@ -391,6 +617,8 @@
     return () => {
       cancelAnimationFrame(animFrameId)
       resizeObserver.disconnect()
+      cleanupInputHandlers?.()
+      if (panModeTimeout) clearTimeout(panModeTimeout)
       activeControls?.dispose()
       if (renderer) {
         renderer.dispose()
@@ -424,9 +652,15 @@
           if (followRover && roverGroup) {
             const rx = roverGroup.position.x
             const rz = roverGroup.position.z
-            activeControls?.target.set(rx, 0, rz)
             if (mode === "planar" && orthoCamera) {
               orthoCamera.position.set(rx, orthoCamera.position.y, rz)
+              activeControls?.target.set(rx, 0, rz)
+            } else if (mode === "orbit" && orbitControls) {
+              const offset = new THREE.Vector3().copy(perspCamera.position).sub(orbitControls.target)
+              orbitControls.target.set(rx, 0, rz)
+              perspCamera.position.copy(orbitControls.target).add(offset)
+              orbitControls.enablePan = false
+              orbitControls.enableDamping = false
             }
             activeControls?.update()
           }
