@@ -152,6 +152,12 @@
     fill: none !important;
   }
 
+  .gamepad-shell :global(.gpad-btn-icon > path),
+  .gamepad-shell :global(.gpad-btn-icon > circle) {
+    stroke: inherit !important;
+    fill: inherit !important;
+  }
+
   .gamepad-shell :global(text) {
     display: none;
   }
@@ -165,6 +171,11 @@
 
   .gamepad-shell :global(.is-active .gpad-btn-icon) {
     stroke: var(--bgDark) !important;
+  }
+
+  .gamepad-shell :global(.is-active .gpad-btn-icon > path),
+  .gamepad-shell :global(.is-active .gpad-btn-icon > circle) {
+    stroke: inherit !important;
   }
 
   .gamepad-shell :global(#shoulder_trigger_back_left.is-active .gpad-btn-bg),
