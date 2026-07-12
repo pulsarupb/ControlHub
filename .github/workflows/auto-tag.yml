@@ -15,6 +15,10 @@ permissions:
 jobs:
   tag:
     runs-on: ubuntu-latest
+    outputs:
+      should_dispatch: ${{ steps.check.outputs.should_dispatch }}
+      tag: ${{ steps.versions.outputs.tag }}
+      source_ref: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -56,10 +60,11 @@ jobs:
           git tag "${{ steps.versions.outputs.tag }}"
           git push origin "${{ steps.versions.outputs.tag }}"
 
-      - name: Call release workflow
-        if: steps.check.outputs.should_dispatch == 'true'
-        uses: ./.github/workflows/release.yml
-        with:
-          release_tag: ${{ steps.versions.outputs.tag }}
-          source_ref: ${{ github.sha }}
-        secrets: inherit
+  release:
+    needs: tag
+    if: needs.tag.outputs.should_dispatch == 'true'
+    uses: ./.github/workflows/release.yml
+    with:
+      release_tag: ${{ needs.tag.outputs.tag }}
+      source_ref: ${{ needs.tag.outputs.source_ref }}
+    secrets: inherit
