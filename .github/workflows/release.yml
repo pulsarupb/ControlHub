@@ -61,12 +61,9 @@ jobs:
             if [[ -z "${source_ref}" ]]; then
               source_ref="$(git rev-parse origin/main)"
             fi
-          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_call" ]]; then
+          else
             tag="${{ inputs.release_tag }}"
             source_ref="${{ inputs.source_ref }}"
-          else
-            echo "Unsupported event context"
-            exit 1
           fi
           echo "release_tag=${tag}" >> "${GITHUB_OUTPUT}"
           echo "source_ref=${source_ref}" >> "${GITHUB_OUTPUT}"
