@@ -10,8 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  actions: write
+  contents: write
 
 jobs:
   tag:
@@ -51,11 +50,8 @@ jobs:
           echo "No existing release/tag found for ${tag}."
           echo "should_dispatch=true" >> "$GITHUB_OUTPUT"
 
-      - name: Trigger release workflow
+      - name: Create and push tag
         if: steps.check.outputs.should_dispatch == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          gh workflow run release.yml --ref "${{ github.ref_name }}" \
-            -f release_tag="${{ steps.versions.outputs.tag }}" \
-            -f source_ref="${{ github.sha }}"
+          git tag "${{ steps.versions.outputs.tag }}"
+          git push origin "${{ steps.versions.outputs.tag }}"

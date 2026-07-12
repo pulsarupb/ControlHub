@@ -15,6 +15,10 @@ on:
         required: false
         type: string
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -173,7 +177,7 @@ jobs:
       - name: Sync tauri.conf.json version with workspace
         working-directory: web
         run: |
-          VERSION=$(grep -m1 '^version = ' ../Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+          VERSION=$(python -c "import tomllib; print(tomllib.load(open('../Cargo.toml','rb'))['workspace']['package']['version'])")
           jq ".version = \"$VERSION\"" src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp
           mv src-tauri/tauri.conf.json.tmp src-tauri/tauri.conf.json
           echo "Synced tauri.conf.json version to $VERSION"
@@ -231,16 +235,11 @@ jobs:
         shell: pwsh
         working-directory: web
         run: |
-          $raw = Get-Content ../Cargo.toml -Raw
-          if ($raw -match '(?m)^version = "([^"]+)"') {
-            $version = $matches[1]
-            $config = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
-            $config.version = $version
-            $config | ConvertTo-Json -Depth 10 | Set-Content src-tauri/tauri.conf.json -Encoding ascii
-            Write-Output "Synced tauri.conf.json version to $version"
-          } else {
-            throw "Could not extract version from Cargo.toml"
-          }
+          $version = python -c "import tomllib; print(tomllib.load(open('../Cargo.toml','rb'))['workspace']['package']['version'])"
+          $config = Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          $config.version = $version
+          $config | ConvertTo-Json -Depth 10 | Set-Content src-tauri/tauri.conf.json -Encoding ascii
+          Write-Output "Synced tauri.conf.json version to $version"
 
       - run: bun run tauri build
         working-directory: web
@@ -359,13 +358,17 @@ jobs:
           target_commitish: ${{ needs.resolve_tag.outputs.source_ref }}
           files: dist/*
 
-      - name: Commit updates.json to main
+      - name: Commit updates.json and tauri.conf.json to main
         run: |
           git fetch origin main
           git checkout main
           cp dist/updates.json updates.json
+          VERSION="${{ needs.resolve_tag.outputs.release_tag }}"
+          VERSION="${VERSION#v}"
+          jq ".version = \"$VERSION\"" web/src-tauri/tauri.conf.json > web/src-tauri/tauri.conf.json.tmp
+          mv web/src-tauri/tauri.conf.json.tmp web/src-tauri/tauri.conf.json
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add updates.json
-          git diff --cached --quiet || git commit -m "Update updater manifest for ${{ needs.resolve_tag.outputs.release_tag }}"
+          git add updates.json web/src-tauri/tauri.conf.json
+          git diff --cached --quiet || git commit -m "Update release artifacts for ${{ needs.resolve_tag.outputs.release_tag }}"
           git push

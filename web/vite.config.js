@@ -3,7 +3,7 @@ import { defineConfig } from 'vite';
 import { readFileSync } from 'node:fs';
 
 const cargoToml = readFileSync(new URL('../Cargo.toml', import.meta.url), 'utf-8');
-const match = cargoToml.match(/^version\s*=\s*"([^"]+)"/m);
+const match = cargoToml.match(/^\s*version\s*=\s*"([^"]+)"/m);
 const appVersion = match ? match[1] : '0.0.0';
 
 export default defineConfig({
