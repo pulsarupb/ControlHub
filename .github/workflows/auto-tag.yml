@@ -56,11 +56,10 @@ jobs:
           git tag "${{ steps.versions.outputs.tag }}"
           git push origin "${{ steps.versions.outputs.tag }}"
 
-      - name: Dispatch release workflow
+      - name: Call release workflow
         if: steps.check.outputs.should_dispatch == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh workflow run release.yml \
-            -f release_tag="${{ steps.versions.outputs.tag }}" \
-            -f source_ref="${{ github.sha }}"
+        uses: ./.github/workflows/release.yml
+        with:
+          release_tag: ${{ steps.versions.outputs.tag }}
+          source_ref: ${{ github.sha }}
+        secrets: inherit

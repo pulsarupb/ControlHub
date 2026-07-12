@@ -14,6 +14,14 @@ on:
         description: "Git ref/sha to build and release"
         required: false
         type: string
+  workflow_call:
+    inputs:
+      release_tag:
+        required: true
+        type: string
+      source_ref:
+        required: true
+        type: string
 
 concurrency:
   group: release
@@ -53,6 +61,9 @@ jobs:
             if [[ -z "${source_ref}" ]]; then
               source_ref="$(git rev-parse origin/main)"
             fi
+          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_call" ]]; then
+            tag="${{ inputs.release_tag }}"
+            source_ref="${{ inputs.source_ref }}"
           else
             echo "Unsupported event context"
             exit 1
