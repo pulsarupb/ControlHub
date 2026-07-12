@@ -118,18 +118,6 @@ function createRoverControl(): RoverControl {
     return true;
   }
 
-  function setJoystick(rawX: number, rawY: number): void {
-    if (!state.joystickActive) return;
-
-    const length = Math.hypot(rawX, rawY);
-    const scale = length > 1 ? 1 / length : 1;
-    const joystick = { x: rawX * scale, y: rawY * scale };
-
-    state.joystick = joystick;
-    state.steering = clamp(joystick.x, -1, 1);
-    state.throttle = clamp(-joystick.y, -1, 1);
-  }
-
   function setThrottle(value: number): void {
     state.throttle = clamp(value, -1, 1);
   }
@@ -206,7 +194,6 @@ function createRoverControl(): RoverControl {
     startFollowerTarget,
     cancelFollowerTarget,
     startJoystick,
-    setJoystick,
     setThrottle,
     setSteering,
     releaseJoystick,

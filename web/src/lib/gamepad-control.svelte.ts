@@ -49,13 +49,15 @@ function poll() {
     displayRover.gamepadAxes = Array.from({ length: NUM_AXES }, (_, i) => gamepad.axes[i] ?? 0)
     displayRover.gamepadButtons = Array.from({ length: NUM_BUTTONS }, (_, i) => gamepad.buttons[i]?.pressed ?? false)
 
-    const rawX = gamepad.axes[0] ?? 0
-    const rawY = gamepad.axes[1] ?? 0
-    const x = applyDeadZone(rawX)
-    const y = applyDeadZone(rawY)
-    const inDeadZone = Math.abs(x) < 0.01 && Math.abs(y) < 0.01
+    const rawThrottle = gamepad.axes[1] ?? 0
+    const rawSteering = gamepad.axes[2] ?? 0
+    const throttle = applyDeadZone(rawThrottle)
+    const steering = applyDeadZone(rawSteering)
+    const throttleInDeadZone = Math.abs(throttle) < 0.01
+    const steeringInDeadZone = Math.abs(steering) < 0.01
+    const bothInDeadZone = throttleInDeadZone && steeringInDeadZone
 
-    if (inDeadZone) {
+    if (bothInDeadZone) {
       if (!wasInDeadZone) {
         controlRover.releaseJoystick()
         wasInDeadZone = true
@@ -65,7 +67,8 @@ function poll() {
         controlRover.startJoystick()
         wasInDeadZone = false
       }
-      controlRover.setJoystick(x, y)
+      controlRover.setThrottle(-throttle)
+      controlRover.setSteering(steering)
     }
 
     const curr = gamepad.buttons
