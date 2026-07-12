@@ -1,24 +1,31 @@
-use crate::follower::{
-    FollowerStatus, clamp_relative_target, relative_to_world_target,
-};
+use crate::follower::{FollowerStatus, clamp_relative_target, relative_to_world_target};
 use crate::localizer::Pose2d;
 use crate::state::{AppState, ControlRequest, FollowTargetRequest, StatusResponse};
-use axum::{Json, Router, extract::State, http::StatusCode, response::IntoResponse, routing::get, routing::post};
+use axum::{
+    Json, Router,
+    extract::State,
+    http::{StatusCode, header},
+    response::IntoResponse,
+    routing::get,
+    routing::post,
+};
 use serde::Serialize;
 use std::time::Instant;
 use tower_http::cors::CorsLayer;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 struct HealthResponse {
     service: &'static str,
     ok: bool,
     version: &'static str,
+    mode: &'static str,
 }
 
 pub(crate) fn router(state: AppState) -> Router {
     Router::new()
         .route("/api/health", get(api_health))
         .route("/api/status", get(api_status))
+        .route("/api/urdf-model", get(api_urdf_model))
         .route("/api/control", post(api_control))
         .route("/api/follow-target", post(api_follow_target))
         .route("/api/follow-target/cancel", post(api_cancel_follow_target))
@@ -29,12 +36,21 @@ pub(crate) fn router(state: AppState) -> Router {
         .layer(CorsLayer::permissive())
 }
 
-async fn api_health() -> Json<HealthResponse> {
+async fn api_health(State(state): State<AppState>) -> Json<HealthResponse> {
     Json(HealthResponse {
         service: "pulsar-rover",
         ok: true,
         version: env!("CARGO_PKG_VERSION"),
+        mode: if state.simulate { "simulated" } else { "real" },
     })
+}
+
+async fn api_urdf_model(State(state): State<AppState>) -> impl IntoResponse {
+    (
+        StatusCode::OK,
+        [(header::CONTENT_TYPE, "application/json; charset=utf-8")],
+        (*state.urdf_json).clone(),
+    )
 }
 
 async fn api_status(State(state): State<AppState>) -> Json<StatusResponse> {

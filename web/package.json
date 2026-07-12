@@ -18,11 +18,12 @@
     "@sveltejs/kit": "^2.61.1",
     "@sveltejs/vite-plugin-svelte": "^7.1.2",
     "@tauri-apps/cli": "^2.11.2",
-    "@types/node": "^25.9.1",
-    "phosphor-icons-svelte": "1.1.2",
+    "@types/node": "^26.1.1",
+    "@types/three": "^0.185.1",
+    "phosphor-icons-svelte": "2.1.0",
     "svelte": "^5.56.0",
     "svelte-check": "^4.4.8",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vite": "^8.0.14"
   },
   "dependencies": {
@@ -33,6 +34,7 @@
     "@tauri-apps/plugin-updater": "^2.10.1",
     "html2canvas": "^1.4.1",
     "svelte-portal": "^2.2.1",
+    "three": "^0.185.1",
     "virtual-gamepad-lib": "^0.3.3"
   }
 }

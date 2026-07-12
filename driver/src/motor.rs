@@ -4,27 +4,70 @@ use crate::state::{AppState, MotorTelemetry};
 use moteus::{BlockingController, command::PositionCommand};
 use std::time::{Duration, Instant};
 
-const MAX_MOTOR_VELOCITY: f32 = 0.25 * 8.0;
+pub(crate) const MAX_MOTOR_VELOCITY: f32 = 0.25 * 8.0;
 const UI_WATCHDOG_TIMEOUT: Duration = Duration::from_millis(500);
-const MOTOR_PERIOD: Duration = Duration::from_millis(20);
+pub(crate) const MOTOR_PERIOD: Duration = Duration::from_millis(20);
 const MOTEUS_WATCHDOG_TIMEOUT_S: f32 = 0.25;
 
-const CHASSIS_CONFIG: ChassisConfig = ChassisConfig {
-    wheel_radius_m: 21.59 / 2.0 / 100.0,
-    track_width_m: 44.0 / 100.0,
-    motor_rotations_per_wheel_rotation: 1.0,
-    left_front_id: 1,
-    left_front_direction: 1.0,
-    right_front_id: 3,
-    right_front_direction: -1.0,
-    left_back_id: 4,
-    left_back_direction: -1.0,
-    right_back_id: 2,
-    right_back_direction: 1.0,
-};
+pub(crate) struct TankDriveCommand {
+    pub(crate) left_velocity: f32,
+    pub(crate) right_velocity: f32,
+    pub(crate) should_stop: bool,
+    pub(crate) reset_requested: bool,
+}
 
-pub(crate) fn run_motor_loop(state: AppState) {
-    if let Err(err) = run_motor_loop_inner(state.clone()) {
+pub(crate) fn compute_tank_drive(rover: &mut crate::state::RoverState, max_velocity: f32) -> TankDriveCommand {
+    let timed_out = rover.last_ui_seen.elapsed() > UI_WATCHDOG_TIMEOUT;
+    if timed_out {
+        rover.throttle = 0.0;
+        rover.steering = 0.0;
+        rover.follower_target = None;
+        rover.follower_status = FollowerStatus::default();
+        rover.watchdog_stopped = true;
+    }
+
+    let should_stop = rover.emergency_stop || rover.watchdog_stopped;
+    let (throttle, steering) = if should_stop {
+        (0.0, 0.0)
+    } else if let Some(target) = rover.follower_target {
+        let command = compute_follower_command(rover.pose, target);
+        rover.follower_status = command.status;
+        if command.status.arrived {
+            rover.follower_target = None;
+            rover.throttle = 0.0;
+            rover.steering = 0.0;
+        } else {
+            rover.throttle = command.throttle;
+            rover.steering = command.steering;
+        }
+        (rover.throttle, rover.steering)
+    } else {
+        rover.follower_status = FollowerStatus::default();
+        (rover.throttle, rover.steering)
+    };
+
+    let steering = steering.clamp(-1.0, 1.0);
+    let throttle = throttle.clamp(-1.0, 1.0);
+
+    let left = throttle + steering;
+    let right = throttle - steering;
+
+    let left = left.clamp(-1.0, 1.0) * max_velocity;
+    let right = right.clamp(-1.0, 1.0) * max_velocity;
+
+    let reset_requested = rover.reset_requested;
+    rover.reset_requested = false;
+
+    TankDriveCommand {
+        left_velocity: left,
+        right_velocity: right,
+        should_stop,
+        reset_requested,
+    }
+}
+
+pub(crate) fn run_motor_loop(state: AppState, config: ChassisConfig) {
+    if let Err(err) = run_motor_loop_inner(state.clone(), config) {
         let mut rover = state.rover.lock().expect("rover state poisoned");
         rover.emergency_stop = true;
         rover.last_error = Some(err.to_string());
@@ -32,77 +75,24 @@ pub(crate) fn run_motor_loop(state: AppState) {
     }
 }
 
-fn run_motor_loop_inner(state: AppState) -> Result<(), moteus::Error> {
-    let mut left_front = create_stopped_controller(CHASSIS_CONFIG.left_front_id)?;
-    let mut right_front = create_stopped_controller(CHASSIS_CONFIG.right_front_id)?;
-    let mut left_back = create_stopped_controller(CHASSIS_CONFIG.left_back_id)?;
-    let mut right_back = create_stopped_controller(CHASSIS_CONFIG.right_back_id)?;
+fn run_motor_loop_inner(state: AppState, config: ChassisConfig) -> Result<(), moteus::Error> {
+    let mut left_front = create_stopped_controller(config.left_front_id)?;
+    let mut right_front = create_stopped_controller(config.right_front_id)?;
+    let mut left_back = create_stopped_controller(config.left_back_id)?;
+    let mut right_back = create_stopped_controller(config.right_back_id)?;
 
-    let mut chassis = Chassis::new(CHASSIS_CONFIG);
+    let mut chassis = Chassis::new(config);
     let mut next_tick = Instant::now();
 
     loop {
         next_tick += MOTOR_PERIOD;
 
-        let (left_velocity, right_velocity, should_stop, reset_requested) = {
+        let cmd = {
             let mut rover = state.rover.lock().expect("rover state poisoned");
-            let timed_out = rover.last_ui_seen.elapsed() > UI_WATCHDOG_TIMEOUT;
-            if timed_out {
-                rover.throttle = 0.0;
-                rover.steering = 0.0;
-                rover.follower_target = None;
-                rover.follower_status = FollowerStatus::default();
-                rover.watchdog_stopped = true;
-            }
-
-            let should_stop = rover.emergency_stop || rover.watchdog_stopped;
-            let (throttle, steering) = if should_stop {
-                (0.0, 0.0)
-            } else if let Some(target) = rover.follower_target {
-                let command = compute_follower_command(rover.pose, target);
-                rover.follower_status = command.status;
-                if command.status.arrived {
-                    rover.follower_target = None;
-                    rover.throttle = 0.0;
-                    rover.steering = 0.0;
-                } else {
-                    rover.throttle = command.throttle;
-                    rover.steering = command.steering;
-                }
-                (rover.throttle, rover.steering)
-            } else {
-                rover.follower_status = FollowerStatus::default();
-                (rover.throttle, rover.steering)
-            };
-
-            let steering = steering.clamp(-1.0, 1.0);
-            let throttle = throttle.clamp(-1.0, 1.0);
-
-            let mut left = throttle;
-            let mut right = throttle;
-
-            let is_tank_drive = true;
-
-            if is_tank_drive {
-                left = throttle + steering;
-                right = throttle - steering;
-            } else {
-                if steering > 0.0 {
-                    right *= 1.0 - steering;
-                } else if steering < 0.0 {
-                    left *= 1.0 + steering;
-                }
-            }
-
-            let left = left.clamp(-1.0, 1.0) * MAX_MOTOR_VELOCITY;
-            let right = right.clamp(-1.0, 1.0) * MAX_MOTOR_VELOCITY;
-
-            let reset_requested = rover.reset_requested;
-            rover.reset_requested = false;
-            (left, right, should_stop, reset_requested)
+            compute_tank_drive(&mut rover, MAX_MOTOR_VELOCITY)
         };
 
-        if reset_requested {
+        if cmd.reset_requested {
             chassis.reset_pose(Pose2d::default());
         }
 
@@ -111,7 +101,7 @@ fn run_motor_loop_inner(state: AppState) -> Result<(), moteus::Error> {
         let left_back_result;
         let right_back_result;
 
-        if should_stop {
+        if cmd.should_stop {
             left_front.set_stop()?;
             right_front.set_stop()?;
             left_back.set_stop()?;
@@ -122,16 +112,16 @@ fn run_motor_loop_inner(state: AppState) -> Result<(), moteus::Error> {
             right_back_result = right_back.query();
         } else {
             left_front_result = left_front.set_position(velocity_command(
-                left_velocity * CHASSIS_CONFIG.left_front_direction,
+                cmd.left_velocity * chassis.config.left_front_direction,
             ));
             right_front_result = right_front.set_position(velocity_command(
-                right_velocity * CHASSIS_CONFIG.right_front_direction,
+                cmd.right_velocity * chassis.config.right_front_direction,
             ));
             left_back_result = left_back.set_position(velocity_command(
-                left_velocity * CHASSIS_CONFIG.left_back_direction,
+                cmd.left_velocity * chassis.config.left_back_direction,
             ));
             right_back_result = right_back.set_position(velocity_command(
-                right_velocity * CHASSIS_CONFIG.right_back_direction,
+                cmd.right_velocity * chassis.config.right_back_direction,
             ));
         }
 
@@ -173,25 +163,25 @@ fn run_motor_loop_inner(state: AppState) -> Result<(), moteus::Error> {
 
                 rover.motors = [
                     MotorTelemetry {
-                        id: CHASSIS_CONFIG.left_front_id,
+                        id: chassis.config.left_front_id,
                         position: left_front_feedback.position,
                         velocity: left_front_feedback.velocity,
                         fault: left_front_feedback.fault,
                     },
                     MotorTelemetry {
-                        id: CHASSIS_CONFIG.right_front_id,
+                        id: chassis.config.right_front_id,
                         position: right_front_feedback.position,
                         velocity: right_front_feedback.velocity,
                         fault: right_front_feedback.fault,
                     },
                     MotorTelemetry {
-                        id: CHASSIS_CONFIG.left_back_id,
+                        id: chassis.config.left_back_id,
                         position: left_back_feedback.position,
                         velocity: left_back_feedback.velocity,
                         fault: left_back_feedback.fault,
                     },
                     MotorTelemetry {
-                        id: CHASSIS_CONFIG.right_back_id,
+                        id: chassis.config.right_back_id,
                         position: right_back_feedback.position,
                         velocity: right_back_feedback.velocity,
                         fault: right_back_feedback.fault,
@@ -239,20 +229,13 @@ pub(crate) fn read_motor_continuously(motor_id: u8) -> Result<(), moteus::Error>
             Ok(result) => {
                 let initial_position = *initial_position.get_or_insert(result.position);
                 let delta_motor_rotations = result.position - initial_position;
-                let delta_wheel_rotations =
-                    delta_motor_rotations / CHASSIS_CONFIG.motor_rotations_per_wheel_rotation;
-                let delta_m = CHASSIS_CONFIG.motor_rotations_to_meters(delta_motor_rotations);
+                let _delta_wheel_rotations =
+                    delta_motor_rotations / 1.0;
+                let _delta_m = delta_motor_rotations * (2.0 * std::f32::consts::PI * (21.59 / 2.0 / 100.0));
 
                 println!(
-                    "Motor {} - mode={:?} pos={:.6} rot delta={:.6} motor_rot wheel_delta={:.6} wheel_rot distance={:.4}m vel={:.4} fault={}",
-                    motor_id,
-                    result.mode,
-                    result.position,
-                    delta_motor_rotations,
-                    delta_wheel_rotations,
-                    delta_m,
-                    result.velocity,
-                    result.fault
+                    "Motor {} - pos={:.6} vel={:.4} fault={}",
+                    motor_id, result.position, result.velocity, result.fault
                 );
             }
             Err(err) => {

@@ -5,7 +5,6 @@
 
   function lastChecked(): string {
     if (!roverConnection.lastCheckedAt) return "not checked"
-
     return new Date(roverConnection.lastCheckedAt).toLocaleTimeString()
   }
 </script>
@@ -16,7 +15,11 @@
       <h1>Connect to rover</h1>
     </div>
     <span class="status" class:online={roverConnection.state === "online"}>
-      {roverConnection.state}
+      {#if roverConnection.state === "online" && roverConnection.robotMode === "simulated"}
+        SIM
+      {:else}
+        {roverConnection.state}
+      {/if}
     </span>
   </div>
 
@@ -26,6 +29,11 @@
       class:active={roverConnection.connectionMode === "local"}
       onclick={() => roverConnection.useLocal()}
     >Local</button>
+    <button
+      class="tab"
+      class:active={roverConnection.connectionMode === "dev"}
+      onclick={() => roverConnection.useDev()}
+    >Dev</button>
     <button
       class="tab"
       class:active={roverConnection.connectionMode === "remote"}
@@ -38,6 +46,11 @@
       <p>Connect your device to the <strong>{roverConnection.roverSsid}</strong> WiFi network</p>
       <p class="rover-ip">Rover IP: <code>http://10.42.0.1:8080</code></p>
     </div>
+  {:else if roverConnection.connectionMode === "dev"}
+    <div class="local-info">
+      <p>Connect to a <strong>simulated rover</strong> running on localhost</p>
+      <p class="rover-ip">Dev URL: <code>http://127.0.0.1:8080</code></p>
+    </div>
   {:else}
     <label>
       Rover URL
@@ -49,7 +62,14 @@
   {/if}
 
   <div class="health-card">
-    <span>Healthcheck</span>
+    <span>
+      Healthcheck
+      {#if roverConnection.robotMode === "simulated"}
+        <span class="mode-badge">SIMULATED</span>
+      {:else if roverConnection.robotMode === "real"}
+        <span class="mode-badge real">REAL</span>
+      {/if}
+    </span>
     <strong>{roverConnection.message}</strong>
     <small>
       GET /api/health · {lastChecked()}
@@ -114,6 +134,9 @@
     background: color-mix(in srgb, var(--warning) 10%, transparent);
     color: #e5cf9e;
     white-space: nowrap;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
   }
   .status.online {
     border-color: color-mix(in srgb, var(--success) 55%, transparent);
@@ -186,6 +209,24 @@
   .health-card strong {
     color: var(--text);
     font-weight: 500;
+  }
+  .mode-badge {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 0.3rem;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    background: color-mix(in srgb, var(--warning) 25%, transparent);
+    color: #e5cf9e;
+    border: 1px solid color-mix(in srgb, var(--warning) 50%, transparent);
+    vertical-align: middle;
+  }
+  .mode-badge.real {
+    background: color-mix(in srgb, var(--success) 20%, transparent);
+    color: #bfd7b7;
+    border-color: color-mix(in srgb, var(--success) 40%, transparent);
   }
   @media (max-width: 520px) {
     .heading,

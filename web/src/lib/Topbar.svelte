@@ -96,7 +96,6 @@
     typeof contextManager === "function" ? contextManager() : contextManager,
   )
   let jsonPreset = $state("")
-
 </script>
 
 <nav>
@@ -154,7 +153,9 @@
         triggerStyle="display: flex;justify-content: center;align-items: center;"
       >
         {#snippet trigger()}
-          <span class="topbar-icon" aria-label="Notifications"><IconBellRegular /></span>
+          <span class="topbar-icon" aria-label="Notifications">
+            <IconBellRegular />
+          </span>
         {/snippet}
         {#snippet overlay()}
           <div class="bell-menu">
@@ -172,7 +173,9 @@
         triggerStyle="display: flex;justify-content: center;align-items: center;"
       >
         {#snippet trigger()}
-          <span class="topbar-icon" aria-label="Presets"><IconSlidersHorizontalRegular /></span>
+          <span class="topbar-icon" aria-label="Presets">
+            <IconSlidersHorizontalRegular />
+          </span>
         {/snippet}
         {#snippet overlay({ close }: { close: () => void })}
           <div class="presets-overlay">
@@ -294,7 +297,6 @@
         {/snippet}
       </Overlay>
     </div>
-
   </div>
 </nav>
 

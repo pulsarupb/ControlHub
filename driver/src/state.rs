@@ -7,12 +7,16 @@ use std::time::Instant;
 #[derive(Clone)]
 pub(crate) struct AppState {
     pub(crate) rover: Arc<Mutex<RoverState>>,
+    pub(crate) simulate: bool,
+    pub(crate) urdf_json: Arc<String>,
 }
 
 impl AppState {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(simulate: bool, urdf_json: String) -> Self {
         Self {
             rover: Arc::new(Mutex::new(RoverState::new())),
+            simulate,
+            urdf_json: Arc::new(urdf_json),
         }
     }
 }
@@ -34,7 +38,7 @@ pub(crate) struct RoverState {
 }
 
 impl RoverState {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             throttle: 0.0,
             steering: 0.0,

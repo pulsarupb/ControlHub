@@ -30,7 +30,7 @@ impl ChassisConfig {
 }
 
 pub struct Chassis {
-    config: ChassisConfig,
+    pub config: ChassisConfig,
     pose: Pose2d,
     last_left_front_motor_rotations: Option<f32>,
     last_left_back_motor_rotations: Option<f32>,

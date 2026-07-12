@@ -25,6 +25,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/target/release/driver /usr/local/bin/driver
+COPY data/ /data/
 
 EXPOSE 8080
 
