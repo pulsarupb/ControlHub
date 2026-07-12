@@ -35,13 +35,7 @@
     [xboxButtonMap.DPadRight]: "dpad_right",
   }
 
-  const buttonActions: Record<string, () => void> = {
-    button_2: () => controlRover.stopRover(),
-    shoulder_trigger_back_right: () => controlRover.stopRover(),
-    select_button: () => controlRover.stopRover(),
-    button_4: () => controlRover.resetRover(),
-    shoulder_button_front_right: () => controlRover.resetRover(),
-  }
+  const buttonActions: Record<string, () => void> = {}
 
   const STICK_RANGE = 12
 
@@ -99,6 +93,11 @@
     setActive("stick_button_left", buttons[xboxButtonMap.LStick]?.active ?? false)
     setActive("stick_button_right", buttons[xboxButtonMap.RStick]?.active ?? false)
 
+    setActive("dpad_up", buttons[xboxButtonMap.DPadUp]?.active ?? false)
+    setActive("dpad_down", buttons[xboxButtonMap.DPadDown]?.active ?? false)
+    setActive("dpad_left", buttons[xboxButtonMap.DPadLeft]?.active ?? false)
+    setActive("dpad_right", buttons[xboxButtonMap.DPadRight]?.active ?? false)
+
     if (dragState?.id !== "stick_button_left") {
       setStick("stick_button_left", leftStick.x, leftStick.y)
     }
@@ -122,27 +121,59 @@
     const svg = gamepadEl.querySelector("svg")
     if (!svg) return
 
-    const parent = svg.querySelector("#dpad_up")?.parentElement
-    if (!parent) return
+    const container = svg.querySelector("#dpad_up")?.parentElement
+    if (!container) return
 
-    const positions = [
-      { id: "dpad_up_bg", cx: 77, cy: 79 },
-      { id: "dpad_down_bg", cx: 77, cy: 117 },
-      { id: "dpad_left_bg", cx: 58, cy: 98 },
-      { id: "dpad_right_bg", cx: 97, cy: 98 },
+    container.innerHTML = ""
+
+    const tapTargets = svg.querySelector("#dpad_tap_targets")
+    if (tapTargets) {
+      container.appendChild(tapTargets)
+    }
+
+    const buttons = [
+      { id: "dpad_up", cx: 77, cy: 79, icon: "M77 74l5 8H72Z" },
+      { id: "dpad_down", cx: 77, cy: 117, icon: "M77 122l-5-8h10Z" },
+      { id: "dpad_left", cx: 58, cy: 98, icon: "M53 98l8-5v10Z" },
+      { id: "dpad_right", cx: 97, cy: 98, icon: "M102 98l-8-5v10Z" },
     ]
 
-    const ref = parent.querySelector("#dpad_right_button_icon")?.parentElement ?? null
+    for (const { id, cx, cy, icon } of buttons) {
+      const group = document.createElementNS("http://www.w3.org/2000/svg", "g")
+      group.id = id
+      group.style.pointerEvents = "none"
 
-    for (const { id, cx, cy } of positions) {
-      if (parent.querySelector(`#${id}`)) continue
-      const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle")
-      circle.setAttribute("cx", String(cx))
-      circle.setAttribute("cy", String(cy))
-      circle.setAttribute("r", "11")
-      circle.id = id
-      circle.classList.add("gpad-dpad-bg")
-      parent.insertBefore(circle, ref)
+      const shadow = document.createElementNS("http://www.w3.org/2000/svg", "circle")
+      shadow.setAttribute("cx", String(cx + 0.86))
+      shadow.setAttribute("cy", String(cy + 0.85))
+      shadow.setAttribute("r", "11.806")
+      shadow.classList.add("gpad-shadow")
+      group.appendChild(shadow)
+
+      const bg = document.createElementNS("http://www.w3.org/2000/svg", "circle")
+      bg.setAttribute("cx", String(cx))
+      bg.setAttribute("cy", String(cy))
+      bg.setAttribute("r", "11.8")
+      bg.classList.add("gpad-btn-bg")
+      group.appendChild(bg)
+
+      const border = document.createElementNS("http://www.w3.org/2000/svg", "path")
+      border.setAttribute("d", `M${cx} ${cy - 11.8}c6.512 0 11.8 5.287 11.8 11.8 0 6.512-5.288 11.8-11.8 11.8s-11.8-5.288-11.8-11.8 5.287-11.8 11.8-11.8m0 1.72c-5.563 0-10.08 4.516-10.08 10.08 0 5.563 4.517 10.079 10.08 10.079s10.079-4.516 10.079-10.079-4.516-10.08-10.079-10.08`)
+      group.appendChild(border)
+
+      const iconGroup = document.createElementNS("http://www.w3.org/2000/svg", "g")
+      iconGroup.classList.add("gpad-btn-icon")
+
+      const iconPath = document.createElementNS("http://www.w3.org/2000/svg", "path")
+      iconPath.setAttribute("d", icon)
+      iconPath.style.fill = "none"
+      iconPath.style.stroke = "#000"
+      iconPath.style.strokeWidth = "1.72px"
+      iconPath.style.strokeLinejoin = "round"
+      iconGroup.appendChild(iconPath)
+      group.appendChild(iconGroup)
+
+      container.appendChild(group)
     }
   })
 
@@ -194,10 +225,6 @@
 
     pressedButton = buttonId
     setActive(buttonId, true)
-    if (buttonId.startsWith("dpad_")) {
-      setActive(`${buttonId}_button_icon`, true)
-      setActive(`${buttonId}_bg`, true)
-    }
     buttonActions[buttonId]?.()
   }
 
@@ -242,10 +269,6 @@
 
     if (pressedButton) {
       setActive(pressedButton, false)
-      if (pressedButton.startsWith("dpad_")) {
-        setActive(`${pressedButton}_button_icon`, false)
-        setActive(`${pressedButton}_bg`, false)
-      }
       pressedButton = null
     }
   }
@@ -342,23 +365,6 @@
   .gamepad-shell :global(.is-active.gpad-btn-icon),
   .gamepad-shell :global(.is-active .gpad-btn-icon) {
     stroke: var(--bgDark) !important;
-  }
-
-  .gamepad-shell :global(#dpad_up_button_icon.is-active),
-  .gamepad-shell :global(#dpad_down_button_icon.is-active),
-  .gamepad-shell :global(#dpad_left_button_icon.is-active),
-  .gamepad-shell :global(#dpad_right_button_icon.is-active) {
-    stroke: var(--bgDark) !important;
-  }
-
-  .gamepad-shell :global(.gpad-dpad-bg) {
-    fill: var(--bgMedium) !important;
-    stroke: var(--borderStrong) !important;
-  }
-
-  .gamepad-shell :global(.gpad-dpad-bg.is-active) {
-    fill: var(--accent) !important;
-    stroke: color-mix(in srgb, var(--accent) 75%, white 25%) !important;
   }
 
   .gamepad-shell :global(.is-active.gpad-btn-icon > path),
