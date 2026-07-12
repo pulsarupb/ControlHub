@@ -1,6 +1,8 @@
 use crate::localizer::{Chassis, ChassisConfig, Pose2d};
-use crate::motor::{compute_tank_drive, TankDriveCommand, MAX_MOTOR_VELOCITY, MOTOR_PERIOD};
+use crate::motor::{compute_tank_drive, TankDriveCommand, MOTOR_PERIOD};
 use crate::state::{AppState, MotorTelemetry};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 struct SimulatedMotor {
@@ -32,8 +34,12 @@ impl SimulatedMotor {
     }
 }
 
-pub(crate) fn run_simulated_motor_loop(state: AppState, config: ChassisConfig) {
-    if let Err(err) = run_simulated_loop_inner(state.clone(), config) {
+pub(crate) fn run_simulated_motor_loop(
+    state: AppState,
+    shared_config: Arc<Mutex<ChassisConfig>>,
+    restart_flag: Arc<AtomicBool>,
+) {
+    if let Err(err) = run_simulated_loop_inner(state.clone(), shared_config, restart_flag) {
         let mut rover = state.rover.lock().expect("rover state poisoned");
         rover.emergency_stop = true;
         rover.last_error = Some(err.clone());
@@ -41,21 +47,40 @@ pub(crate) fn run_simulated_motor_loop(state: AppState, config: ChassisConfig) {
     }
 }
 
-fn run_simulated_loop_inner(state: AppState, config: ChassisConfig) -> Result<(), String> {
+fn run_simulated_loop_inner(
+    state: AppState,
+    shared_config: Arc<Mutex<ChassisConfig>>,
+    restart_flag: Arc<AtomicBool>,
+) -> Result<(), String> {
     let mut left_front = SimulatedMotor::new();
     let mut right_front = SimulatedMotor::new();
     let mut left_back = SimulatedMotor::new();
     let mut right_back = SimulatedMotor::new();
 
-    let mut chassis = Chassis::new(config);
+    let initial_config = shared_config.lock().map_err(|e| e.to_string())?;
+    let mut chassis = Chassis::new(*initial_config);
+    drop(initial_config);
     let mut next_tick = Instant::now();
 
     loop {
+        if restart_flag.load(Ordering::SeqCst) {
+            return Ok(());
+        }
+
         next_tick += MOTOR_PERIOD;
+
+        let config = shared_config.lock().map_err(|e| e.to_string())?;
+        let max_velocity = config.max_velocity;
+        let lf_dir = config.left_front_direction;
+        let rf_dir = config.right_front_direction;
+        let lb_dir = config.left_back_direction;
+        let rb_dir = config.right_back_direction;
+        chassis.config = *config;
+        drop(config);
 
         let cmd: TankDriveCommand = {
             let mut rover = state.rover.lock().expect("rover state poisoned");
-            compute_tank_drive(&mut rover, MAX_MOTOR_VELOCITY)
+            compute_tank_drive(&mut rover, max_velocity)
         };
 
         if cmd.reset_requested {
@@ -68,10 +93,10 @@ fn run_simulated_loop_inner(state: AppState, config: ChassisConfig) -> Result<()
             left_back.set_stop();
             right_back.set_stop();
         } else {
-            left_front.set_velocity(cmd.left_velocity * chassis.config.left_front_direction);
-            right_front.set_velocity(cmd.right_velocity * chassis.config.right_front_direction);
-            left_back.set_velocity(cmd.left_velocity * chassis.config.left_back_direction);
-            right_back.set_velocity(cmd.right_velocity * chassis.config.right_back_direction);
+            left_front.set_velocity(cmd.left_velocity * lf_dir);
+            right_front.set_velocity(cmd.right_velocity * rf_dir);
+            left_back.set_velocity(cmd.left_velocity * lb_dir);
+            right_back.set_velocity(cmd.right_velocity * rb_dir);
         }
 
         let dt = MOTOR_PERIOD.as_secs_f32();

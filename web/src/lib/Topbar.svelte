@@ -12,6 +12,7 @@
 
   import IconBellRegular from "phosphor-icons-svelte/IconBellRegular.svelte"
   import IconCopyRegular from "phosphor-icons-svelte/IconCopyRegular.svelte"
+  import IconGearSixRegular from "phosphor-icons-svelte/IconGearSixRegular.svelte"
   import IconPlusRegular from "phosphor-icons-svelte/IconPlusRegular.svelte"
   import IconRobotRegular from "phosphor-icons-svelte/IconRobotRegular.svelte"
   import IconSlidersHorizontalRegular from "phosphor-icons-svelte/IconSlidersHorizontalRegular.svelte"
@@ -22,6 +23,7 @@
   import TemplatesChoose from "./grid/TemplatesChoose.svelte"
   import AllNotifications from "./AllNotifications.svelte"
   import RoverConnectionOverlay from "$lib/moteus/RoverConnectionOverlay.svelte"
+  import SettingsOverlay from "$lib/SettingsOverlay.svelte"
   import { roverConnection } from "$lib/rover-connection.svelte"
 
   import { check } from "@tauri-apps/plugin-updater"
@@ -89,6 +91,8 @@
   onDestroy(() => {
     if (polling) clearInterval(polling)
   })
+  let showSettings = $state(false)
+
   let showVersionWarning = $derived(
     !versionDismissed &&
       roverConnection.serverVersion !== null &&
@@ -309,9 +313,15 @@
           </div>
         {/snippet}
       </Overlay>
+
+      <span class="topbar-icon" aria-label="Settings" role="button" onclick={() => (showSettings = true)}>
+        <IconGearSixRegular />
+      </span>
     </div>
   </div>
 </nav>
+
+<SettingsOverlay show={showSettings} onclose={() => (showSettings = false)} />
 
 <style>
   h1 {

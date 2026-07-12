@@ -12,6 +12,7 @@ pub struct ChassisConfig {
     pub wheel_radius_m: f32,
     pub track_width_m: f32,
     pub motor_rotations_per_wheel_rotation: f32,
+    pub max_velocity: f32,
     pub left_front_id: u8,
     pub left_front_direction: f32,
     pub right_front_id: u8,

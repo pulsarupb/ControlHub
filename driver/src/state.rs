@@ -1,3 +1,4 @@
+use crate::localizer::ChassisConfig;
 use crate::localizer::Pose2d;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
@@ -8,14 +9,18 @@ pub(crate) struct AppState {
     pub(crate) rover: Arc<Mutex<RoverState>>,
     pub(crate) simulate: bool,
     pub(crate) urdf_json: Arc<String>,
+    pub(crate) config_path: String,
+    pub(crate) chassis_config: Arc<Mutex<ChassisConfig>>,
 }
 
 impl AppState {
-    pub(crate) fn new(simulate: bool, urdf_json: String) -> Self {
+    pub(crate) fn new(simulate: bool, urdf_json: String, config_path: String, chassis_config: Arc<Mutex<ChassisConfig>>) -> Self {
         Self {
             rover: Arc::new(Mutex::new(RoverState::new())),
             simulate,
             urdf_json: Arc::new(urdf_json),
+            config_path,
+            chassis_config,
         }
     }
 }
