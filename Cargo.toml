@@ -3,7 +3,7 @@ resolver = "2"
 members = ["driver", "web/src-tauri"]
 
 [workspace.package]
-version = "0.1.41"
+version = "0.1.42"
 edition = "2024"
 
 [workspace.dependencies]
