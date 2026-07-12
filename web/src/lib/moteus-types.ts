@@ -8,16 +8,6 @@ export type Pose = {
 
 export type PathPoint = Pick<Pose, "x_m" | "y_m">;
 
-export type FollowerTarget = Pick<Pose, "x_m" | "y_m">;
-
-export type FollowerStatus = {
-  active: boolean;
-  target?: FollowerTarget | null;
-  distance_m: number;
-  heading_error_rad: number;
-  arrived: boolean;
-};
-
 export type MapSize = {
   width: number;
   height: number;
@@ -42,7 +32,6 @@ export type RoverStatus = {
   emergency_stop?: boolean;
   watchdog_stopped?: boolean;
   last_error?: string | null;
-  follower?: FollowerStatus;
 };
 
 export type RoverControl = {
@@ -55,14 +44,10 @@ export type RoverControl = {
   readonly pose: Pose;
   readonly path: PathPoint[];
   readonly stopped: boolean;
-  readonly follower: FollowerStatus;
-  readonly followerActive: boolean;
   refreshStatus: () => Promise<void>;
   sendControlTick: () => Promise<void>;
   stopRover: () => Promise<void>;
   resetRover: () => Promise<void>;
-  startFollowerTarget: (x_m: number, y_m: number) => Promise<void>;
-  cancelFollowerTarget: () => Promise<void>;
   startJoystick: () => boolean;
   setThrottle: (value: number) => void;
   setSteering: (value: number) => void;

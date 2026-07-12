@@ -1,4 +1,3 @@
-use crate::follower::{FollowerStatus, compute_follower_command};
 use crate::localizer::{Chassis, ChassisConfig, Pose2d};
 use crate::state::{AppState, MotorTelemetry};
 use moteus::{BlockingController, command::PositionCommand};
@@ -21,28 +20,13 @@ pub(crate) fn compute_tank_drive(rover: &mut crate::state::RoverState, max_veloc
     if timed_out {
         rover.throttle = 0.0;
         rover.steering = 0.0;
-        rover.follower_target = None;
-        rover.follower_status = FollowerStatus::default();
         rover.watchdog_stopped = true;
     }
 
     let should_stop = rover.emergency_stop || rover.watchdog_stopped;
     let (throttle, steering) = if should_stop {
         (0.0, 0.0)
-    } else if let Some(target) = rover.follower_target {
-        let command = compute_follower_command(rover.pose, target);
-        rover.follower_status = command.status;
-        if command.status.arrived {
-            rover.follower_target = None;
-            rover.throttle = 0.0;
-            rover.steering = 0.0;
-        } else {
-            rover.throttle = command.throttle;
-            rover.steering = command.steering;
-        }
-        (rover.throttle, rover.steering)
     } else {
-        rover.follower_status = FollowerStatus::default();
         (rover.throttle, rover.steering)
     };
 

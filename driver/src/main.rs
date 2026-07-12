@@ -3,7 +3,6 @@ use std::net::SocketAddr;
 
 mod api;
 mod config;
-mod follower;
 mod localizer;
 mod motor;
 mod simulator;
