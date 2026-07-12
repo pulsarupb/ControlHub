@@ -352,11 +352,14 @@ jobs:
 
           cat dist/updates.json
 
-      - uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.resolve_tag.outputs.release_tag }}
-          target_commitish: ${{ needs.resolve_tag.outputs.source_ref }}
-          files: dist/*
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ needs.resolve_tag.outputs.release_tag }}" \
+            --target "${{ needs.resolve_tag.outputs.source_ref }}" \
+            --title "${{ needs.resolve_tag.outputs.release_tag }}" \
+            dist/*
 
       - name: Commit updates.json and tauri.conf.json to main
         run: |
