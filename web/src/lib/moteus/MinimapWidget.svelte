@@ -337,7 +337,7 @@
     scene = new THREE.Scene()
     scene.background = new THREE.Color(0x101214)
 
-    perspCamera = new THREE.PerspectiveCamera(40, container.clientWidth / container.clientHeight, 0.1, 100)
+    perspCamera = new THREE.PerspectiveCamera(40, container.clientWidth / container.clientHeight, 0.05, 100)
     activeCamera = perspCamera
 
     renderer = new THREE.WebGLRenderer({ antialias: true })
