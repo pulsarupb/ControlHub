@@ -7,7 +7,7 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "tauri": "tauri",
+    "tauri": "bun run scripts/tauri.ts",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "prepare": "svelte-kit sync || echo ''",
