@@ -120,7 +120,7 @@ pub(crate) struct StatusResponse {
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
-struct Pose2dResponse {
+pub(crate) struct Pose2dResponse {
     x_m: f32,
     y_m: f32,
     heading_rad: f32,

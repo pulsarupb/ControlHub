@@ -181,12 +181,12 @@ export class Manager {
     this.presets.data.push(preset)
     this.presets.selected = this.presets.data.length - 1
 
-    goto("/")
-
     this.widgets = [...this.presets.data[this.presets.selected].widgets]
     this.navlets = [...this.presets.data[this.presets.selected].navlets]
 
     this.save()
+
+    goto("/")
   }
 
   change(index: number) {

@@ -26,7 +26,7 @@ export class RoverData {
 
   samples = $state<{ t: number; battery: number; signal: number; speed: number }[]>([])
 
-  _intervalId: ReturnType<typeof setInterval> | null = null
+  _intervalId: number | null = null
 
   start() {
     if (typeof window === "undefined" || this._intervalId) return

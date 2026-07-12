@@ -297,8 +297,10 @@ fn get_attr_str(e: &quick_xml::events::BytesStart, key: &str) -> String {
 }
 
 fn parse_float_array(s: &str, count: usize) -> Vec<f32> {
-    s.split_whitespace()
-        .take(count)
+    let mut result: Vec<f32> = s
+        .split_whitespace()
         .filter_map(|v| v.parse::<f32>().ok())
-        .collect()
+        .collect();
+    result.resize(count, 0.0);
+    result
 }

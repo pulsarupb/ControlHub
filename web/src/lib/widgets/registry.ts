@@ -1,6 +1,6 @@
 import type { DashboardComponent, Template } from "$lib/types"
 import EmergencyWidget from "$lib/moteus/EmergencyWidget.svelte"
-import GamepadWidget from "./GamepadWidget.svelte"
+import GamepadWidget from "$lib/widgets/GamepadWidget.svelte"
 import JoystickWidget from "$lib/moteus/JoystickWidget.svelte"
 import MinimapWidget from "$lib/moteus/MinimapWidget.svelte"
 import MotorTelemetryWidget from "$lib/moteus/MotorTelemetryWidget.svelte"

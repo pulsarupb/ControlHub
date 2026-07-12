@@ -1,5 +1,5 @@
 [workspace]
-resolver = "3"
+resolver = "2"
 members = ["driver", "web/src-tauri"]
 
 [workspace.package]

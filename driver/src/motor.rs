@@ -229,13 +229,10 @@ pub(crate) fn read_motor_continuously(motor_id: u8) -> Result<(), moteus::Error>
             Ok(result) => {
                 let initial_position = *initial_position.get_or_insert(result.position);
                 let delta_motor_rotations = result.position - initial_position;
-                let _delta_wheel_rotations =
-                    delta_motor_rotations / 1.0;
-                let _delta_m = delta_motor_rotations * (2.0 * std::f32::consts::PI * (21.59 / 2.0 / 100.0));
 
                 println!(
-                    "Motor {} - pos={:.6} vel={:.4} fault={}",
-                    motor_id, result.position, result.velocity, result.fault
+                    "Motor {} - pos={:.6} vel={:.4} fault={} delta_rot={:.4}",
+                    motor_id, result.position, result.velocity, result.fault, delta_motor_rotations
                 );
             }
             Err(err) => {

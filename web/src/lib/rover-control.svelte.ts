@@ -203,8 +203,4 @@ function createRoverControl(): RoverControl {
   };
 }
 
-export function roverControl(): RoverControl {
-  return createRoverControl();
-}
-
-export const rover = roverControl();
+export const rover = createRoverControl();

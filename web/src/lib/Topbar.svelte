@@ -1,3 +1,7 @@
+<script module lang="ts">
+  declare const __APP_VERSION__: string
+</script>
+
 <script lang="ts">
   import Panels from "$lib/Panels.svelte"
   import Button from "$lib/ui/Button.svelte"
@@ -24,7 +28,7 @@
   import { relaunch } from "@tauri-apps/plugin-process"
   import { onMount, onDestroy } from "svelte"
 
-  declare const __APP_VERSION__: string
+
 
   let versionDismissed = $state(false)
   let updateAvailable = $state(false)
@@ -233,6 +237,11 @@
                                         "Text copied to clipboard",
                                       )
                                     })
+                                    .catch(() => {
+                                      global.notificationsManager.add(
+                                        "Failed to copy to clipboard",
+                                      )
+                                    })
                                 },
                               },
                               { text: "Close", task: () => {} },
@@ -274,7 +283,11 @@
                     <Button
                       style="width: 100%;box-sizing: border-box;"
                       onclick={() => {
-                        manager.addTemplate(JSON.parse(jsonPreset))
+                        try {
+                          manager.addTemplate(JSON.parse(jsonPreset))
+                        } catch {
+                          global.notificationsManager.add("Invalid JSON preset")
+                        }
                         close()
                       }}
                     >

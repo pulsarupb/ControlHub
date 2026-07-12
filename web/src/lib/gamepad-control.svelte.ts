@@ -37,7 +37,7 @@ function applyDeadZone(value: number): number {
 
 function poll() {
   const pads = navigator.getGamepads()
-  const gamepad = Array.from(pads).find(Boolean)
+  const gamepad = pads ? Array.from(pads).find(Boolean) : undefined
 
   if (gamepad) {
     if (!prevConnected) {

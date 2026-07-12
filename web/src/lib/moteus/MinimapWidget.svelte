@@ -5,7 +5,7 @@
   import { MapControls } from "three/examples/jsm/controls/MapControls.js"
   import { rover } from "$lib/rover-control.svelte"
   import { roverConnection } from "$lib/rover-connection.svelte"
-  import type { UrdfRobot, UrdfOrigin, UrdfGeometry, UrdfMaterial, Vec3 } from "$lib/rover-model/types"
+  import type { UrdfRobot, UrdfOrigin, UrdfGeometry, UrdfMaterial, Vec3, JointType } from "$lib/rover-model/types"
 
   const STORAGE_KEY = "minimapState"
 
@@ -33,17 +33,17 @@
   let mode: "orbit" | "planar" = $state(saved.mode)
   let followRover = $state(saved.followRover)
 
-  let scene: THREE.Scene
-  let perspCamera: THREE.PerspectiveCamera
-  let orthoCamera: THREE.OrthographicCamera
-  let activeCamera: THREE.PerspectiveCamera | THREE.OrthographicCamera
-  let renderer: THREE.WebGLRenderer
-  let orbitControls: OrbitControls
-  let mapControls: MapControls
-  let activeControls: OrbitControls | MapControls
-  let roverGroup: THREE.Group
-  let pathLine: THREE.Line
-  let robot: UrdfRobot
+  let scene!: THREE.Scene
+  let perspCamera!: THREE.PerspectiveCamera
+  let orthoCamera!: THREE.OrthographicCamera
+  let activeCamera!: THREE.PerspectiveCamera | THREE.OrthographicCamera
+  let renderer!: THREE.WebGLRenderer
+  let orbitControls!: OrbitControls
+  let mapControls!: MapControls
+  let activeControls!: OrbitControls | MapControls
+  let roverGroup!: THREE.Group
+  let pathLine!: THREE.Line
+  let robot!: UrdfRobot
   let animFrameId = 0
 
   const ORBIT_POS = new THREE.Vector3(1.8, 1.2, 2.2)
@@ -58,7 +58,7 @@
     return new THREE.Matrix4().compose(pos, quat, new THREE.Vector3(1, 1, 1))
   }
 
-  function createGeometry(geo: import("$lib/rover-model/types").UrdfGeometry): THREE.BufferGeometry | null {
+  function createGeometry(geo: UrdfGeometry): THREE.BufferGeometry | null {
     switch (geo.type) {
       case "box":
         return new THREE.BoxGeometry(geo.size.y, geo.size.z, geo.size.x)
@@ -231,7 +231,7 @@
   function convertModel(raw: Record<string, unknown>): UrdfRobot {
     return {
       name: (raw.name as string) ?? "",
-      materials: (raw.materials as UrdfMaterial[])?.map((m: Record<string, unknown>) => ({
+      materials: ((raw.materials ?? []) as UrdfMaterial[])?.map((m) => ({
         name: (m.name as string) ?? "",
         r: (m.r as number) ?? 0.5,
         g: (m.g as number) ?? 0.5,
@@ -250,9 +250,9 @@
         })),
         collisions: [],
       })) ?? [],
-      joints: (raw.joints as Record<string, unknown>[])?.map((j) => ({
+      joints: ((raw.joints ?? []) as Record<string, unknown>[])?.map((j) => ({
         name: (j.name as string) ?? "",
-        type: (j.type as string) ?? "fixed",
+        type: (j.type as JointType) ?? "fixed",
         parent: (j.parent as string) ?? "",
         child: (j.child as string) ?? "",
         origin: {
@@ -439,7 +439,7 @@
     {#if !loaded}
       <div class="loading-overlay">Loading rover model…</div>
     {/if}
-    <div bind:this={container} class="three-inner" />
+    <div bind:this={container} class="three-inner"></div>
   </div>
 </div>
 

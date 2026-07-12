@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, onMount } from "svelte"
+  import { onMount } from "svelte"
   import WidgetItem from "./widget/Widget.svelte"
 
   import Overlay from "./Overlay.svelte"
@@ -75,11 +75,9 @@
     }
     manager.updateGridSize(section)
     if (!manager.enableInteractions) return
-    window.addEventListener("resize", () => manager.updateGridSize(section))
-  })
-
-  onDestroy(() => {
-    window.removeEventListener("resize", () => manager.updateGridSize(section))
+    const handler = () => manager.updateGridSize(section)
+    window.addEventListener("resize", handler)
+    return () => window.removeEventListener("resize", handler)
   })
 
   let section: HTMLElement
