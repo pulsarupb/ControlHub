@@ -1,3 +1,6 @@
+kasm_desktop_data
+data
+
 target
 web/node_modules
 web/build

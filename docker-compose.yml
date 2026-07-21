@@ -16,4 +16,20 @@ services:
       - /run/dbus/system_bus_socket:/run/dbus/system_bus_socket
       - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket
     environment:
-      RUST_BACKTRACE: "1"
+      - RUST_BACKTRACE=1
+
+  desktop:
+    image: kasmweb/ubuntu-jammy-desktop:1.17.0
+    container_name: kasm-desktop
+    platform: linux/arm64
+    restart: unless-stopped
+    runtime: nvidia
+    shm_size: '512m'
+    ports:
+      - "6901:6901"
+    user: "1000:1000"
+    environment:
+      - VNC_PW=password
+    volumes:
+      - ./  kasm_desktop_data:/home/kasm-user
+      - ./data:/data
