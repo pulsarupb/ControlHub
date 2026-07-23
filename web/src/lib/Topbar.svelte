@@ -18,6 +18,7 @@
   import IconSlidersHorizontalRegular from "phosphor-icons-svelte/IconSlidersHorizontalRegular.svelte"
   import IconTrashRegular from "phosphor-icons-svelte/IconTrashRegular.svelte"
   import IconDotsThreeVerticalRegular from "phosphor-icons-svelte/IconDotsThreeVerticalRegular.svelte"
+  import IconMonitorArrowUpRegular from "phosphor-icons-svelte/IconMonitorArrowUpRegular.svelte"
   import { getContext } from "svelte"
   import type { Manager } from "./grid/widgets.svelte"
   import TemplatesChoose from "./grid/TemplatesChoose.svelte"
@@ -28,6 +29,7 @@
 
   import { check } from "@tauri-apps/plugin-updater"
   import { relaunch } from "@tauri-apps/plugin-process"
+  import { WebviewWindow } from "@tauri-apps/api/webviewWindow"
   import { onMount, onDestroy } from "svelte"
 
 
@@ -104,6 +106,30 @@
     typeof contextManager === "function" ? contextManager() : contextManager,
   )
   let jsonPreset = $state("")
+
+  const kasmDesktopUrl = $derived.by(() => {
+    try {
+      const url = new URL(roverConnection.baseUrl)
+      return `http://${url.hostname}:6900/`
+    } catch {
+      return "http://10.42.0.1:6900/"
+    }
+  })
+
+  function openKasmDesktop() {
+    try {
+      const w = new WebviewWindow("kasm-desktop", {
+        url: kasmDesktopUrl,
+        title: "Rover Desktop",
+        width: 1280,
+        height: 820,
+        resizable: true,
+      })
+      w.once("tauri://error", (e) => console.error("Failed to open Kasm desktop", e))
+    } catch {
+      window.open(kasmDesktopUrl, "_blank")
+    }
+  }
 </script>
 
 <nav>
@@ -156,6 +182,16 @@
           <RoverConnectionOverlay />
         {/snippet}
       </Overlay>
+
+      <span
+        class="topbar-icon"
+        class:online={roverConnection.state === "online"}
+        aria-label="Open rover desktop"
+        role="button"
+        onclick={openKasmDesktop}
+      >
+        <IconMonitorArrowUpRegular />
+      </span>
 
       <Overlay
         triggerStyle="display: flex;justify-content: center;align-items: center;"
