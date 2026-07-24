@@ -1,4 +1,4 @@
-FROM --platform=$TARGETPLATFORM rust:1.88-bookworm AS builder
+FROM --platform=$TARGETPLATFORM rust:latest AS builder
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ COPY . .
 
 RUN cargo build --locked --release -p driver
 
-FROM debian:bookworm-slim AS runtime
+FROM debian:stable-slim AS runtime
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
