@@ -54,32 +54,44 @@ apt install -y lxqt openbox lxqt-panel lxqt-session \
 # ------------------------------------------------------------------
 # 4. Configure KasmVNC for root user
 # ------------------------------------------------------------------
-echo "[4/7] Configuring KasmVNC for root..."
-mkdir -p /root/.vnc
+echo "[4/7] Configuring KasmVNC for user: ${SUDO_USER:-pulsar}..."
+VNC_USER="${SUDO_USER:-pulsar}"
+VNC_HOME="$(eval echo ~$VNC_USER)"
+mkdir -p "$VNC_HOME/.vnc"
 
-cat > /root/.vnc/kasmvnc.yaml << 'CONFIG'
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout "$VNC_HOME/.vnc/self.key" \
+  -out "$VNC_HOME/.vnc/self.crt" \
+  -subj "/CN=ubuntu" 2>/dev/null
+chmod 600 "$VNC_HOME/.vnc/self.key"
+
+cat > "$VNC_HOME/.vnc/kasmvnc.yaml" << 'CONFIG'
 network:
   ssl:
     require_ssl: false
+    pem_certificate: __CERT__
+    pem_key: __KEY__
   websocket_port: 6901
 logging:
   log_writer_name: all
   log_dest: logfile
   level: 30
 CONFIG
+sed -i "s|__CERT__|$VNC_HOME/.vnc/self.crt|g" "$VNC_HOME/.vnc/kasmvnc.yaml"
+sed -i "s|__KEY__|$VNC_HOME/.vnc/self.key|g" "$VNC_HOME/.vnc/kasmvnc.yaml"
 
-cat > /root/.vnc/xstartup << 'XSTARTUP'
+cat > "$VNC_HOME/.vnc/xstartup" << 'XSTARTUP'
 #!/bin/bash
 export XDG_SESSION_TYPE=x11
 export START_PULSEAUDIO=0
 exec startlxqt
 XSTARTUP
-chmod +x /root/.vnc/xstartup
+chmod +x "$VNC_HOME/.vnc/xstartup"
 
-touch /root/.vnc/.de-was-selected
+touch "$VNC_HOME/.vnc/.de-was-selected"
 
 expect << EOF
-spawn vncpasswd -u root -w /root/.kasmpasswd
+spawn vncpasswd -u $VNC_USER -w $VNC_HOME/.kasmpasswd
 expect "Password:"
 send "$VNC_PASSWORD\r"
 expect "Verify:"
@@ -87,76 +99,37 @@ send "$VNC_PASSWORD\r"
 expect eof
 EOF
 
-echo "KasmVNC configured for root on display :1 (port 6901)."
+chown -R "$VNC_USER:" "$VNC_HOME/.vnc" "$VNC_HOME/.kasmpasswd"
+
+echo "KasmVNC configured for $VNC_USER on display :1 (port 6901)."
 
 # ------------------------------------------------------------------
 # 5. Migrate existing user data from kasm_desktop_data/
 # ------------------------------------------------------------------
 if [ -d "$REPO_DIR/kasm_desktop_data" ] && [ "$(ls -A "$REPO_DIR/kasm_desktop_data" 2>/dev/null)" ]; then
-    echo "[5/7] Migrating existing desktop data to /root/..."
-    cp -a "$REPO_DIR/kasm_desktop_data/." /root/
+    echo "[5/7] Migrating existing desktop data to $VNC_HOME/..."
+    cp -a "$REPO_DIR/kasm_desktop_data/." "$VNC_HOME/"
     echo "Done."
 else
     echo "[5/7] No kasm_desktop_data found, skipping migration."
 fi
 
 # ------------------------------------------------------------------
-# 6. Install and configure Nginx reverse proxy (6900 -> 6901)
+# 6. Create systemd service for KasmVNC
 # ------------------------------------------------------------------
-if ! command -v nginx &>/dev/null; then
-    echo "[6/7] Installing Nginx..."
-    apt install -y nginx
-else
-    echo "[6/7] Nginx already installed."
-fi
+echo "[6/6] Creating systemd service for KasmVNC..."
 
-cat > /etc/nginx/sites-available/kasm-desktop << 'NGINX'
-map $http_upgrade $connection_upgrade {
-    default upgrade;
-    '' close;
-}
-
-upstream kasm_desktop {
-    server localhost:6901;
-}
-
-server {
-    listen 6900;
-
-    location / {
-        proxy_pass http://kasm_desktop;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    }
-}
-NGINX
-
-ln -sf /etc/nginx/sites-available/kasm-desktop /etc/nginx/sites-enabled/
-rm -f /etc/nginx/sites-enabled/default
-
-nginx -t && systemctl reload nginx
-echo "Nginx configured: port 6900 -> KasmVNC 6901"
-
-# ------------------------------------------------------------------
-# 7. Create systemd service for KasmVNC
-# ------------------------------------------------------------------
-echo "[7/7] Creating systemd service for KasmVNC..."
-
-cat > /etc/systemd/system/kasmvnc.service << 'SERVICE'
+cat > /etc/systemd/system/kasmvnc.service << SERVICE
 [Unit]
-Description=KasmVNC Desktop (Root)
+Description=KasmVNC Desktop
 After=network.target
 
 [Service]
 Type=simple
-User=root
+User=$VNC_USER
 ExecStart=/usr/bin/vncserver :1 -geometry 1920x1080 -depth 24 -fg -DisableBasicAuth
 ExecStop=/usr/bin/vncserver -kill :1
-Restart=unless-stopped
+Restart=on-failure
 RestartSec=5
 Environment=START_PULSEAUDIO=0
 
@@ -166,19 +139,13 @@ SERVICE
 
 systemctl daemon-reload
 systemctl enable kasmvnc
-systemctl enable nginx
 
 echo ""
 echo "=========================================="
 echo "  Kasm Desktop Host Setup Complete!"
 echo "=========================================="
 echo ""
-echo "Start services now:"
-echo "  sudo systemctl start kasmvnc"
-echo "  sudo systemctl start nginx"
+echo "Start services:"
+echo "  ./start-services.sh"
 echo ""
-echo "Connect at: http://<rover-ip>:6900/"
-echo ""
-echo "Note: Update your rover's docker-compose.yml"
-echo "      by removing the 'desktop' and 'web' services."
-echo "      Then run: docker compose up -d"
+echo "Connect at: http://<rover-ip>:6901/"

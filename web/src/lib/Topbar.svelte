@@ -110,9 +110,9 @@
   const kasmDesktopUrl = $derived.by(() => {
     try {
       const url = new URL(roverConnection.baseUrl)
-      return `http://${url.hostname}:6900/`
+      return `http://${url.hostname}:6901/`
     } catch {
-      return "http://10.42.0.1:6900/"
+      return "http://10.42.0.1:6901/"
     }
   })
 
