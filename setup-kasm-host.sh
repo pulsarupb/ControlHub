@@ -1,16 +1,16 @@
 #!/bin/bash
-set -euo pipefail
+set -uo pipefail
 
 # ============================================================
 # ControlHub - Kasm Desktop Host Setup Script
 #
 # Installs KasmVNC + LXQt desktop directly on the Jetson host,
 # eliminating Docker containers for the desktop.
-#
-# Run on the Jetson as root or with sudo.
+# Run as root or with sudo.
 # ============================================================
 
 KASMVNC_VERSION="${KASMVNC_VERSION:-1.3.1}"
+VNC_PASSWORD="${VNC_PASSWORD:-kasm123}"
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 if [[ $EUID -ne 0 ]]; then
@@ -25,7 +25,7 @@ echo "=== ControlHub Kasm Host Setup ==="
 # ------------------------------------------------------------------
 echo "[1/7] Installing system dependencies..."
 apt update
-apt install -y wget curl
+apt install -y wget curl expect
 
 # ------------------------------------------------------------------
 # 2. Install KasmVNC
@@ -38,8 +38,7 @@ else
     cd "$TMPDIR"
     PKG="kasmvncserver_jammy_${KASMVNC_VERSION}_arm64.deb"
     wget -q "https://github.com/kasmtech/KasmVNC/releases/download/v${KASMVNC_VERSION}/${PKG}" -O kasmvnc.deb
-    dpkg -i kasmvnc.deb
-    apt install -f -y
+    dpkg -i kasmvnc.deb || apt install -f -y
     cd "$REPO_DIR"
     rm -rf "$TMPDIR"
     echo "KasmVNC installed."
@@ -59,12 +58,10 @@ echo "[4/7] Configuring KasmVNC for root..."
 mkdir -p /root/.vnc
 
 cat > /root/.vnc/kasmvnc.yaml << 'CONFIG'
-server:
-  ssl_only: false
-  require_ssl: false
-authentication:
-  require: false
-  methods: none
+network:
+  ssl:
+    require_ssl: false
+  websocket_port: 6901
 logging:
   log_writer_name: all
   log_dest: logfile
@@ -78,6 +75,17 @@ export START_PULSEAUDIO=0
 exec startlxqt
 XSTARTUP
 chmod +x /root/.vnc/xstartup
+
+touch /root/.vnc/.de-was-selected
+
+expect << EOF
+spawn vncpasswd -u root -w /root/.kasmpasswd
+expect "Password:"
+send "$VNC_PASSWORD\r"
+expect "Verify:"
+send "$VNC_PASSWORD\r"
+expect eof
+EOF
 
 echo "KasmVNC configured for root on display :1 (port 6901)."
 
@@ -130,6 +138,7 @@ NGINX
 ln -sf /etc/nginx/sites-available/kasm-desktop /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 
+nginx -t && systemctl reload nginx
 echo "Nginx configured: port 6900 -> KasmVNC 6901"
 
 # ------------------------------------------------------------------
@@ -145,7 +154,7 @@ After=network.target
 [Service]
 Type=simple
 User=root
-ExecStart=/usr/bin/vncserver :1 -geometry 1920x1080 -depth 24 -fg
+ExecStart=/usr/bin/vncserver :1 -geometry 1920x1080 -depth 24 -fg -DisableBasicAuth
 ExecStop=/usr/bin/vncserver -kill :1
 Restart=unless-stopped
 RestartSec=5
