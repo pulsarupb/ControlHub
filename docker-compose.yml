@@ -18,29 +18,3 @@ services:
     environment:
       - RUST_BACKTRACE=1
 
-  desktop:
-    build:
-      context: ./desktop
-    container_name: kasm-desktop
-    platform: linux/arm64
-    restart: unless-stopped
-    runtime: nvidia
-    shm_size: '512m'
-    privileged: true
-    network_mode: host
-    user: root
-    environment:
-      - VNC_PW=kasm123
-      - START_PULSEAUDIO=0
-    volumes:
-      - ./data:/data
-      - .:/home/pulsar/lazar
-
-  web:
-    image: nginx:alpine
-    container_name: kasm-web
-    platform: linux/arm64
-    restart: unless-stopped
-    network_mode: host
-    volumes:
-      - ./desktop/nginx.conf:/etc/nginx/nginx.conf:ro
