@@ -1,0 +1,6 @@
+This directory vendors tauri-plugin-switch-input and its Svelte bindings from
+https://github.com/pulsarupb/switch-android-tauri (commit
+92d2e4e7a7e37c07b87a2f0d7b72e995bc17becb).
+
+The upstream project declares the MIT license. The vendored package sources
+retain their original attribution and copyright headers where present.

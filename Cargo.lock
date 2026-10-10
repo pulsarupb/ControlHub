@@ -138,6 +138,7 @@ dependencies = [
  "tauri-plugin-log",
  "tauri-plugin-native",
  "tauri-plugin-process",
+ "tauri-plugin-switch-input",
  "tauri-plugin-updater",
 ]
 
@@ -4368,6 +4369,17 @@ checksum = "d55511a7bf6cd70c8767b02c97bf8134fa434daf3926cfc1be0a0f94132d165a"
 dependencies = [
  "tauri",
  "tauri-plugin",
+]
+
+[[package]]
+name = "tauri-plugin-switch-input"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

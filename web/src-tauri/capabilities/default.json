@@ -25,6 +25,7 @@
         { "url": "https://127.0.0.1:*/*" }
       ]
     },
-    "process:default"
+    "process:default",
+    "switch-input:default"
   ]
 }

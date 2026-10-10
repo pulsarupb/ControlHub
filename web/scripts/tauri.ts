@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+
 const args = Bun.argv.slice(2);
 const bun = process.execPath;
 
@@ -37,6 +39,38 @@ function powershell(command: string[]) {
 }
 
 const projectName = "panels-erc-edition";
+
+async function installSwitchInputActivityBridge() {
+  const root = "src-tauri/gen/android/app/src/main/java";
+  if (!existsSync(root)) return false;
+  const files = new Bun.Glob("**/MainActivity.kt").scan({ cwd: root, absolute: true });
+  let found = false;
+  for await (const path of files) {
+    let source = await Bun.file(path).text();
+    if (source.includes("SwitchInputBridge.onKeyEvent(event)")) continue;
+    if (!source.includes("class MainActivity : TauriActivity()")) continue;
+    source = source.replace(
+      /^package ([^\r\n]+)\r?\n/m,
+      "$&\nimport android.view.KeyEvent\nimport android.view.MotionEvent\nimport dev.pulsarupb.switchinput.plugin.SwitchInputBridge\n",
+    );
+    source = source.replace(
+      /class MainActivity : TauriActivity\(\)\s*\{/,
+      `class MainActivity : TauriActivity() {
+  override fun dispatchKeyEvent(event: KeyEvent): Boolean =
+    SwitchInputBridge.onKeyEvent(event) || super.dispatchKeyEvent(event)
+
+  override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean =
+    SwitchInputBridge.onGenericMotionEvent(event) || super.dispatchGenericMotionEvent(event)
+
+  override fun dispatchTouchEvent(event: MotionEvent): Boolean =
+    SwitchInputBridge.onTouchEvent(event) || super.dispatchTouchEvent(event)
+`,
+    );
+    await Bun.write(path, source);
+    found = true;
+  }
+  return found;
+}
 
 function windowsTargetCleanupCommand() {
   return [
@@ -235,5 +269,11 @@ async function runWindowsTauriDev() {
 if (args[0] === "dev" && isWsl()) {
   await runWindowsTauriDev();
 } else {
-  await run([bun, "x", "tauri", ...args]);
+  if (args[0] === "android") {
+    await installSwitchInputActivityBridge();
+    await run([bun, "x", "tauri", ...args]);
+    if (args.includes("init")) await installSwitchInputActivityBridge();
+  } else {
+    await run([bun, "x", "tauri", ...args]);
+  }
 }

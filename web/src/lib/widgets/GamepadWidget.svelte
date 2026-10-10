@@ -1,9 +1,11 @@
 <script lang="ts">
+  import { onMount } from "svelte"
   import "virtual-gamepad-lib/gamepad_assets/base.css"
   import GAMEPAD_SVG from "virtual-gamepad-lib/gamepad_assets/rounded/display-gamepad-full.svg?raw"
   import { rover as displayRover } from "$lib/data/rover.svelte"
   import { rover as controlRover } from "$lib/rover-control.svelte"
   import { xboxButtonMap, xboxAxesMap } from "virtual-gamepad-lib"
+  import { SwitchInput } from "$lib/switch-input/vendor"
 
   type DragState = {
     id: string
@@ -36,12 +38,34 @@
   }
 
   const buttonActions: Record<string, () => void> = {}
+  const nativeButtonElements: Record<string, { id: string; index?: number }> = {
+    // The Switch's physical face-button layout is rotated relative to Xbox.
+    A: { id: "button_2", index: xboxButtonMap.B },
+    B: { id: "button_1", index: xboxButtonMap.A },
+    X: { id: "button_4", index: xboxButtonMap.Y },
+    Y: { id: "button_3", index: xboxButtonMap.X },
+    L: { id: "shoulder_button_front_left", index: xboxButtonMap.LShoulder },
+    R: { id: "shoulder_button_front_right", index: xboxButtonMap.RShoulder },
+    ZL: { id: "shoulder_trigger_back_left", index: xboxButtonMap.LTrigger },
+    ZR: { id: "shoulder_trigger_back_right", index: xboxButtonMap.RTrigger },
+    MINUS: { id: "select_button", index: xboxButtonMap.Back },
+    PLUS: { id: "start_button", index: xboxButtonMap.Start },
+    LSTICK: { id: "stick_button_left", index: xboxButtonMap.LStick },
+    RSTICK: { id: "stick_button_right", index: xboxButtonMap.RStick },
+    UP: { id: "dpad_up", index: xboxButtonMap.DPadUp },
+    DOWN: { id: "dpad_down", index: xboxButtonMap.DPadDown },
+    LEFT: { id: "dpad_left", index: xboxButtonMap.DPadLeft },
+    RIGHT: { id: "dpad_right", index: xboxButtonMap.DPadRight },
+    HOME: { id: "switch_home", index: xboxButtonMap.Xbox },
+    Z: { id: "switch_z" },
+  }
 
   const STICK_RANGE = 12
 
   let gamepadEl: HTMLDivElement | undefined = $state()
   let dragState: DragState | null = null
   let pressedButton: string | null = null
+  let nativeButtons = $state<Record<string, boolean>>({})
 
   const buttons = $derived.by<ButtonState[]>(() => {
     const list = displayRover.gamepadButtons
@@ -90,6 +114,12 @@
       setActive(id, state?.active ?? false, state?.value ?? 0)
     }
 
+    for (const [name, { id, index }] of Object.entries(nativeButtonElements)) {
+      const browserActive = index === undefined ? false : buttons[index]?.active ?? false
+      const nativeActive = nativeButtons[name] ?? false
+      setActive(id, nativeActive || browserActive, browserActive ? buttons[index!]?.value ?? 1 : 1)
+    }
+
     setActive("stick_button_left", buttons[xboxButtonMap.LStick]?.active ?? false)
     setActive("stick_button_right", buttons[xboxButtonMap.RStick]?.active ?? false)
 
@@ -110,7 +140,25 @@
     buttons
     leftStick
     rightStick
+    nativeButtons
     updateDisplay()
+  })
+
+  onMount(() => {
+    const input = new SwitchInput()
+    const unsubscribe = input.on("buttons", (event) => {
+      if (event.type === "button") nativeButtons[event.name] = event.pressed
+    })
+    void input.start({
+      buttons: { mode: "push" },
+      axes: { mode: "off" },
+      touch: { mode: "off" },
+      imu: { mode: "off" },
+    })
+    return () => {
+      unsubscribe()
+      void input.stop()
+    }
   })
 
   let injected = false
@@ -174,6 +222,32 @@
       group.appendChild(iconGroup)
 
       container.appendChild(group)
+    }
+
+    const extras = [
+      { id: "switch_home", cx: 138, cy: 137, label: "H" },
+      { id: "switch_z", cx: 138, cy: 155, label: "Z" },
+    ]
+    for (const { id, cx, cy, label } of extras) {
+      const group = document.createElementNS("http://www.w3.org/2000/svg", "g")
+      group.id = id
+      group.style.pointerEvents = "none"
+      const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle")
+      circle.setAttribute("cx", String(cx))
+      circle.setAttribute("cy", String(cy))
+      circle.setAttribute("r", "5.5")
+      circle.classList.add("gpad-btn-bg")
+      group.appendChild(circle)
+      const text = document.createElementNS("http://www.w3.org/2000/svg", "text")
+      text.setAttribute("x", String(cx))
+      text.setAttribute("y", String(cy + 1.8))
+      text.setAttribute("text-anchor", "middle")
+      text.style.display = "block"
+      text.style.fill = "var(--textMuted)"
+      text.style.fontSize = "5px"
+      text.textContent = label
+      group.appendChild(text)
+      svg.appendChild(group)
     }
   })
 
