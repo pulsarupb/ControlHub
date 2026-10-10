@@ -66,7 +66,11 @@
       const target = document.activeElement
       if (isEditing(target)) return
       if (["UP", "DOWN", "LEFT", "RIGHT"].includes(event.name)) {
-        moveFocus(event.name as "UP" | "DOWN" | "LEFT" | "RIGHT")
+        if (target instanceof Element && target.closest("[data-canvas-navigation]")) {
+          document.dispatchEvent(new CustomEvent("switch-grid-nav", { detail: event.name }))
+        } else {
+          moveFocus(event.name as "UP" | "DOWN" | "LEFT" | "RIGHT")
+        }
       } else if (event.name === "A") {
         (target as HTMLElement | null)?.click?.()
       } else if (event.name === "B") {

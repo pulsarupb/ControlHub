@@ -66,6 +66,8 @@
     return list
   })
 
+  let snapTimer: ReturnType<typeof setTimeout>
+
   onMount(() => {
     if (enableInteractions) {
       manager.loadInteractive()
@@ -73,25 +75,97 @@
       manager.widgets = [...manager.presets.data[manager.presets.selected].widgets]
       manager.navlets = [...manager.presets.data[manager.presets.selected].navlets]
     }
-    manager.updateGridSize(section)
-    if (!manager.enableInteractions) return
-    const handler = () => manager.updateGridSize(section)
+    manager.updateGridSize(section, preview ? undefined : viewport)
+    if (!preview) {
+      // Start at the true canvas center, which is between the snap positions.
+      viewport.style.scrollSnapType = "none"
+      viewport.scrollTo({ left: viewport.clientWidth, top: viewport.clientHeight / 2 })
+      setTimeout(() => viewport.style.removeProperty("scroll-snap-type"), 250)
+    }
+    if (!manager.enableInteractions || preview) return
+    const handler = () => {
+      const oldLeft = viewport.scrollLeft
+      const oldTop = viewport.scrollTop
+      manager.updateGridSize(section, viewport)
+      viewport.scrollTo({ left: oldLeft, top: oldTop })
+    }
+    const switchHandler = (event: Event) => {
+      const direction = (event as CustomEvent<string>).detail.toLowerCase()
+      if (["up", "down", "left", "right"].includes(direction)) {
+        navigateCanvas(direction as "up" | "down" | "left" | "right")
+      }
+    }
+    const settleScroll = () => {
+      clearTimeout(snapTimer)
+      snapTimer = setTimeout(() => {
+        const stepX = viewport.clientWidth
+        const stepY = viewport.clientHeight
+        const maxX = Math.max(0, viewport.scrollWidth - stepX)
+        const maxY = Math.max(0, viewport.scrollHeight - stepY)
+        const left = Math.min(Math.round(viewport.scrollLeft / stepX) * stepX, Math.round(maxX / stepX) * stepX)
+        const top = Math.min(Math.round(viewport.scrollTop / stepY) * stepY, Math.round(maxY / stepY) * stepY)
+        viewport.scrollTo({ left, top, behavior: "smooth" })
+      }, 140)
+    }
+    viewport.addEventListener("scroll", settleScroll, { passive: true })
     window.addEventListener("resize", handler)
-    return () => window.removeEventListener("resize", handler)
+    document.addEventListener("switch-grid-nav", switchHandler)
+    return () => {
+      window.removeEventListener("resize", handler)
+      document.removeEventListener("switch-grid-nav", switchHandler)
+      viewport.removeEventListener("scroll", settleScroll)
+      clearTimeout(snapTimer)
+    }
   })
 
   let section: HTMLElement
+  let viewport: HTMLElement
+
+  function navigateCanvas(direction: "up" | "down" | "left" | "right") {
+    const dx = direction === "left" ? -viewport.clientWidth : direction === "right" ? viewport.clientWidth : 0
+    const dy = direction === "up" ? -viewport.clientHeight : direction === "down" ? viewport.clientHeight : 0
+    viewport.scrollBy({ left: dx, top: dy, behavior: "smooth" })
+  }
+
+  function onCanvasKeydown(event: KeyboardEvent) {
+    const directions: Record<string, "up" | "down" | "left" | "right"> = {
+      ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
+    }
+    const direction = directions[event.key]
+    if (!direction || !manager.enableInteractions) return
+    event.preventDefault()
+    navigateCanvas(direction)
+  }
 </script>
 
-<div class="wrapper" class:preview>
+<div
+  class="wrapper"
+  class:preview
+  bind:this={viewport}
+  data-canvas-navigation
+  role="application"
+  onkeydown={onCanvasKeydown}
+  tabindex="0"
+  aria-label="Navigable widget canvas. Use arrow keys to move between areas."
+>
   <section
+    class="canvas"
     bind:this={section}
     onpointermove={onPointerMove}
     onpointerleave={onMouseLeave}
     role="grid"
     tabindex="0"
-    style="--width:{manager.WIDTH}px;--wCount:{manager.MAX_GRID_WIDTH};--height:{manager.HEIGHT}px;--hCount:{manager.MAX_GRID_HEIGHT};"
+    style="--width:{manager.WIDTH}px;--wCount:{manager.MAX_GRID_WIDTH};--height:{manager.HEIGHT}px;--hCount:{manager.MAX_GRID_HEIGHT};width:{preview ? '100%' : `${manager.WIDTH * manager.MAX_GRID_WIDTH}px`};height:{preview ? '100%' : `${manager.HEIGHT * manager.MAX_GRID_HEIGHT}px`};"
   >
+    {#each [0, 1, 2] as column}
+      {#each [0, 1] as row}
+      <div
+        class="snap-page"
+        aria-hidden="true"
+        style="--x:{column * 12};--y:{row * 6};"
+      ></div>
+      {/each}
+    {/each}
     {#if manager.isEmpty}
       <div
         class="item"
@@ -143,28 +217,45 @@
     padding: var(--spacing);
   }
   .wrapper {
-    overflow-x: auto;
-    height: 100%;
+    overflow: auto;
+    flex: 1 1 auto;
+    height: 0;
+    min-height: 0;
+    min-width: 0;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: both mandatory;
+    scroll-padding: 0;
   }
   .wrapper.preview {
     overflow: hidden;
     width: 100%;
     height: 100%;
   }
-  section {
+  .canvas {
     --spacing: 0.25rem;
     position: relative;
 
-    flex-grow: 1;
-    overflow: hidden;
-    margin: var(--spacing);
-    min-width: 1200px;
-    height: calc(100% - 2 * var(--spacing));
+    overflow: visible;
+    margin: 0;
+    min-width: 0;
+    flex: none;
   }
-  .wrapper.preview section {
+  .wrapper.preview .canvas {
     margin: 0;
     min-width: 0;
     width: 100%;
     height: 100%;
+    width: 100%;
+  }
+
+  .snap-page {
+      position: absolute;
+      top: calc(var(--y) * var(--height));
+      left: calc(var(--x) * var(--width));
+      width: calc(12 * var(--width));
+      height: calc(6 * var(--height));
+      scroll-snap-align: start;
+      pointer-events: none;
   }
 </style>

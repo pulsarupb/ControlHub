@@ -103,17 +103,30 @@ export class Manager {
       }),
     }
   }
-  updateGridSize(section: HTMLElement) {
-    const bounding = section.getBoundingClientRect()
-    const width = bounding.width
-    const height = bounding.height
-
-    this.WIDTH = width / this.MAX_GRID_WIDTH
-    this.HEIGHT = height / this.MAX_GRID_HEIGHT
+  updateGridSize(section: HTMLElement, viewport?: HTMLElement) {
+    const bounds = (viewport ?? section).getBoundingClientRect()
+    // On the interactive canvas, one viewport is 12 by 6 cells. The canvas
+    // itself is three viewports wide and two viewports tall.
+    const columns = viewport ? 12 : this.MAX_GRID_WIDTH
+    const rows = viewport ? 6 : this.MAX_GRID_HEIGHT
+    this.WIDTH = bounds.width / columns
+    this.HEIGHT = bounds.height / rows
   }
   loadInteractive() {
-    var data = localStorage.getItem("layout") ?? JSON.stringify(this.template)
-    this.presets = JSON.parse(data) || structuredClone(this.template)
+    this.MAX_GRID_WIDTH = 36
+    this.MAX_GRID_HEIGHT = 12
+    const saved = localStorage.getItem("layout")
+    this.presets = saved ? JSON.parse(saved) : structuredClone(this.template)
+    if (localStorage.getItem("canvas-layout-version") !== "2") {
+      for (const preset of this.presets.data) {
+        for (const widget of preset.widgets) {
+          widget.x = Math.min(36 - widget.w, widget.x + 12)
+          widget.y = Math.min(12 - widget.h, widget.y + 3)
+        }
+      }
+      localStorage.setItem("layout", JSON.stringify(this.presets))
+      localStorage.setItem("canvas-layout-version", "2")
+    }
 
     this.enableInteractions = true
 
@@ -122,6 +135,8 @@ export class Manager {
   }
 
   loadPreview(defaultTemplate: Template) {
+    this.MAX_GRID_WIDTH = 16
+    this.MAX_GRID_HEIGHT = 12
     this.presets = {
       selected: 0,
       data: [this.processTemplate(defaultTemplate)],
@@ -249,7 +264,7 @@ export class Manager {
 
   WIDTH = $state(200)
   HEIGHT = $state(100)
-  MAX_GRID_WIDTH = $state(16)
+  MAX_GRID_WIDTH = $state(36)
   MAX_GRID_HEIGHT = $state(12)
 
   tabIndex = $state(0)
