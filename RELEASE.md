@@ -15,6 +15,7 @@
 | `*.AppImage` + `.sig` | Linux panels dashboard |
 | `*.deb` / `*.rpm` | Linux package bundles |
 | `*.msi` / `*.exe` + `.sig` | Windows panels dashboard |
+| `Panels-Android-ARM64-*.apk` | Android panels dashboard (ARM64, installable APK) |
 | `SHA256SUMS` | Checksums for all assets |
 | `updates.json` | Tauri updater manifest (committed back to `main`) |
 

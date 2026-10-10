@@ -11,10 +11,13 @@
   let startX = $state(0)
   let startY = $state(0)
 
-  function startResize(e: MouseEvent) {
+  let pointerId: number | null = null
+
+  function startResize(e: PointerEvent) {
     if (!manager.enableInteractions) return
     if (isPossible) return
     widget.isMoving = true
+    pointerId = e.pointerId
     widget.offset = {
       x: 0,
       y: 0,
@@ -22,12 +25,13 @@
     startX = e.clientX
     startY = e.clientY
     manager.updateResize(widget.id)
-    window.addEventListener("mousemove", onResize)
-    window.addEventListener("mouseup", stopResize)
+    window.addEventListener("pointermove", onResize)
+    window.addEventListener("pointerup", stopResize)
+    window.addEventListener("pointercancel", stopResize)
   }
 
-  function onResize(e: MouseEvent) {
-    if (!manager.enableInteractions) return
+  function onResize(e: PointerEvent) {
+    if (!manager.enableInteractions || e.pointerId !== pointerId) return
     e.preventDefault()
     widget.offset = {
       x: e.clientX - startX,
@@ -37,11 +41,13 @@
     manager.updateResize(widget.id)
   }
 
-  function stopResize() {
-    if (!manager.enableInteractions) return
+  function stopResize(e: PointerEvent) {
+    if (!manager.enableInteractions || e.pointerId !== pointerId) return
     widget.isMoving = false
-    window.removeEventListener("mousemove", onResize)
-    window.removeEventListener("mouseup", stopResize)
+    window.removeEventListener("pointermove", onResize)
+    window.removeEventListener("pointerup", stopResize)
+    window.removeEventListener("pointercancel", stopResize)
+    pointerId = null
     manager.finishResizeWidget(widget.id)
     widget.offset = {
       x: 0,
@@ -50,7 +56,7 @@
   }
 </script>
 
-<button class="icon resize" onmousedown={startResize}>
+<button class="icon resize" onpointerdown={startResize}>
   <IconArrowsOutSimpleRegular />
 </button>
 
@@ -58,6 +64,7 @@
   .icon {
     all: unset;
     cursor: pointer;
+    touch-action: none;
     width: fit-content;
     display: flex;
   }

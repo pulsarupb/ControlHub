@@ -12,12 +12,15 @@
   let startX = $state(0)
   let startY = $state(0)
 
-  function startDrag(e: MouseEvent) {
+  let pointerId: number | null = null
+
+  function startDrag(e: PointerEvent) {
     if (!manager.enableInteractions) return
     if (isPossible) return
     console.log("Start drag")
 
     widget.isMoving = true
+    pointerId = e.pointerId
     widget.move = {
       x: 0,
       y: 0,
@@ -26,12 +29,13 @@
     startX = e.clientX
     startY = e.clientY
     manager.updateMove(widget.id)
-    window.addEventListener("mousemove", onDrag)
-    window.addEventListener("mouseup", stopDrag)
+    window.addEventListener("pointermove", onDrag)
+    window.addEventListener("pointerup", stopDrag)
+    window.addEventListener("pointercancel", stopDrag)
   }
 
-  function onDrag(e: MouseEvent) {
-    if (!manager.enableInteractions) return
+  function onDrag(e: PointerEvent) {
+    if (!manager.enableInteractions || e.pointerId !== pointerId) return
     console.log("update drag")
     widget.move = {
       x: e.clientX - startX,
@@ -40,12 +44,14 @@
     manager.updateMove(widget.id)
   }
 
-  function stopDrag() {
-    if (!manager.enableInteractions) return
+  function stopDrag(e: PointerEvent) {
+    if (!manager.enableInteractions || e.pointerId !== pointerId) return
     console.log("Stop drag")
     widget.isMoving = false
-    window.removeEventListener("mousemove", onDrag)
-    window.removeEventListener("mouseup", stopDrag)
+    window.removeEventListener("pointermove", onDrag)
+    window.removeEventListener("pointerup", stopDrag)
+    window.removeEventListener("pointercancel", stopDrag)
+    pointerId = null
     manager.finishMoveWidget(widget.id)
     widget.move = {
       x: 0,
@@ -54,12 +60,13 @@
   }
 </script>
 
-<button class="icon" onmousedown={startDrag}><IconArrowsOutCardinalRegular /></button>
+<button class="icon" onpointerdown={startDrag}><IconArrowsOutCardinalRegular /></button>
 
 <style>
   .icon {
     all: unset;
     cursor: pointer;
+    touch-action: none;
     width: fit-content;
     display: flex;
   }

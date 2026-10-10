@@ -295,10 +295,66 @@ jobs:
           name: panels-windows
           path: staging/
 
+  android-panels:
+    name: Build Panels (Android ARM64)
+    runs-on: ubuntu-latest
+    needs: resolve_tag
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.resolve_tag.outputs.source_ref }}
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK components
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018"
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: android-panels-arm64
+
+      - run: bun install
+        working-directory: web
+
+      - name: Sync Tauri version and initialize Android project
+        working-directory: web
+        run: |
+          VERSION=$(python -c "import tomllib; print(tomllib.load(open('../Cargo.toml','rb'))['workspace']['package']['version'])")
+          jq ".version = \"$VERSION\"" src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp
+          mv src-tauri/tauri.conf.json.tmp src-tauri/tauri.conf.json
+          bun run tauri android init --ci
+
+      - name: Build installable Android APK
+        working-directory: web
+        run: bun run tauri android build --debug --apk --target aarch64 --ci
+
+      - name: Stage Android APK
+        run: |
+          mkdir -p staging
+          APK=$(find web/src-tauri/gen/android/app/build/outputs/apk -type f -name '*.apk' -print -quit)
+          test -n "$APK"
+          cp "$APK" "staging/Panels-Android-ARM64-${{ needs.resolve_tag.outputs.release_tag }}.apk"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: panels-android
+          path: staging/
+
   release:
     name: Publish release
     runs-on: ubuntu-latest
-    needs: [resolve_tag, linux-server, linux-server-arm64, linux-panels, windows-panels]
+    needs: [resolve_tag, linux-server, linux-server-arm64, linux-panels, windows-panels, android-panels]
 
     steps:
       - uses: actions/checkout@v6

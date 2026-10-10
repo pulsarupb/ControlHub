@@ -21,15 +21,18 @@
   let xOffset = $state(0)
   let yOffset = $state(0)
 
-  function startMove(e: MouseEvent) {
+  let pointerId: number | null = null
+
+  function startMove(e: PointerEvent) {
     e.preventDefault()
     if (!manager.enableInteractions) return
     if (isPossible) return
     console.log("Started move of", movingIndex)
 
     manager.tabName = getWidgetName(widget.widgets[movingIndex].widgetID)
+    pointerId = e.pointerId
 
-    window.addEventListener("mousemove", onMove)
+    window.addEventListener("pointermove", onMove)
     document.body.classList.add("no-select")
 
     const tab = document.querySelector(
@@ -48,15 +51,16 @@
 
     tabX = e.clientX
     tabY = e.clientY
-    window.addEventListener("mouseup", stopMove)
+    window.addEventListener("pointerup", stopMove)
+    window.addEventListener("pointercancel", stopMove)
   }
 
   function getWidgetName(widgetID: string) {
     return getComponent(widgetID, "widget")?.name ?? "Empty"
   }
 
-  function onMove(e: MouseEvent) {
-    if (!manager.enableInteractions) return
+  function onMove(e: PointerEvent) {
+    if (!manager.enableInteractions || e.pointerId !== pointerId) return
     tabX = e.clientX
     tabY = e.clientY
     if (
@@ -92,8 +96,8 @@
       manager.tabWidgetID = dataWidget
     }
   }
-  function stopMove(e: MouseEvent) {
-    if (!manager.enableInteractions) return
+  function stopMove(e: PointerEvent) {
+    if (!manager.enableInteractions || e.pointerId !== pointerId) return
     console.log("Stopped move of", movingIndex)
     widget.widgets[movingIndex].isMoving = false
 
@@ -110,8 +114,10 @@
     )[0]
 
     if (el == undefined) {
-      window.removeEventListener("mousemove", onMove)
-      window.removeEventListener("mouseup", stopMove)
+      window.removeEventListener("pointermove", onMove)
+      window.removeEventListener("pointerup", stopMove)
+      window.removeEventListener("pointercancel", stopMove)
+      pointerId = null
       document.body.classList.remove("no-select")
       return
     }
@@ -162,8 +168,10 @@
       }
     }
 
-    window.removeEventListener("mousemove", onMove)
-    window.removeEventListener("mouseup", stopMove)
+    window.removeEventListener("pointermove", onMove)
+    window.removeEventListener("pointerup", stopMove)
+    window.removeEventListener("pointercancel", stopMove)
+    pointerId = null
     document.body.classList.remove("no-select")
 
     manager.save()
@@ -190,7 +198,7 @@
         data-index={index}
         class:emptyMoving={w.isMoving}
         class:selected={index === widget.selected && !w.isMoving}
-        onmousedown={(e: MouseEvent) => {
+        onpointerdown={(e: PointerEvent) => {
           if (widget.widgets.length === 1 && w.widgetID === "") return
           movingIndex = index
 

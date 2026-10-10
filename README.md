@@ -4,7 +4,7 @@
 
 Remote control and monitoring dashboard for the Pulsar rover. Two components work together:
 
-- **Panels** - cross-platform desktop dashboard (Windows / Linux). Joystick, minimap, motor telemetry, gamepad support, and a customizable widget grid.
+- **Panels** - cross-platform dashboard (Android / Windows / Linux). Joystick, minimap, motor telemetry, gamepad support, and a customizable widget grid.
 - **driver** - Rust server that runs on the rover (Jetson). Communicates with four Moteus brushless motor controllers over CAN-FD, handles tank-drive control, autonomous point-following, and WiFi hotspot management.
 
 ---
@@ -16,7 +16,8 @@ Remote control and monitoring dashboard for the Pulsar rover. Two components wor
 1. **Download Panels** from the [Releases page](https://github.com/pulsarupb/ControlHub/releases):
    - Linux: `.AppImage` or `.deb`
    - Windows: `.msi`
-2. **Connect your computer to the rover's WiFi** - SSID `Pulsar-Rover` (password: `password`).
+   - Android (ARM64): `Panels-Android-ARM64-*.apk` (enable installation from this source when prompted)
+2. **Connect your device to the rover's WiFi** - SSID `Pulsar-Rover` (password: `password`).
 3. **Launch Panels** - it auto-connects to the rover at `10.42.0.1:8080`.
 
 > If Panels can't find the rover, check you're connected to the rover's WiFi and click the connection indicator in the top bar to switch modes (Local / Dev / Remote).

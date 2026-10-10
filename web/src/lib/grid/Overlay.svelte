@@ -9,45 +9,46 @@
     isMouse = false,
   }: { x: number; y: number; isMouse?: boolean } = $props()
 
-  function handleMouseMove() {
+  function handlePointerMove() {
     if (manager.placeStart == null) return
     manager.updatePlace(x, y)
   }
 
-  function handleMouseLeave() {
+  function handlePointerLeave() {
     cleanup()
     manager.resetPlace()
   }
 
-  function handleMouseOut(e: MouseEvent) {
+  function handlePointerOut(e: PointerEvent) {
     var from = e.relatedTarget as Node | null
     if (!from || from.nodeName == "HTML") {
-      handleMouseLeave()
+      handlePointerLeave()
     }
   }
 
   function cleanup() {
-    window.removeEventListener("mouseout", handleMouseOut)
-    window.removeEventListener("blur", handleMouseLeave)
+    window.removeEventListener("pointerout", handlePointerOut)
+    window.removeEventListener("blur", handlePointerLeave)
   }
 </script>
 
 {#if isMouse}
   <button
     oncontextmenu={(e) => e.preventDefault()}
-    onmousedown={(e) => {
-      if (e.button != 0) return
+    onpointerdown={(e) => {
+      if (e.button != 0 || !e.isPrimary) return
       manager.startPlace(x, y)
 
-      window.addEventListener("mouseout", handleMouseOut)
-      window.addEventListener("blur", handleMouseLeave)
+      window.addEventListener("pointerout", handlePointerOut)
+      window.addEventListener("blur", handlePointerLeave)
     }}
-    onmouseup={(e) => {
-      if (e.button != 0) return
+    onpointerup={(e) => {
+      if (e.button != 0 || !e.isPrimary) return
       manager.endPlace(x, y)
       cleanup()
     }}
-    onmousemove={handleMouseMove}
+    onpointercancel={handlePointerLeave}
+    onpointermove={handlePointerMove}
     style="--x:{x};--y:{y};">+</button
   >
 {:else}
@@ -67,5 +68,6 @@
     width: calc(var(--width));
     display: grid;
     place-content: center;
+    touch-action: none;
   }
 </style>

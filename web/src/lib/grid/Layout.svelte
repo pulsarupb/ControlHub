@@ -26,7 +26,7 @@
     isInsideWidget: boolean
   } | null>(null)
 
-  function onMouseMove(e: MouseEvent) {
+  function onPointerMove(e: PointerEvent) {
     if (!manager.enableInteractions) return
     if (!section) return
     const rect = section.getBoundingClientRect()
@@ -86,8 +86,8 @@
 <div class="wrapper" class:preview>
   <section
     bind:this={section}
-    onmousemove={onMouseMove}
-    onmouseleave={onMouseLeave}
+    onpointermove={onPointerMove}
+    onpointerleave={onMouseLeave}
     role="grid"
     tabindex="0"
     style="--width:{manager.WIDTH}px;--wCount:{manager.MAX_GRID_WIDTH};--height:{manager.HEIGHT}px;--hCount:{manager.MAX_GRID_HEIGHT};"
