@@ -523,6 +523,7 @@ export class Manager {
         ? {
             ...w,
             w: clamp(w.minW, w.w + dw, w.maxW),
+            y: w.y - (clamp(w.minH, w.h + dh, w.maxH) - w.h),
             h: clamp(w.minH, w.h + dh, w.maxH),
             offset: { x: 0, y: 0 },
           }

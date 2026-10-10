@@ -37,6 +37,12 @@
     oncontextmenu={(e) => e.preventDefault()}
     onpointerdown={(e) => {
       if (e.button != 0 || !e.isPrimary) return
+      if (
+        e.pointerType !== "mouse" &&
+        e.clientY >= window.innerHeight - 48
+      ) {
+        return
+      }
       manager.startPlace(x, y)
 
       window.addEventListener("pointerout", handlePointerOut)

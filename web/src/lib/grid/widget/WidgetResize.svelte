@@ -35,7 +35,7 @@
     e.preventDefault()
     widget.offset = {
       x: e.clientX - startX,
-      y: e.clientY - startY,
+      y: startY - e.clientY,
     }
 
     manager.updateResize(widget.id)
@@ -69,9 +69,15 @@
     display: flex;
   }
   .resize {
-    position: absolute;
-    right: 0.35rem;
-    bottom: 0.35rem;
+    width: 2.25rem;
+    height: 2.25rem;
+    display: grid;
+    place-items: center;
+    border-radius: 0.35rem;
     color: var(--textSubtle);
+  }
+
+  .resize:hover {
+    color: var(--text);
   }
 </style>

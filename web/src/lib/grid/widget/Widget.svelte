@@ -1,6 +1,5 @@
 <script lang="ts">
   import WidgetTopBar from "./WidgetTopBar.svelte"
-  import WidgetResize from "./WidgetResize.svelte"
   import WidgetChoose from "./WidgetChoose.svelte"
   import { getContext } from "svelte"
   import type { ExtendedWidgetGroup, Manager } from "../widgets.svelte"
@@ -29,7 +28,6 @@
       manager.placeStart == null}
   >
     <WidgetTopBar bind:widget bind:isPossible />
-
     <section>
       {#if widget.widgets.length > 0}
         {#each widget.widgets, index}
@@ -63,7 +61,6 @@
         />
       {/if}
     </section>
-    <WidgetResize bind:widget bind:isPossible />
   </div>
 </div>
 
@@ -78,7 +75,7 @@
   }
   .item {
     position: absolute;
-    top: calc(var(--y) * var(--height) + var(--yMove));
+    top: calc(var(--y) * var(--height) + var(--yMove) - var(--yOffset));
     left: calc(var(--x) * var(--width) + var(--xMove));
     height: calc(var(--h) * var(--height) + var(--yOffset));
     width: calc(var(--w) * var(--width) + var(--xOffset));

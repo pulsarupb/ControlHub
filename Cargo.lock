@@ -136,6 +136,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-http",
  "tauri-plugin-log",
+ "tauri-plugin-native",
  "tauri-plugin-process",
  "tauri-plugin-updater",
 ]
@@ -4349,6 +4350,14 @@ dependencies = [
  "tauri-plugin",
  "thiserror 2.0.18",
  "time",
+]
+
+[[package]]
+name = "tauri-plugin-native"
+version = "0.1.42"
+dependencies = [
+ "tauri",
+ "tauri-plugin",
 ]
 
 [[package]]

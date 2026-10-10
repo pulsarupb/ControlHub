@@ -1,0 +1,12 @@
+[package]
+name = "tauri-plugin-native"
+version.workspace = true
+edition.workspace = true
+links = "tauri-plugin-native"
+build = "build.rs"
+
+[dependencies]
+tauri = { version = "2.11.2", default-features = false }
+
+[build-dependencies]
+tauri-plugin = { version = "2.6.2", features = ["build"] }

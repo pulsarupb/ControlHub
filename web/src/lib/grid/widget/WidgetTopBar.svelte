@@ -2,6 +2,7 @@
   import { type ExtendedWidgetGroup } from "../widgets.svelte"
   import Portal from "svelte-portal"
   import WidgetDrag from "./WidgetDrag.svelte"
+  import WidgetResize from "./WidgetResize.svelte"
   import WidgetOptions from "./WidgetOptions.svelte"
   import { getComponent } from "$lib/widgets/registry"
   import { getContext } from "svelte"
@@ -227,8 +228,9 @@
       </button>
     {/if}
   </div>
-  <div style="margin-left: auto;margin-right: var(--padding)">
+  <div class="actions">
     <WidgetOptions bind:widget />
+    <WidgetResize bind:widget bind:isPossible />
   </div>
 </nav>
 
@@ -248,6 +250,14 @@
     gap: 0.5rem;
     overflow-y: auto;
     user-select: none;
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--padding) / 4);
+    margin-left: auto;
+    margin-right: var(--padding);
   }
 
   .tab {
