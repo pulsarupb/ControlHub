@@ -117,7 +117,7 @@ export class Manager {
     this.MAX_GRID_HEIGHT = 12
     const saved = localStorage.getItem("layout")
     this.presets = saved ? JSON.parse(saved) : structuredClone(this.template)
-    if (localStorage.getItem("canvas-layout-version") !== "2") {
+    if (saved && localStorage.getItem("canvas-layout-version") !== "2") {
       for (const preset of this.presets.data) {
         for (const widget of preset.widgets) {
           widget.x = Math.min(36 - widget.w, widget.x + 12)
@@ -125,8 +125,8 @@ export class Manager {
         }
       }
       localStorage.setItem("layout", JSON.stringify(this.presets))
-      localStorage.setItem("canvas-layout-version", "2")
     }
+    localStorage.setItem("canvas-layout-version", "2")
 
     this.enableInteractions = true
 
@@ -135,7 +135,7 @@ export class Manager {
   }
 
   loadPreview(defaultTemplate: Template) {
-    this.MAX_GRID_WIDTH = 16
+    this.MAX_GRID_WIDTH = 36
     this.MAX_GRID_HEIGHT = 12
     this.presets = {
       selected: 0,

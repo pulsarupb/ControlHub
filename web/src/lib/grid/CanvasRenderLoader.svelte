@@ -11,7 +11,7 @@
 
   const cacheKey = $derived(`${t.name}:${JSON.stringify(t)}`)
 
-  const CAPTURE_WIDTH = 1600
+  const CAPTURE_WIDTH = 2400
   const CAPTURE_HEIGHT = 900
   const TOPBAR_HEIGHT = 72
 
@@ -97,7 +97,7 @@
     position: fixed;
     left: -10000px;
     top: 0;
-    width: 1600px;
+    width: 2400px;
     height: 900px;
     z-index: 0;
     pointer-events: none;
