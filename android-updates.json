@@ -1,9 +1,9 @@
 {
-  "version": "0.1.48",
-  "versionCode": 1048,
-  "apkUrl": "https://github.com/pulsarupb/ControlHub/releases/download/v0.1.48/Panels-for-Nintendo-Switch-Android-ARM64-v0.1.48.apk",
-  "sha256": "61be5752df575bd09c1062bbeb184e55553c39fb70bc4cb403f7b83be94e8236",
+  "version": "0.1.49",
+  "versionCode": 1049,
+  "apkUrl": "https://github.com/pulsarupb/ControlHub/releases/download/v0.1.49/Panels-for-Nintendo-Switch-Android-ARM64-v0.1.49.apk",
+  "sha256": "969e94dba022c9991c7552d18796b7824d33f5741eb8c8a259c72e77fe58acd0",
   "signingCertificateSha256": "a24bdc2d6c31c82dd022890e008c64aa66e4bba88e51fb5901286300a15b5f15",
-  "releasePageUrl": "https://github.com/pulsarupb/ControlHub/releases/tag/v0.1.48",
-  "notes": "Panels ERC Edition Android update 0.1.48"
+  "releasePageUrl": "https://github.com/pulsarupb/ControlHub/releases/tag/v0.1.49",
+  "notes": "Panels ERC Edition switch Android update 0.1.49"
 }
