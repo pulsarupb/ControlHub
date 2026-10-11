@@ -2,7 +2,10 @@
   import { activeWorkspace, goToWorkspace } from "$lib/grid/workspace.svelte"
 </script>
 
-<nav class="workspace-nav" aria-label="Workspaces">
+<nav
+  class="workspace-nav"
+  aria-label="Workspaces. Swipe to move between workspaces or tap a square to select one."
+>
   {#each [0, 1] as row}
     <div class="workspace-row">
       {#each [0, 1, 2] as column}
@@ -22,6 +25,9 @@
     display: grid;
     gap: 3px;
     padding: 3px;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   .workspace-row {

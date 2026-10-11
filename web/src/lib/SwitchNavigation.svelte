@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte"
-  import { TouchAction } from "$lib/switch-input/vendor"
+  import { TouchAction, type TouchEvent as NativeTouchEvent } from "$lib/switch-input/vendor"
   import { switchInput as input } from "$lib/switch-input/input.svelte"
   import { moveWorkspace } from "$lib/grid/workspace.svelte"
 
@@ -47,10 +47,17 @@
 
   let touchStart: { id: number; x: number; y: number } | null = null
 
-  function handleTouch(event: import("$lib/switch-input/vendor").TouchEvent) {
+  function handleTouch(event: NativeTouchEvent) {
     if (event.action === TouchAction.DOWN) {
       const point = event.pointers[0]
-      touchStart = point ? { id: point.id, x: point.x, y: point.y } : null
+      const navlet = document.querySelector<HTMLElement>(".workspace-nav")
+      const rect = navlet?.getBoundingClientRect()
+      const x = point ? point.x / window.devicePixelRatio : 0
+      const y = point ? point.y / window.devicePixelRatio : 0
+      touchStart = point && rect && x >= rect.left && x <= rect.right &&
+        y >= rect.top && y <= rect.bottom
+        ? { id: point.id, x, y }
+        : null
       return
     }
     if (event.action === TouchAction.POINTER_DOWN || event.action === TouchAction.CANCEL) {
@@ -64,9 +71,9 @@
     const point = event.pointers.find((pointer) => pointer.id === start.id)
     if (!point) return
 
-    const dx = point.x - start.x
-    const dy = point.y - start.y
-    const threshold = Math.max(120, Math.min(window.innerWidth, window.innerHeight) * 0.22)
+    const dx = point.x / window.devicePixelRatio - start.x
+    const dy = point.y / window.devicePixelRatio - start.y
+    const threshold = 18
     if (Math.max(Math.abs(dx), Math.abs(dy)) < threshold) return
 
     if (Math.abs(dx) >= Math.abs(dy)) {
