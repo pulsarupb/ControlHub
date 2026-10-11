@@ -5,7 +5,7 @@
   import { rover as displayRover } from "$lib/data/rover.svelte"
   import { rover as controlRover } from "$lib/rover-control.svelte"
   import { xboxButtonMap, xboxAxesMap } from "virtual-gamepad-lib"
-  import { SwitchInput } from "$lib/switch-input/vendor"
+  import { switchInput } from "$lib/switch-input/input.svelte"
 
   type DragState = {
     id: string
@@ -145,20 +145,10 @@
   })
 
   onMount(() => {
-    const input = new SwitchInput()
-    const unsubscribe = input.on("buttons", (event) => {
+    const unsubscribe = switchInput.on("buttons", (event) => {
       if (event.type === "button") nativeButtons[event.name] = event.pressed
     })
-    void input.start({
-      buttons: { mode: "push" },
-      axes: { mode: "off" },
-      touch: { mode: "off" },
-      imu: { mode: "off" },
-    })
-    return () => {
-      unsubscribe()
-      void input.stop()
-    }
+    return unsubscribe
   })
 
   let injected = false

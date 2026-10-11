@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte"
-  import { SwitchInput } from "$lib/switch-input/vendor"
+  import { TouchAction } from "$lib/switch-input/vendor"
+  import { switchInput as input } from "$lib/switch-input/input.svelte"
+  import { moveWorkspace } from "$lib/grid/workspace.svelte"
 
-  const input = new SwitchInput()
   const selector = [
     "button:not(:disabled)",
     "a[href]",
@@ -14,17 +15,65 @@
   ].join(",")
 
   function candidates() {
+    const canvasViewport = document.querySelector<HTMLElement>(
+      "[data-canvas-navigation]",
+    )
+    const viewportRect = canvasViewport?.getBoundingClientRect()
+
     return [...document.querySelectorAll<HTMLElement>(selector)].filter((element) => {
       if (element.closest("[inert], [aria-hidden='true']")) return false
       const rect = element.getBoundingClientRect()
       if (element.tabIndex < 0 && element.hasAttribute("role")) element.tabIndex = -1
-      return rect.width > 0 && rect.height > 0 && getComputedStyle(element).visibility !== "hidden"
+      if (rect.width <= 0 || rect.height <= 0 || getComputedStyle(element).visibility === "hidden") return false
+
+      // The canvas is much larger than its viewport. Keep controller focus
+      // navigation inside the currently displayed workspace.
+      if (viewportRect && element.closest(".canvas")) {
+        const centerX = rect.left + rect.width / 2
+        const centerY = rect.top + rect.height / 2
+        if (
+          centerX < viewportRect.left || centerX > viewportRect.right ||
+          centerY < viewportRect.top || centerY > viewportRect.bottom
+        ) return false
+      }
+      return true
     })
   }
 
   function isEditing(element: Element | null) {
     return element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement ||
       element instanceof HTMLSelectElement || (element instanceof HTMLElement && element.isContentEditable)
+  }
+
+  let touchStart: { id: number; x: number; y: number } | null = null
+
+  function handleTouch(event: import("$lib/switch-input/vendor").TouchEvent) {
+    if (event.action === TouchAction.DOWN) {
+      const point = event.pointers[0]
+      touchStart = point ? { id: point.id, x: point.x, y: point.y } : null
+      return
+    }
+    if (event.action === TouchAction.POINTER_DOWN || event.action === TouchAction.CANCEL) {
+      touchStart = null
+      return
+    }
+    if (event.action !== TouchAction.UP || !touchStart) return
+
+    const start = touchStart
+    touchStart = null
+    const point = event.pointers.find((pointer) => pointer.id === start.id)
+    if (!point) return
+
+    const dx = point.x - start.x
+    const dy = point.y - start.y
+    const threshold = Math.max(120, Math.min(window.innerWidth, window.innerHeight) * 0.22)
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < threshold) return
+
+    if (Math.abs(dx) >= Math.abs(dy)) {
+      moveWorkspace(dx < 0 ? "right" : "left")
+    } else {
+      moveWorkspace(dy < 0 ? "down" : "up")
+    }
   }
 
   function moveFocus(direction: "UP" | "DOWN" | "LEFT" | "RIGHT") {
@@ -58,16 +107,16 @@
     void input.start({
       buttons: { mode: "push" },
       axes: { mode: "off" },
-      touch: { mode: "off" },
+      touch: { mode: "push" },
       imu: { mode: "off" },
     })
-    const unsubscribe = input.on("buttons", (event) => {
+    const unsubscribeButtons = input.on("buttons", (event) => {
       if (event.type !== "button" || !event.pressed || event.repeat) return
       const target = document.activeElement
       if (isEditing(target)) return
       if (["UP", "DOWN", "LEFT", "RIGHT"].includes(event.name)) {
         if (target instanceof Element && target.closest("[data-canvas-navigation]")) {
-          document.dispatchEvent(new CustomEvent("switch-grid-nav", { detail: event.name }))
+          moveWorkspace(event.name.toLowerCase() as "up" | "down" | "left" | "right")
         } else {
           moveFocus(event.name as "UP" | "DOWN" | "LEFT" | "RIGHT")
         }
@@ -77,6 +126,9 @@
         window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))
       }
     })
-    return () => { unsubscribe(); void input.stop() }
+    const unsubscribeTouch = input.on("touch", (event) => {
+      if (event.type === "touch") handleTouch(event)
+    })
+    return () => { unsubscribeButtons(); unsubscribeTouch(); void input.stop() }
   })
 </script>

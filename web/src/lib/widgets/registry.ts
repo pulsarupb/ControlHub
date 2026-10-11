@@ -5,6 +5,7 @@ import JoystickWidget from "$lib/moteus/JoystickWidget.svelte"
 import MinimapWidget from "$lib/moteus/MinimapWidget.svelte"
 import MotorTelemetryWidget from "$lib/moteus/MotorTelemetryWidget.svelte"
 import StatusNavlet from "$lib/moteus/StatusNavlet.svelte"
+import WorkspacesNavlet from "$lib/navlets/WorkspacesNavlet.svelte"
 export const components: DashboardComponent[] = [
   { id: "emergency", name: "Emergency Controls", type: "widget", component: EmergencyWidget, minW: 3, minH: 3 },
   { id: "joystick", name: "Joystick", type: "widget", component: JoystickWidget, minW: 4, minH: 4 },
@@ -12,6 +13,7 @@ export const components: DashboardComponent[] = [
   { id: "motors", name: "Motor Telemetry", type: "widget", component: MotorTelemetryWidget, minW: 4, minH: 3 },
   { id: "gamepad", name: "Xbox Controller", type: "widget", component: GamepadWidget, minW: 5, minH: 4 },
   { id: "status", name: "Status", type: "navlet", component: StatusNavlet },
+  { id: "workspaces", name: "Workspaces", type: "navlet", component: WorkspacesNavlet },
 ]
 
 export const templates: Template[] = [
