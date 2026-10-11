@@ -1,12 +1,16 @@
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-  tauri::Builder::default()
+  let builder = tauri::Builder::default()
     .plugin(tauri_plugin_http::init())
     .plugin(tauri_plugin_updater::Builder::new().build())
     .plugin(tauri_plugin_process::init())
     .plugin(tauri_plugin_native::init())
-    .plugin(tauri_plugin_switch_input::init())
-    .plugin(tauri_plugin_android_updater::init())
+    .plugin(tauri_plugin_android_updater::init());
+
+  #[cfg(feature = "switch-input")]
+  let builder = builder.plugin(tauri_plugin_switch_input::init());
+
+  builder
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(

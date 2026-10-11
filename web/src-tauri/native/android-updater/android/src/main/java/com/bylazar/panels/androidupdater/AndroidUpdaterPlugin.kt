@@ -35,8 +35,11 @@ private data class AndroidUpdate(
 @TauriPlugin
 class AndroidUpdaterPlugin(private val activity: Activity) : Plugin(activity) {
     companion object {
-        private const val MANIFEST_URL =
+        private const val SWITCH_MANIFEST_URL =
             "https://raw.githubusercontent.com/pulsarupb/ControlHub/main/android-updates.json"
+        private const val STANDARD_MANIFEST_URL =
+            "https://raw.githubusercontent.com/pulsarupb/ControlHub/main/android-updates-standard.json"
+        private const val STANDARD_APPLICATION_ID = "com.bylazar.panels_erc_android"
         private const val APP_RELEASE_PREFIX =
             "/pulsarupb/ControlHub/releases/download/"
         private const val MAX_MANIFEST_BYTES = 128 * 1024
@@ -246,7 +249,12 @@ class AndroidUpdaterPlugin(private val activity: Activity) : Plugin(activity) {
     }
 
     private fun readUpdateManifest(): AndroidUpdate {
-        val connection = openHttpsConnection(MANIFEST_URL)
+        val manifestUrl = if (activity.packageName.startsWith(STANDARD_APPLICATION_ID)) {
+            STANDARD_MANIFEST_URL
+        } else {
+            SWITCH_MANIFEST_URL
+        }
+        val connection = openHttpsConnection(manifestUrl)
         connection.use {
             if (it.contentLengthLong > MAX_MANIFEST_BYTES) {
                 throw IllegalStateException("Android update manifest is unexpectedly large")

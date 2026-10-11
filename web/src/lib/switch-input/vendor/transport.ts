@@ -13,6 +13,7 @@ import type {
   SwitchInputEvent,
   SwitchInputTransport,
 } from "./types";
+import { webGamepadTransport } from "./web-gamepad-transport";
 
 const PLUGIN = "switch-input";
 
@@ -20,6 +21,10 @@ const PLUGIN = "switch-input";
  * Transport backed by the `switch-input` Tauri plugin (Android native capture).
  */
 export function tauriTransport(): SwitchInputTransport {
+  if (import.meta.env.VITE_GAMEPAD_TRANSPORT !== "native") {
+    return webGamepadTransport();
+  }
+
   return {
     async subscribe(stream, callback) {
       const listener: PluginListener = await addPluginListener(

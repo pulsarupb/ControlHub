@@ -1,0 +1,10 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Panels ERC Edition",
+  "identifier": "com.bylazar.panels-erc-android",
+  "app": {
+    "security": {
+      "capabilities": ["default-standard"]
+    }
+  }
+}

@@ -38,7 +38,27 @@
   }
 
   const buttonActions: Record<string, () => void> = {}
-  const nativeButtonElements: Record<string, { id: string; index?: number }> = {
+  const standardGamepad = import.meta.env.VITE_GAMEPAD_TRANSPORT !== "native"
+  const nativeButtonElements: Record<string, { id: string; index?: number }> = standardGamepad
+    ? {
+      A: { id: "button_1", index: xboxButtonMap.A },
+      B: { id: "button_2", index: xboxButtonMap.B },
+      X: { id: "button_3", index: xboxButtonMap.X },
+      Y: { id: "button_4", index: xboxButtonMap.Y },
+      L: { id: "shoulder_button_front_left", index: xboxButtonMap.LShoulder },
+      R: { id: "shoulder_button_front_right", index: xboxButtonMap.RShoulder },
+      ZL: { id: "shoulder_trigger_back_left", index: xboxButtonMap.LTrigger },
+      ZR: { id: "shoulder_trigger_back_right", index: xboxButtonMap.RTrigger },
+      MINUS: { id: "select_button", index: xboxButtonMap.Back },
+      PLUS: { id: "start_button", index: xboxButtonMap.Start },
+      LSTICK: { id: "stick_button_left", index: xboxButtonMap.LStick },
+      RSTICK: { id: "stick_button_right", index: xboxButtonMap.RStick },
+      UP: { id: "dpad_up", index: xboxButtonMap.DPadUp },
+      DOWN: { id: "dpad_down", index: xboxButtonMap.DPadDown },
+      LEFT: { id: "dpad_left", index: xboxButtonMap.DPadLeft },
+      RIGHT: { id: "dpad_right", index: xboxButtonMap.DPadRight },
+    }
+    : {
     // The Switch's physical face-button layout is rotated relative to Xbox.
     A: { id: "button_2", index: xboxButtonMap.B },
     B: { id: "button_1", index: xboxButtonMap.A },
@@ -217,7 +237,7 @@
     const extras = [
       { id: "switch_home", cx: 138, cy: 137, label: "H" },
       { id: "switch_z", cx: 138, cy: 155, label: "Z" },
-    ]
+    ].filter(() => !standardGamepad)
     for (const { id, cx, cy, label } of extras) {
       const group = document.createElementNS("http://www.w3.org/2000/svg", "g")
       group.id = id

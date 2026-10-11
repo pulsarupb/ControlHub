@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { cp } from "node:fs/promises";
+import { cp, rm } from "node:fs/promises";
 
 const args = Bun.argv.slice(2);
 const bun = process.execPath;
@@ -16,7 +16,9 @@ async function run(command: string[], options: Bun.SpawnOptions.OptionsObject = 
     ...options,
   });
   const exitCode = await proc.exited;
-  if (exitCode !== 0) process.exit(exitCode);
+  if (exitCode !== 0) {
+    throw new Error(`Command '${command[0]}' exited with code ${exitCode}`);
+  }
 }
 
 async function output(command: string[]) {
@@ -71,6 +73,48 @@ async function installSwitchInputActivityBridge() {
     found = true;
   }
   return found;
+}
+
+async function includeSwitchInputAndroidPlugin() {
+  const settingsPath = "src-tauri/gen/android/tauri.settings.gradle";
+  const appGradlePath = "src-tauri/gen/android/app/tauri.build.gradle.kts";
+  if (!existsSync(settingsPath) || !existsSync(appGradlePath)) return;
+
+  let settings = await Bun.file(settingsPath).text();
+  if (!settings.includes("include ':tauri-plugin-switch-input'")) {
+    settings += "\ninclude ':tauri-plugin-switch-input'\n";
+    settings += "project(':tauri-plugin-switch-input').projectDir = new File(rootProject.projectDir, '../../native/switch-input/android')\n";
+    await Bun.write(settingsPath, settings);
+  }
+
+  let appGradle = await Bun.file(appGradlePath).text();
+  if (!appGradle.includes('implementation(project(":tauri-plugin-switch-input"))')) {
+    appGradle = appGradle.replace(
+      /\ndependencies\s*\{/,
+      '\ndependencies {\n  implementation(project(":tauri-plugin-switch-input"))',
+    );
+    await Bun.write(appGradlePath, appGradle);
+  }
+}
+
+async function enforceAndroidLandscapeOrientation() {
+  const manifestPath = "src-tauri/gen/android/app/src/main/AndroidManifest.xml";
+  if (!existsSync(manifestPath)) return;
+
+  const manifest = await Bun.file(manifestPath).text();
+  const activityTag = manifest.match(
+    /<activity\b(?=[^>]*\bandroid:name="[^"]*\.MainActivity")[^>]*>/,
+  )?.[0];
+  if (!activityTag) {
+    throw new Error(`Could not find the MainActivity declaration in ${manifestPath}`);
+  }
+
+  const landscapeTag = activityTag.includes("android:screenOrientation=")
+    ? activityTag.replace(/android:screenOrientation="[^"]*"/, 'android:screenOrientation="sensorLandscape"')
+    : activityTag.replace(/>$/, ' android:screenOrientation="sensorLandscape">');
+  if (landscapeTag !== activityTag) {
+    await Bun.write(manifestPath, manifest.replace(activityTag, landscapeTag));
+  }
 }
 
 async function installAndroidAppIcons() {
@@ -303,16 +347,36 @@ if (args[0] === "dev" && isWsl()) {
   await runWindowsTauriDev();
 } else {
   if (args[0] === "android") {
-    await installSwitchInputActivityBridge();
+    const switchEdition = process.env.ANDROID_APP_FLAVOR !== "standard";
+    process.env.VITE_GAMEPAD_TRANSPORT ||= switchEdition ? "native" : "web";
+    if (switchEdition) {
+      await installSwitchInputActivityBridge();
+      await includeSwitchInputAndroidPlugin();
+    }
+    await enforceAndroidLandscapeOrientation();
     if (args.includes("build")) {
       await installAndroidAppIcons();
       await syncAndroidAppName();
     }
-    await run([bun, "x", "tauri", ...args]);
-    if (args.includes("init")) {
-      await installSwitchInputActivityBridge();
-      await installAndroidAppIcons();
-      await syncAndroidAppName();
+    const switchCapability = "src-tauri/capabilities/default-switch.json";
+    const needsSwitchCapability = switchEdition && args.includes("build");
+    const createdSwitchCapability = needsSwitchCapability && !existsSync(switchCapability);
+    if (createdSwitchCapability) {
+      await cp("src-tauri/capability-templates/default-switch.json", switchCapability);
+    }
+    try {
+      await run([bun, "x", "tauri", ...args]);
+      if (args.includes("init")) {
+        if (switchEdition) {
+          await installSwitchInputActivityBridge();
+          await includeSwitchInputAndroidPlugin();
+        }
+        await enforceAndroidLandscapeOrientation();
+        await installAndroidAppIcons();
+        await syncAndroidAppName();
+      }
+    } finally {
+      if (createdSwitchCapability) await rm(switchCapability, { force: true });
     }
   } else {
     await run([bun, "x", "tauri", ...args]);

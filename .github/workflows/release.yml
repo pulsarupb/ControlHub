@@ -296,9 +296,13 @@ jobs:
           path: staging/
 
   android-panels:
-    name: Build Panels for Nintendo Switch (Android ARM64)
+    name: Build Android (${{ matrix.edition }})
     runs-on: ubuntu-latest
     needs: resolve_tag
+    strategy:
+      fail-fast: false
+      matrix:
+        edition: [switch, standard]
     steps:
       - uses: actions/checkout@v6
         with:
@@ -335,11 +339,23 @@ jobs:
           VERSION=$(python -c "import tomllib; print(tomllib.load(open('../Cargo.toml','rb'))['workspace']['package']['version'])")
           jq ".version = \"$VERSION\"" src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp
           mv src-tauri/tauri.conf.json.tmp src-tauri/tauri.conf.json
-          bun run tauri android init --ci
+          if [[ "${{ matrix.edition }}" == "standard" ]]; then
+            ANDROID_APP_FLAVOR=standard bun run tauri android init --ci --config src-tauri/tauri.android.standard.json
+          else
+            bun run tauri android init --ci
+          fi
 
       - name: Build Android release APK
         working-directory: web
-        run: bun run tauri android build --apk --target aarch64 --ci
+        env:
+          ANDROID_APP_FLAVOR: ${{ matrix.edition }}
+          VITE_GAMEPAD_TRANSPORT: ${{ matrix.edition == 'standard' && 'web' || 'native' }}
+        run: |
+          if [[ "${{ matrix.edition }}" == "standard" ]]; then
+            bun run tauri android build --apk --target aarch64 --ci --config src-tauri/tauri.android.standard.json
+          else
+            bun run tauri android build --apk --target aarch64 --ci --features switch-input --config src-tauri/tauri.android.switch.json
+          fi
 
       - name: Sign Android release APK
         env:
@@ -372,7 +388,14 @@ jobs:
           mkdir -p staging
           TAG="${{ needs.resolve_tag.outputs.release_tag }}"
           VERSION="${TAG#v}"
-          APK_NAME="Panels-for-Nintendo-Switch-Android-ARM64-${TAG}.apk"
+          EDITION="${{ matrix.edition }}"
+          if [[ "$EDITION" == "standard" ]]; then
+            APK_NAME="Panels-ERC-Edition-Android-ARM64-${TAG}.apk"
+            MANIFEST_NAME="android-updates-standard.json"
+          else
+            APK_NAME="Panels-for-Nintendo-Switch-Android-ARM64-${TAG}.apk"
+            MANIFEST_NAME="android-updates.json"
+          fi
           cp "$RUNNER_TEMP/android-release-signed.apk" "staging/$APK_NAME"
 
           VERSION_CODE=$("$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "staging/$APK_NAME" | sed -n "s/.*versionCode='\([^']*\)'.*/\1/p" | head -n 1)
@@ -391,13 +414,13 @@ jobs:
             --arg sha256 "$APK_SHA256" \
             --arg signingCertificateSha256 "$CERT_SHA256" \
             --arg releasePageUrl "https://github.com/${{ github.repository }}/releases/tag/${TAG}" \
-            --arg notes "Panels ERC Edition Android update ${VERSION}" \
+            --arg notes "Panels ERC Edition ${EDITION} Android update ${VERSION}" \
             '{version:$version,versionCode:$versionCode,apkUrl:$apkUrl,sha256:$sha256,signingCertificateSha256:$signingCertificateSha256,releasePageUrl:$releasePageUrl,notes:$notes}' \
-            > staging/android-updates.json
+            > "staging/$MANIFEST_NAME"
 
       - uses: actions/upload-artifact@v7
         with:
-          name: panels-android
+          name: panels-android-${{ matrix.edition }}
           path: staging/
 
   release:
@@ -495,12 +518,13 @@ jobs:
           git checkout main
           cp dist/updates.json updates.json
           cp dist/android-updates.json android-updates.json
+          cp dist/android-updates-standard.json android-updates-standard.json
           VERSION="${{ needs.resolve_tag.outputs.release_tag }}"
           VERSION="${VERSION#v}"
           jq ".version = \"$VERSION\"" web/src-tauri/tauri.conf.json > web/src-tauri/tauri.conf.json.tmp
           mv web/src-tauri/tauri.conf.json.tmp web/src-tauri/tauri.conf.json
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add updates.json android-updates.json web/src-tauri/tauri.conf.json
+          git add updates.json android-updates.json android-updates-standard.json web/src-tauri/tauri.conf.json
           git diff --cached --quiet || git commit -m "Update release artifacts for ${{ needs.resolve_tag.outputs.release_tag }}"
           git push
