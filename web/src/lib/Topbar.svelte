@@ -36,6 +36,8 @@
 
 
 
+  let { preview = false }: { preview?: boolean } = $props()
+
   let versionDismissed = $state(false)
   let updateAvailable = $state(false)
   let updateError = $state(false)
@@ -164,6 +166,8 @@
   }
 
   onMount(() => {
+    if (preview) return
+
     androidApp = isTauri() && /Android/i.test(navigator.userAgent)
     pollForUpdate()
     polling = setInterval(pollForUpdate, 600_000)

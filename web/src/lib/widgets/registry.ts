@@ -2,14 +2,14 @@ import type { DashboardComponent, Template } from "$lib/types"
 import EmergencyWidget from "$lib/moteus/EmergencyWidget.svelte"
 import GamepadWidget from "$lib/widgets/GamepadWidget.svelte"
 import JoystickWidget from "$lib/moteus/JoystickWidget.svelte"
-import MinimapWidget from "$lib/moteus/MinimapWidget.svelte"
+import LazyMinimapWidget from "$lib/moteus/LazyMinimapWidget.svelte"
 import MotorTelemetryWidget from "$lib/moteus/MotorTelemetryWidget.svelte"
 import StatusNavlet from "$lib/moteus/StatusNavlet.svelte"
 import WorkspacesNavlet from "$lib/navlets/WorkspacesNavlet.svelte"
 export const components: DashboardComponent[] = [
   { id: "emergency", name: "Emergency Controls", type: "widget", component: EmergencyWidget, minW: 3, minH: 3 },
   { id: "joystick", name: "Joystick", type: "widget", component: JoystickWidget, minW: 4, minH: 4 },
-  { id: "minimap", name: "Minimap", type: "widget", component: MinimapWidget, minW: 5, minH: 4 },
+  { id: "minimap", name: "Minimap", type: "widget", component: LazyMinimapWidget, minW: 5, minH: 4 },
   { id: "motors", name: "Motor Telemetry", type: "widget", component: MotorTelemetryWidget, minW: 4, minH: 3 },
   { id: "gamepad", name: "Xbox Controller", type: "widget", component: GamepadWidget, minW: 5, minH: 4 },
   { id: "status", name: "Status", type: "navlet", component: StatusNavlet },

@@ -4,9 +4,7 @@
   import { manager } from "$lib/grid/widgets.svelte"
   import { STATUS_RATE_MS, UI_RATE_MS } from "$lib/constants"
   import { rover } from "$lib/rover-control.svelte"
-  import { global } from "$lib"
   import { startGamepad, stopGamepad } from "$lib/gamepad-control.svelte"
-  import CanvasRender from "$lib/grid/CanvasRender.svelte"
 
   setContext("manager", manager.manager)
 
@@ -41,12 +39,6 @@
   <Topbar />
 
   {@render children?.()}
-
-  <div class="preview-cache" aria-hidden="true">
-    {#each global.allTemplates as t}
-      <CanvasRender {t} show={false} />
-    {/each}
-  </div>
 </section>
 
 <style>
@@ -56,9 +48,5 @@
     height: 100vh;
     display: flex;
     flex-direction: column;
-  }
-  .preview-cache {
-    display: contents;
-    pointer-events: none;
   }
 </style>
