@@ -94,14 +94,10 @@ async function installAndroidAppIcons() {
 }
 
 async function syncAndroidAppName() {
-  const config = JSON.parse(await Bun.file("src-tauri/tauri.conf.json").text());
   const stringsPath = "src-tauri/gen/android/app/src/main/res/values/strings.xml";
   if (!existsSync(stringsPath)) return;
 
-  const name = String(config.productName)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+  const name = "Panels ERC Edition";
   const strings = await Bun.file(stringsPath).text();
   const updated = strings
     .replace(/(<string name="app_name">)[\s\S]*?(<\/string>)/, `$1${name}$2`)
