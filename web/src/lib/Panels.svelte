@@ -69,6 +69,8 @@
     height: 36px;
     width: 110px;
     display: block;
+    user-select: none;
+    -webkit-user-select: none;
   }
   path,
   text,
