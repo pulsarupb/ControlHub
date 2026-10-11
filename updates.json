@@ -1,15 +1,15 @@
 {
-  "version": "0.1.42",
-  "notes": "https://github.com/pulsarupb/ControlHub/releases/tag/v0.1.42",
-  "pub_date": "2026-07-12T13:37:45Z",
+  "version": "0.1.43",
+  "notes": "https://github.com/pulsarupb/ControlHub/releases/tag/v0.1.43",
+  "pub_date": "2026-10-11T11:28:49Z",
   "platforms": {
     "linux-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNjdub0NpanhvWEhWZVVYeXFPeURtZHFrMGxVK0dSYVNQVGxkd2ZzSkdRVUhrbXRFQ3lxYVlsNFliM2pQVEM3eThKMXordmROY0swaDkybFRFZElPRzhFVjE0ZVlldnd3PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzODYzNDExCWZpbGU6UGFuZWxzIEVSQyBFZGl0aW9uXzAuMS40Ml9hbWQ2NC5BcHBJbWFnZQpWMGM1blFRbTRpclM5d2RzSHpZTWtNMWpIQmdCaDMxSHhBN1hTUzFjc1BtcDZDaGZuR1BqWmxtU3I3ajJRZytaUUFvN3FubGVNN0F4dWJ5L2Vsa09Edz09Cg==",
-      "url": "https://github.com/pulsarupb/ControlHub/releases/download/v0.1.42/Panels.ERC.Edition_0.1.42_amd64.AppImage"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNjdub0NpanhvWEJvVkV1em9pM3ovREpuR3ZjYlBXVTVVbGx4cDhWY3BteEw5OU5HY0UyNFh0TFd1OVB3WWU0a2s4SlVVdy9aRDQ3SDJuNks0bTBLZUFJWU91RkhzSXdBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxNzE3OTU1CWZpbGU6UGFuZWxzIGZvciBOaW50ZW5kbyBTd2l0Y2hfMC4xLjQzX2FtZDY0LkFwcEltYWdlCmN2V0hVZTFUY1RYWEgyMmZkRG9ZRW40b0xYMGFCUUhScmVSc0V3RVpGNmhkKzNva3daUngvM09IdkJyeUF2K0xHVlZMMUIwTFBEQzc5MTdteE4rMUJRPT0K",
+      "url": "https://github.com/pulsarupb/ControlHub/releases/download/v0.1.43/Panels.for.Nintendo.Switch_0.1.43_amd64.AppImage"
     },
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNjdub0NpanhvWElIWTQxa2d1OWtSa1BtcVRsTGxvZVJlQ3E0Yzk3NysrODA0ZGpOUXZuQXExU0xZc2pOQzhtbnBseitmV2drd1hwdVVKMGRpTlFDM2M3RDV2REJWd1FBPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgzODYzNDUyCWZpbGU6UGFuZWxzIEVSQyBFZGl0aW9uXzAuMS40Ml94NjRfZW4tVVMubXNpCmFJTnZvRktnZXVnV0xUR3NVYjlqQXNEK0JJMGtZWnQ2VkgwU1ZCbHB1d3lOZXNWcnFLYnR3Y2tVUXAzblgyV2MxYWtKTS9TbjdHV0hWV2R3UVZvRUN3PT0K",
-      "url": "https://github.com/pulsarupb/ControlHub/releases/download/v0.1.42/Panels.ERC.Edition_0.1.42_x64_en-US.msi"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNjdub0NpanhvWExXVmhPajZCQU12WFk2NEZVaUJ4QnpyNWx2SUxnSWt6S2crang3dXpqNisxZ29vNkZuSU1lRlptL1diQXhJdGhxbi80aXp3czQ4SW50OW1neGRldHdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxNzE3OTkyCWZpbGU6UGFuZWxzIGZvciBOaW50ZW5kbyBTd2l0Y2hfMC4xLjQzX3g2NF9lbi1VUy5tc2kKOXh2SU1SdFJiQUVRRGE1TkNDME96azRjd0RNRU02RGRjZFRHamFvcTgyZlpWdzNhV242UmNQNjJta0tXcE00Wjh2NGdKYis3ME9nR1FCblBuMmpRQlE9PQo=",
+      "url": "https://github.com/pulsarupb/ControlHub/releases/download/v0.1.43/Panels.for.Nintendo.Switch_0.1.43_x64_en-US.msi"
     }
   }
 }
