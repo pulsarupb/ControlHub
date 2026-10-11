@@ -127,7 +127,7 @@ checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
 name = "app"
-version = "0.1.42"
+version = "0.1.43"
 dependencies = [
  "log",
  "serde",
@@ -971,7 +971,7 @@ dependencies = [
 
 [[package]]
 name = "driver"
-version = "0.1.42"
+version = "0.1.43"
 dependencies = [
  "axum",
  "clap",
@@ -4355,7 +4355,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-native"
-version = "0.1.42"
+version = "0.1.43"
 dependencies = [
  "tauri",
  "tauri-plugin",

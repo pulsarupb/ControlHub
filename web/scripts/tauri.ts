@@ -93,6 +93,22 @@ async function installAndroidAppIcons() {
   }
 }
 
+async function syncAndroidAppName() {
+  const config = JSON.parse(await Bun.file("src-tauri/tauri.conf.json").text());
+  const stringsPath = "src-tauri/gen/android/app/src/main/res/values/strings.xml";
+  if (!existsSync(stringsPath)) return;
+
+  const name = String(config.productName)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+  const strings = await Bun.file(stringsPath).text();
+  const updated = strings
+    .replace(/(<string name="app_name">)[\s\S]*?(<\/string>)/, `$1${name}$2`)
+    .replace(/(<string name="main_activity_title">)[\s\S]*?(<\/string>)/, `$1${name}$2`);
+  await Bun.write(stringsPath, updated);
+}
+
 function windowsTargetCleanupCommand() {
   return [
     `$target = Join-Path $env:LOCALAPPDATA '${projectName}\\target-windows'`,
@@ -292,11 +308,15 @@ if (args[0] === "dev" && isWsl()) {
 } else {
   if (args[0] === "android") {
     await installSwitchInputActivityBridge();
-    if (args.includes("build")) await installAndroidAppIcons();
+    if (args.includes("build")) {
+      await installAndroidAppIcons();
+      await syncAndroidAppName();
+    }
     await run([bun, "x", "tauri", ...args]);
     if (args.includes("init")) {
       await installSwitchInputActivityBridge();
       await installAndroidAppIcons();
+      await syncAndroidAppName();
     }
   } else {
     await run([bun, "x", "tauri", ...args]);
