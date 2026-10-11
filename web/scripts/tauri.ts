@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { cp } from "node:fs/promises";
 
 const args = Bun.argv.slice(2);
 const bun = process.execPath;
@@ -70,6 +71,26 @@ async function installSwitchInputActivityBridge() {
     found = true;
   }
   return found;
+}
+
+async function installAndroidAppIcons() {
+  const source = "src-tauri/icons/android";
+  const resources = "src-tauri/gen/android/app/src/main/res";
+  if (!existsSync(source) || !existsSync(resources)) return;
+
+  for (const directory of [
+    "mipmap-anydpi-v26",
+    "mipmap-hdpi",
+    "mipmap-mdpi",
+    "mipmap-xhdpi",
+    "mipmap-xxhdpi",
+    "mipmap-xxxhdpi",
+  ]) {
+    await cp(`${source}/${directory}`, `${resources}/${directory}`, {
+      recursive: true,
+      force: true,
+    });
+  }
 }
 
 function windowsTargetCleanupCommand() {
@@ -271,8 +292,12 @@ if (args[0] === "dev" && isWsl()) {
 } else {
   if (args[0] === "android") {
     await installSwitchInputActivityBridge();
+    if (args.includes("build")) await installAndroidAppIcons();
     await run([bun, "x", "tauri", ...args]);
-    if (args.includes("init")) await installSwitchInputActivityBridge();
+    if (args.includes("init")) {
+      await installSwitchInputActivityBridge();
+      await installAndroidAppIcons();
+    }
   } else {
     await run([bun, "x", "tauri", ...args]);
   }
