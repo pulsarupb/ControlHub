@@ -341,12 +341,59 @@ jobs:
         working-directory: web
         run: bun run tauri android build --apk --target aarch64 --ci
 
-      - name: Stage Android release APK
+      - name: Sign Android release APK
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          mkdir -p staging
+          test -n "$ANDROID_KEYSTORE_BASE64" || { echo "Missing ANDROID_KEYSTORE_BASE64 secret"; exit 1; }
+          test -n "$ANDROID_KEYSTORE_PASSWORD" || { echo "Missing ANDROID_KEYSTORE_PASSWORD secret"; exit 1; }
+          test -n "$ANDROID_KEY_ALIAS" || { echo "Missing ANDROID_KEY_ALIAS secret"; exit 1; }
+          test -n "$ANDROID_KEY_PASSWORD" || { echo "Missing ANDROID_KEY_PASSWORD secret"; exit 1; }
+
           APK=$(find web/src-tauri/gen/android/app/build/outputs/apk/universal/release -type f -name '*.apk' -print -quit)
           test -n "$APK"
-          cp "$APK" "staging/Panels-for-Nintendo-Switch-Android-ARM64-${{ needs.resolve_tag.outputs.release_tag }}-unsigned.apk"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/android-release.p12"
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -f 4 "$APK" "$RUNNER_TEMP/android-release-aligned.apk"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" sign \
+            --ks "$RUNNER_TEMP/android-release.p12" \
+            --ks-type PKCS12 \
+            --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --ks-pass "env:ANDROID_KEYSTORE_PASSWORD" \
+            --key-pass "env:ANDROID_KEY_PASSWORD" \
+            --out "$RUNNER_TEMP/android-release-signed.apk" \
+            "$RUNNER_TEMP/android-release-aligned.apk"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$RUNNER_TEMP/android-release-signed.apk"
+
+      - name: Stage signed Android release APK and update manifest
+        run: |
+          mkdir -p staging
+          TAG="${{ needs.resolve_tag.outputs.release_tag }}"
+          VERSION="${TAG#v}"
+          APK_NAME="Panels-for-Nintendo-Switch-Android-ARM64-${TAG}.apk"
+          cp "$RUNNER_TEMP/android-release-signed.apk" "staging/$APK_NAME"
+
+          VERSION_CODE=$("$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "staging/$APK_NAME" | sed -n "s/.*versionCode='\([^']*\)'.*/\1/p" | head -n 1)
+          APK_SHA256=$(sha256sum "staging/$APK_NAME" | cut -d ' ' -f 1)
+          CERT_SHA256=$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "staging/$APK_NAME" \
+            | sed -n 's/Signer #1 certificate SHA-256 digest: //p' \
+            | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')
+          test -n "$VERSION_CODE"
+          test -n "$APK_SHA256"
+          test -n "$CERT_SHA256"
+
+          jq -n \
+            --arg version "$VERSION" \
+            --argjson versionCode "$VERSION_CODE" \
+            --arg apkUrl "https://github.com/${{ github.repository }}/releases/download/${TAG}/${APK_NAME}" \
+            --arg sha256 "$APK_SHA256" \
+            --arg signingCertificateSha256 "$CERT_SHA256" \
+            --arg releasePageUrl "https://github.com/${{ github.repository }}/releases/tag/${TAG}" \
+            --arg notes "Panels ERC Edition Android update ${VERSION}" \
+            '{version:$version,versionCode:$versionCode,apkUrl:$apkUrl,sha256:$sha256,signingCertificateSha256:$signingCertificateSha256,releasePageUrl:$releasePageUrl,notes:$notes}' \
+            > staging/android-updates.json
 
       - uses: actions/upload-artifact@v7
         with:
@@ -442,17 +489,18 @@ jobs:
             --title "${{ needs.resolve_tag.outputs.release_tag }}" \
             dist/*
 
-      - name: Commit updates.json and tauri.conf.json to main
+      - name: Commit updater manifests and tauri.conf.json to main
         run: |
           git fetch origin main
           git checkout main
           cp dist/updates.json updates.json
+          cp dist/android-updates.json android-updates.json
           VERSION="${{ needs.resolve_tag.outputs.release_tag }}"
           VERSION="${VERSION#v}"
           jq ".version = \"$VERSION\"" web/src-tauri/tauri.conf.json > web/src-tauri/tauri.conf.json.tmp
           mv web/src-tauri/tauri.conf.json.tmp web/src-tauri/tauri.conf.json
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add updates.json web/src-tauri/tauri.conf.json
+          git add updates.json android-updates.json web/src-tauri/tauri.conf.json
           git diff --cached --quiet || git commit -m "Update release artifacts for ${{ needs.resolve_tag.outputs.release_tag }}"
           git push

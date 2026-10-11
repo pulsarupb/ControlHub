@@ -27,3 +27,4 @@ tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 tauri-plugin-native = { path = "native" }
 tauri-plugin-switch-input = { path = "native/switch-input" }
+tauri-plugin-android-updater = { path = "native/android-updater" }

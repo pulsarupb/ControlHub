@@ -29,6 +29,8 @@
 
   import { check } from "@tauri-apps/plugin-updater"
   import { relaunch } from "@tauri-apps/plugin-process"
+  import { isTauri } from "@tauri-apps/api/core"
+  import { androidUpdater, type AndroidUpdateCheck } from "$lib/android-updater"
   import { WebviewWindow } from "@tauri-apps/api/webviewWindow"
   import { onMount, onDestroy } from "svelte"
 
@@ -40,10 +42,23 @@
   let downloading = $state(false)
   let downloadProgress = $state(0)
   let polling = $state<ReturnType<typeof setInterval> | null>(null)
+  let progressPolling = $state<ReturnType<typeof setInterval> | null>(null)
   let pendingUpdate: Awaited<ReturnType<typeof check>> = $state(null)
+  let pendingAndroidUpdate = $state<AndroidUpdateCheck | null>(null)
+  let androidApp = $state(false)
+  let updateMessage = $state("")
 
   async function pollForUpdate() {
     try {
+      if (androidApp) {
+        const update = await androidUpdater.check()
+        pendingAndroidUpdate = update.available ? update : null
+        updateAvailable = update.available
+        updateError = false
+        updateMessage = ""
+        return
+      }
+
       const update = await check()
       if (update?.available) {
         pendingUpdate = update
@@ -55,7 +70,70 @@
     }
   }
 
+  async function downloadAndInstallAndroid() {
+    const update = pendingAndroidUpdate
+    if (!update) return
+
+    if (update.requiresReinstall) {
+      const confirmed = window.confirm(
+        "This installation was signed with a different key. To enable in-app updates, back up any important app data, uninstall Panels ERC Edition, then install the signed APK from the release page. Uninstalling may erase app data. Open the release page now?",
+      )
+      if (!confirmed) return
+      updateMessage = "A one-time reinstall is required before in-app updates can work."
+      updateError = true
+      try {
+        await androidUpdater.openReleasePage()
+      } catch (error) {
+        console.error("Unable to open Android release page:", error)
+      }
+      return
+    }
+
+    downloading = true
+    updateError = false
+    updateMessage = ""
+    downloadProgress = 0
+    const refreshProgress = async () => {
+      try {
+        const progress = await androidUpdater.progress()
+        if (progress.totalBytes > 0) {
+          downloadProgress = progress.downloadedBytes / progress.totalBytes
+        }
+      } catch {
+        // Progress is best-effort; the native download reports any actual failure.
+      }
+    }
+
+    try {
+      progressPolling = setInterval(refreshProgress, 300)
+      await androidUpdater.download()
+      await refreshProgress()
+      downloadProgress = 1
+
+      const result = await androidUpdater.install()
+      if (result.permissionRequired) {
+        updateMessage = "Allow Panels ERC Edition to install apps in Android settings, then tap Install again."
+        updateError = true
+        return
+      }
+      updateMessage = "Confirm the update in Android's installer."
+    } catch (error) {
+      console.error("Android update failed:", error)
+      updateMessage = error instanceof Error ? error.message : String(error)
+      updateError = true
+    } finally {
+      if (progressPolling) clearInterval(progressPolling)
+      progressPolling = null
+      downloading = false
+    }
+  }
+
   async function downloadAndInstall() {
+    if (androidApp) {
+      await downloadAndInstallAndroid()
+      return
+    }
+
     downloading = true
     let downloaded = 0
     let contentLength = 0
@@ -86,12 +164,14 @@
   }
 
   onMount(() => {
+    androidApp = isTauri() && /Android/i.test(navigator.userAgent)
     pollForUpdate()
     polling = setInterval(pollForUpdate, 600_000)
   })
 
   onDestroy(() => {
     if (polling) clearInterval(polling)
+    if (progressPolling) clearInterval(progressPolling)
   })
   let showSettings = $state(false)
 
@@ -156,13 +236,17 @@
         <button class="update-btn downloading" disabled>
           {Math.round(downloadProgress * 100)}%
         </button>
-      {:else if updateAvailable}
-        <button class="update-btn available" onclick={downloadAndInstall}>
-          Update available
-        </button>
       {:else if updateError}
-        <button class="update-btn error" onclick={downloadAndInstall}>
-          Update failed - Retry
+        <button class="update-btn error" title={updateMessage} onclick={downloadAndInstall}>
+          {pendingAndroidUpdate?.requiresReinstall ? "Open reinstall instructions" : "Retry update"}
+        </button>
+      {:else if updateAvailable}
+        <button
+          class="update-btn available"
+          title={pendingAndroidUpdate?.notes ?? "Install the available update"}
+          onclick={downloadAndInstall}
+        >
+          {pendingAndroidUpdate?.requiresReinstall ? "Reinstall required" : `Update ${pendingAndroidUpdate?.version ?? "available"}`}
         </button>
       {/if}
 

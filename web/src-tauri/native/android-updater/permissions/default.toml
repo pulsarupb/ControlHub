@@ -1,0 +1,11 @@
+"$schema" = "schemas/schema.json"
+
+[default]
+description = "Allows checking for, downloading, and installing signed Android APK updates."
+permissions = [
+  "allow-check-update",
+  "allow-download-update",
+  "allow-get-download-progress",
+  "allow-install-update",
+  "allow-open-release-page",
+]

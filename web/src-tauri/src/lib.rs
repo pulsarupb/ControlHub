@@ -6,6 +6,7 @@ pub fn run() {
     .plugin(tauri_plugin_process::init())
     .plugin(tauri_plugin_native::init())
     .plugin(tauri_plugin_switch_input::init())
+    .plugin(tauri_plugin_android_updater::init())
     .setup(|app| {
       if cfg!(debug_assertions) {
         app.handle().plugin(
