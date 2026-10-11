@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from "svelte"
-  import { TouchAction, type TouchEvent as NativeTouchEvent } from "$lib/switch-input/vendor"
   import { switchInput as input } from "$lib/switch-input/input.svelte"
   import { moveWorkspace } from "$lib/grid/workspace.svelte"
 
@@ -45,44 +44,6 @@
       element instanceof HTMLSelectElement || (element instanceof HTMLElement && element.isContentEditable)
   }
 
-  let touchStart: { id: number; x: number; y: number } | null = null
-
-  function handleTouch(event: NativeTouchEvent) {
-    if (event.action === TouchAction.DOWN) {
-      const point = event.pointers[0]
-      const navlet = document.querySelector<HTMLElement>(".workspace-nav")
-      const rect = navlet?.getBoundingClientRect()
-      const x = point ? point.x / window.devicePixelRatio : 0
-      const y = point ? point.y / window.devicePixelRatio : 0
-      touchStart = point && rect && x >= rect.left && x <= rect.right &&
-        y >= rect.top && y <= rect.bottom
-        ? { id: point.id, x, y }
-        : null
-      return
-    }
-    if (event.action === TouchAction.POINTER_DOWN || event.action === TouchAction.CANCEL) {
-      touchStart = null
-      return
-    }
-    if (event.action !== TouchAction.UP || !touchStart) return
-
-    const start = touchStart
-    touchStart = null
-    const point = event.pointers.find((pointer) => pointer.id === start.id)
-    if (!point) return
-
-    const dx = point.x / window.devicePixelRatio - start.x
-    const dy = point.y / window.devicePixelRatio - start.y
-    const threshold = 18
-    if (Math.max(Math.abs(dx), Math.abs(dy)) < threshold) return
-
-    if (Math.abs(dx) >= Math.abs(dy)) {
-      moveWorkspace(dx < 0 ? "right" : "left")
-    } else {
-      moveWorkspace(dy < 0 ? "down" : "up")
-    }
-  }
-
   function moveFocus(direction: "UP" | "DOWN" | "LEFT" | "RIGHT") {
     const items = candidates()
     if (!items.length) return
@@ -114,7 +75,7 @@
     void input.start({
       buttons: { mode: "push" },
       axes: { mode: "off" },
-      touch: { mode: "push" },
+      touch: { mode: "off" },
       imu: { mode: "off" },
     })
     const unsubscribeButtons = input.on("buttons", (event) => {
@@ -133,9 +94,6 @@
         window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }))
       }
     })
-    const unsubscribeTouch = input.on("touch", (event) => {
-      if (event.type === "touch") handleTouch(event)
-    })
-    return () => { unsubscribeButtons(); unsubscribeTouch(); void input.stop() }
+    return () => { unsubscribeButtons(); void input.stop() }
   })
 </script>
