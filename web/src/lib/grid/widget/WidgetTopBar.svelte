@@ -24,6 +24,16 @@
 
   let pointerId: number | null = null
 
+  function scrollTabWithinGroup(tab: HTMLElement) {
+    const tabs = tab.closest<HTMLElement>(".tabs")
+    if (!tabs) return
+
+    const tabRect = tab.getBoundingClientRect()
+    const tabsRect = tabs.getBoundingClientRect()
+    const left = tabs.scrollLeft + tabRect.left - tabsRect.left - (tabs.clientWidth - tabRect.width) / 2
+    tabs.scrollTo({ left: Math.max(0, left), behavior: "smooth" })
+  }
+
   function startMove(e: PointerEvent) {
     e.preventDefault()
     if (!manager.enableInteractions) return
@@ -123,11 +133,7 @@
       return
     }
 
-    el.scrollIntoView({
-      behavior: "smooth",
-      block: "nearest",
-      inline: "center",
-    })
+    scrollTabWithinGroup(el)
 
     let dataWidget = el.getAttribute("data-widget")
     let dataIndex = parseInt(el.getAttribute("data-index") || "")
@@ -207,11 +213,7 @@
 
           const element = e.currentTarget as HTMLElement
 
-          element.scrollIntoView({
-            behavior: "smooth",
-            block: "nearest",
-            inline: "center",
-          })
+          scrollTabWithinGroup(element)
         }}>{getWidgetName(w.widgetID)}</button
       >
       {#if manager.tabWidgetID === widget.id && manager.tabIndex === index}

@@ -65,11 +65,13 @@
             `[data-widget="${widget.id}"][data-index="${widget.selected}"]`
           ) as HTMLElement
 
-          tab.scrollIntoView({
-            behavior: "smooth",
-            block: "nearest",
-            inline: "center",
-          })
+          const tabs = tab.closest<HTMLElement>(".tabs")
+          if (tabs) {
+            const tabRect = tab.getBoundingClientRect()
+            const tabsRect = tabs.getBoundingClientRect()
+            const left = tabs.scrollLeft + tabRect.left - tabsRect.left - (tabs.clientWidth - tabRect.width) / 2
+            tabs.scrollTo({ left: Math.max(0, left), behavior: "smooth" })
+          }
 
           close()
         }}>Insert Widget</Button
