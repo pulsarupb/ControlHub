@@ -19,18 +19,18 @@ export const components: DashboardComponent[] = [
 export const templates: Template[] = [
   {
     name: "Moteus Overview",
-    navlets: [{ navletID: "status" }],
+    navlets: [{ navletID: "status" }, { navletID: "workspaces" }],
     widgets: [
-      { x: 0, y: 0, w: 4, h: 6, widgets: [{ widgetID: "emergency" }] },
-      { x: 4, y: 0, w: 5, h: 6, widgets: [{ widgetID: "joystick" }] },
-      { x: 9, y: 0, w: 7, h: 8, widgets: [{ widgetID: "minimap" }] },
-      { x: 0, y: 6, w: 9, h: 6, widgets: [{ widgetID: "motors" }] },
-      { x: 13, y: 8, w: 3, h: 4, widgets: [{ widgetID: "gamepad" }] },
+      { x: 0, y: 0, w: 5, h: 7, widgets: [{ widgetID: "joystick" }] },
+      { x: 5, y: 0, w: 11, h: 7, widgets: [{ widgetID: "minimap" }] },
+      { x: 0, y: 7, w: 4, h: 5, widgets: [{ widgetID: "emergency" }] },
+      { x: 4, y: 7, w: 7, h: 5, widgets: [{ widgetID: "motors" }] },
+      { x: 11, y: 7, w: 5, h: 5, widgets: [{ widgetID: "gamepad" }] },
     ],
   },
   {
     name: "Driving Focus",
-    navlets: [{ navletID: "status" }],
+    navlets: [{ navletID: "status" }, { navletID: "workspaces" }],
     widgets: [
       { x: 0, y: 0, w: 5, h: 7, widgets: [{ widgetID: "joystick" }] },
       { x: 5, y: 0, w: 8, h: 7, widgets: [{ widgetID: "minimap" }] },
