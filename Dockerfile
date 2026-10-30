@@ -1,4 +1,4 @@
-FROM --platform=$TARGETPLATFORM rust:latest AS builder
+FROM --platform=$TARGETPLATFORM rust:1-bookworm AS builder
 
 WORKDIR /app
 
@@ -14,7 +14,7 @@ COPY . .
 
 RUN cargo build --locked --release -p driver
 
-FROM debian:stable-slim AS runtime
+FROM --platform=$TARGETPLATFORM ubuntu:24.04 AS runtime
 
 COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /uvx /bin/
 

@@ -1,14 +1,39 @@
 # Robot validation — native Jetson
 
-**Status: not run. No Jetson/robot was available during initial development.**
+**Status: in progress. Initial development was software-only; Jetson validation is underway.**
 Passing software tests does not establish hardware safety or SDK compatibility.
 Use this checklist in order. Record date, operator, revision, configuration,
 JetPack/ZED SDK versions, observations and logs for each stage. Stop at a failed
 gate; do not skip ahead to motion. A software Stop is not a physical E-stop.
 
+## Progress record — 2026-10-30
+
+Revision `7c2344a` (`main`). Operator not recorded. The E-stop-ready observer was
+confirmed. Jetson environment: Ubuntu 24.04.4, JetPack 7.2.1, aarch64, Python
+3.12.3, Rust 1.98.1, uv 0.12.11, ZED SDK 5.4.1. In the sidecar venv, NumPy
+1.26.4, OpenCV 4.8.0 and `pyzed.sl` imported successfully. System Python selects
+NumPy 2.5.3, which is incompatible with the installed OpenCV; NumPy 1.26.4 was
+installed only in the sidecar venv. No camera was opened.
+
+`cargo build -p driver`, `cargo test -p driver` (13 passed), strict driver Clippy,
+sidecar protocol tests (3 passed), frontend checks and frontend build passed.
+Frontend check/build emitted existing warnings. `cargo test --workspace` was also
+attempted but could not build `gdk-sys` because `gdk-3.0` development files are
+missing. Simulated API startup/Global Stop and native startup with every device
+disabled were checked; the earlier simulated Playwright UI smoke test is recorded
+in the handoff.
+
+Read-only USB discovery found one accessible serial device:
+`/dev/serial/by-id/usb-u-blox_AG_-_www.u-blox.com_u-blox_GNSS_receiver-if00`
+(u-blox GNSS). No RoboteQ controllers were present in `/dev/serial/by-id/`.
+RTK-only was then run at 115200 baud with NTRIP disabled: 43,638 bytes received,
+zero parse errors, but the latest fix had quality 0, zero satellites, HDOP 99.99,
+and no coordinates or altitude. RTK validation is blocked pending receiver/antenna
+fix confirmation. No drive or arm motion was commanded.
+
 ## 0. Preparation (power to motion disabled)
 
-- [ ] Have a physical E-stop and an observer able to remove actuator power.
+- [x] Have a physical E-stop and an observer able to remove actuator power.
 - [ ] Lift and secure the rover with all wheels clear; secure the arm base, clear
       its swept volume, remove payload, and keep people outside that volume.
 - [ ] Review USB controller channel wiring, motor directions, Kinova model/IP,
@@ -20,17 +45,17 @@ gate; do not skip ahead to motion. A software Stop is not a physical E-stop.
 
 ## 1. Jetson environment (no actuator commands)
 
-- [ ] Record `uname -a`, architecture, JetPack, Python, Rust and ZED SDK versions.
-- [ ] Install uv and the vendor-supported ZED SDK/pyzed for this JetPack. Verify
+- [x] Record `uname -a`, architecture, JetPack, Python, Rust and ZED SDK versions.
+- [x] Install uv and the vendor-supported ZED SDK/pyzed for this JetPack. Verify
       `pyzed`, OpenCV and NumPy in the sidecar's uv environment, using the exact
       SDK-matched wheel and system Python configured for the sidecar.
-- [ ] Build/test from source in debug mode first; run frontend checks/build.
-- [ ] Identify each USB device using `/dev/serial/by-id/` and `udevadm info`; use
+- [x] Build/test from source in debug mode first; run frontend checks/build.
+- [x] Identify each USB device using `/dev/serial/by-id/` and `udevadm info`; use
       persistent paths, not guessed `/dev/ttyACM0` assignments. Confirm permissions.
 - [ ] Configure distinct ports for controller A, controller B and GNSS. Never probe
       ports by sending motor commands to unknown devices.
-- [ ] Run explicit simulation and validate UI first. Then stop simulation completely.
-- [ ] Start native hardware mode with every hardware subsystem disabled. API and
+- [x] Run explicit simulation and validate UI first. Then stop simulation completely.
+- [x] Start native hardware mode with every hardware subsystem disabled. API and
       Panels must report devices disabled, not simulated or healthy.
 
 ## 2. Independent connectivity (still no motion)
@@ -119,8 +144,8 @@ gate; do not skip ahead to motion. A software Stop is not a physical E-stop.
 
 | Gate | Date / operator | Revision / config | Evidence / measured latency | Pass / blocker |
 |---|---|---|---|---|
-| Environment | | | | Pending |
-| RTK/NTRIP | | | | Pending |
+| Environment | | 7c2344a / default-disabled config | JetPack 7.2.1; sidecar imports; driver tests/build and frontend checks/build pass | Pass |
+| RTK/NTRIP | | 7c2344a / RTK-only, 115200, NTRIP off | 43,638 bytes, 0 parse errors; quality 0, 0 satellites, HDOP 99.99, no coordinates/altitude | Blocker: no fix |
 | ZED tracking/mapping | | | | Pending |
 | Drive suspended | | | | Pending |
 | Arm manual/IK | | | | Pending |

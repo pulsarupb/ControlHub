@@ -71,7 +71,10 @@ simulated device is labeled. Real IK requires the connected arm.
    ```
 
    A downloaded binary uses `./driver --config data/rover16.json --sidecar ./sidecar/main.py`.
-   `--hotspot` explicitly opts into the existing NetworkManager hotspot helper.
+   For Docker Compose, the service starts the NetworkManager hotspot explicitly.
+   Connect Panels to the `Pulsar-Rover` WiFi network, then select **Local**; the
+   rover API is at `http://10.42.0.1:8080`. Native runs can opt into the same
+   hotspot by adding `--hotspot` to the driver command.
 
 **Do not deploy to the robot or enable motion until following
 [`docs/robot-validation.md`](docs/robot-validation.md). No Jetson was available
