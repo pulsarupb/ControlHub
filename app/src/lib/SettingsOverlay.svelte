@@ -44,7 +44,7 @@
       {#if error}<p role="alert">{error}</p>{/if}
       {#if config}
         {#if active === "drive"}
-          <p>Ports: 0 = A, 1 = B. Motor order: left front, right front, left back, right back. Channels: 1/2; directions: ±1. Power cap: 1–1000, not wheel speed. Use persistent /dev/serial/by-id paths.</p>
+          <p>Ports: 0 = A, 1 = B. Motor order: left front, right front, left back, right back. Channels: 1/2; directions: ±1. Power cap: 1–1000, not wheel speed. Acceleration/deceleration ramps are in milliseconds (0–5000; 0 disables). Use persistent /dev/serial/by-id paths.</p>
         {:else if active === "kinova"}
           <p>Linear speed: m/s. Joint/angular speed: deg/s. Targets use robot-base XYZ meters and roll/pitch/yaw degrees. Blank password retains the stored value.</p>
         {:else if active === "rtk"}

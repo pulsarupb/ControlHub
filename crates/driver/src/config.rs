@@ -198,4 +198,19 @@ mod tests {
         c.rtk.port = "a".into();
         assert!(c.validate().is_err());
     }
+
+    #[test]
+    fn ramp_settings_are_integer_milliseconds_and_migrate_seconds() {
+        let legacy: Config = serde_json::from_str(
+            r#"{"drive":{"acceleration_time":0.125,"deceleration_time":0.25}}"#,
+        )
+        .unwrap();
+        assert_eq!(legacy.drive.acceleration_time_ms, 125);
+        assert_eq!(legacy.drive.deceleration_time_ms, 250);
+
+        let serialized = serde_json::to_value(legacy).unwrap();
+        assert_eq!(serialized["drive"]["acceleration_time_ms"], 125);
+        assert_eq!(serialized["drive"]["deceleration_time_ms"], 250);
+        assert!(serialized["drive"].get("acceleration_time").is_none());
+    }
 }

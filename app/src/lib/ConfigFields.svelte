@@ -6,6 +6,9 @@
     if (Array.isArray(value)) value[Number(key)] = item
     else value[key] = item
   }
+  function isRampTime(key: string) {
+    return key === "acceleration_time_ms" || key === "deceleration_time_ms"
+  }
 </script>
 
 <div class="fields">
@@ -21,7 +24,9 @@
         {#if typeof item === "boolean"}
           <input type="checkbox" checked={item} onchange={(e) => set(key, e.currentTarget.checked)} />
         {:else if typeof item === "number"}
-          <input type="number" step="any" value={item} oninput={(e) => set(key, e.currentTarget.valueAsNumber)} />
+          <input type="number" step={isRampTime(key) ? 1 : "any"} min={isRampTime(key) ? 0 : undefined}
+            max={isRampTime(key) ? 5000 : undefined} value={item}
+            oninput={(e) => set(key, e.currentTarget.valueAsNumber)} />
         {:else}
           <input type={key === "password" ? "password" : "text"} value={item}
             placeholder={key === "password" ? "Blank keeps stored password" : ""}

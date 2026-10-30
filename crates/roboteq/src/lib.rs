@@ -6,7 +6,9 @@ use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 
 pub const WATCHDOG_MS: u64 = 500;
-pub const MAX_RAMP_TIME_SECONDS: f32 = 0.25;
+pub const DEFAULT_RAMP_TIME_MS: u16 = 250;
+pub const MAX_RAMP_TIME_MS: u16 = 5000;
+const LEGACY_MAX_RAMP_TIME_SECONDS: f64 = 0.25;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Motor {
@@ -24,10 +26,48 @@ pub struct Config {
     pub motors: [Motor; 4],
     /// RoboteQ power units, not RPM; full scale is 1000.
     pub power_limit: i16,
-    /// Time in seconds to ramp from zero to full power. Zero disables the ramp.
-    pub acceleration_time: f32,
-    /// Time in seconds to ramp from full power to zero. Zero disables the ramp.
-    pub deceleration_time: f32,
+    /// Milliseconds to ramp from zero to full power. Zero disables the ramp.
+    #[serde(
+        default = "default_ramp_time_ms",
+        alias = "acceleration_time",
+        deserialize_with = "deserialize_ramp_time_ms"
+    )]
+    pub acceleration_time_ms: u16,
+    /// Milliseconds to ramp from full power to zero. Zero disables the ramp.
+    #[serde(
+        default = "default_ramp_time_ms",
+        alias = "deceleration_time",
+        deserialize_with = "deserialize_ramp_time_ms"
+    )]
+    pub deceleration_time_ms: u16,
+}
+
+fn default_ramp_time_ms() -> u16 {
+    DEFAULT_RAMP_TIME_MS
+}
+
+fn deserialize_ramp_time_ms<'de, D>(deserializer: D) -> Result<u16, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::de::Error;
+
+    let value = f64::deserialize(deserializer)?;
+    // Migrate legacy second-based values (e.g. 0.25) to integer milliseconds.
+    let milliseconds = if value.fract() != 0.0 {
+        if !(0.0..=LEGACY_MAX_RAMP_TIME_SECONDS).contains(&value) {
+            return Err(D::Error::custom(
+                "legacy ramp time must be 0..=0.25 seconds",
+            ));
+        }
+        value * 1000.0
+    } else {
+        value
+    };
+    if !milliseconds.is_finite() || milliseconds < 0.0 || milliseconds > MAX_RAMP_TIME_MS as f64 {
+        return Err(D::Error::custom("ramp time must be 0..=5000 milliseconds"));
+    }
+    Ok(milliseconds.round() as u16)
 }
 
 impl Default for Config {
@@ -41,8 +81,8 @@ impl Default for Config {
                 direction: 1,
             }),
             power_limit: 100,
-            acceleration_time: MAX_RAMP_TIME_SECONDS,
-            deceleration_time: MAX_RAMP_TIME_SECONDS,
+            acceleration_time_ms: MAX_RAMP_TIME_MS,
+            deceleration_time_ms: MAX_RAMP_TIME_MS,
         }
     }
 }
@@ -52,12 +92,11 @@ impl Config {
         if !(1..=1000).contains(&self.power_limit) {
             return Err("drive power_limit must be 1..1000".into());
         }
-        if ![self.acceleration_time, self.deceleration_time]
-            .iter()
-            .all(|time| time.is_finite() && (0.0..=MAX_RAMP_TIME_SECONDS).contains(time))
+        if self.acceleration_time_ms > MAX_RAMP_TIME_MS
+            || self.deceleration_time_ms > MAX_RAMP_TIME_MS
         {
             return Err(
-                "drive acceleration_time and deceleration_time must be 0..=0.25 seconds".into(),
+                "drive acceleration_time_ms and deceleration_time_ms must be 0..=5000".into(),
             );
         }
         if self.enabled
@@ -176,15 +215,15 @@ impl Drive {
                     && target.signum() != 0.0
                     && current.signum() != target.signum();
                 let accelerating = !reversing && target.abs() > current.abs();
-                let ramp_time = if accelerating {
-                    config.acceleration_time
+                let ramp_time_ms = if accelerating {
+                    config.acceleration_time_ms
                 } else {
-                    config.deceleration_time
+                    config.deceleration_time_ms
                 };
-                let max_delta = if ramp_time == 0.0 {
+                let max_delta = if ramp_time_ms == 0 {
                     f32::INFINITY
                 } else {
-                    config.power_limit as f32 * elapsed / ramp_time
+                    config.power_limit as f32 * elapsed * 1000.0 / ramp_time_ms as f32
                 };
                 let mut next = current + (target - current).clamp(-max_delta, max_delta);
                 // Reversals first decelerate to zero; acceleration in the new
@@ -238,8 +277,8 @@ mod tests {
     fn acceleration_and_deceleration_are_ramped_and_stop_is_immediate() {
         let start = Instant::now();
         let mut config = Config::default();
-        config.acceleration_time = 0.25;
-        config.deceleration_time = 0.25;
+        config.acceleration_time_ms = 250;
+        config.deceleration_time_ms = 250;
         let mut drive = Drive::default();
         drive.enable(start);
         drive.command(1.0, 0.0, start).unwrap();
@@ -277,10 +316,12 @@ mod tests {
     }
 
     #[test]
-    fn rejects_ramp_times_above_quarter_second() {
+    fn rejects_ramp_times_above_five_seconds() {
         let mut config = Config::default();
-        config.acceleration_time = 0.251;
+        config.acceleration_time_ms = 5001;
         assert!(config.validate().is_err());
+        config.acceleration_time_ms = 5000;
+        assert!(config.validate().is_ok());
     }
 
     #[test]
