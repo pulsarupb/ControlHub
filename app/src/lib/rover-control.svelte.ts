@@ -67,7 +67,8 @@ function createRoverControl(): RoverControl {
     try {
       await api("/api/control", {
         method: "POST",
-        body: JSON.stringify({ throttle: state.throttle, steering: state.steering }),
+        // Reverse the UI drive axes for this rover without changing backend or motor config.
+        body: JSON.stringify({ throttle: -state.throttle, steering: -state.steering }),
       });
     } catch (error) {
       markOffline();
