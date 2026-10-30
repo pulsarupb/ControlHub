@@ -27,7 +27,9 @@
         "direction": -1
       }
     ],
-    "power_limit": 1000
+    "power_limit": 1000,
+    "acceleration_time_ms": 2000,
+    "deceleration_time_ms": 2000
   },
   "kinova": {
     "enabled": false,
