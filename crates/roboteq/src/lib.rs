@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 
 pub const WATCHDOG_MS: u64 = 500;
+pub const MAX_RAMP_TIME_SECONDS: f32 = 0.25;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Motor {
@@ -23,6 +24,10 @@ pub struct Config {
     pub motors: [Motor; 4],
     /// RoboteQ power units, not RPM; full scale is 1000.
     pub power_limit: i16,
+    /// Time in seconds to ramp from zero to full power. Zero disables the ramp.
+    pub acceleration_time: f32,
+    /// Time in seconds to ramp from full power to zero. Zero disables the ramp.
+    pub deceleration_time: f32,
 }
 
 impl Default for Config {
@@ -36,6 +41,8 @@ impl Default for Config {
                 direction: 1,
             }),
             power_limit: 100,
+            acceleration_time: MAX_RAMP_TIME_SECONDS,
+            deceleration_time: MAX_RAMP_TIME_SECONDS,
         }
     }
 }
@@ -44,6 +51,14 @@ impl Config {
     pub fn validate(&self) -> Result<(), String> {
         if !(1..=1000).contains(&self.power_limit) {
             return Err("drive power_limit must be 1..1000".into());
+        }
+        if ![self.acceleration_time, self.deceleration_time]
+            .iter()
+            .all(|time| time.is_finite() && (0.0..=MAX_RAMP_TIME_SECONDS).contains(time))
+        {
+            return Err(
+                "drive acceleration_time and deceleration_time must be 0..=0.25 seconds".into(),
+            );
         }
         if self.enabled
             && (self.ports.iter().any(|p| p.trim().is_empty()) || self.ports[0] == self.ports[1])
@@ -88,6 +103,8 @@ pub struct Drive {
     armed: bool,
     last_command: Instant,
     demand: (f32, f32),
+    output: [[f32; 2]; 2],
+    last_output: Instant,
 }
 
 impl Default for Drive {
@@ -96,6 +113,8 @@ impl Default for Drive {
             armed: false,
             last_command: Instant::now(),
             demand: (0.0, 0.0),
+            output: [[0.0; 2]; 2],
+            last_output: Instant::now(),
         }
     }
 }
@@ -105,11 +124,14 @@ impl Drive {
         self.armed = true;
         self.last_command = now;
         self.demand = (0.0, 0.0);
+        self.output = [[0.0; 2]; 2];
+        self.last_output = now;
     }
 
     pub fn stop(&mut self) {
         self.armed = false;
         self.demand = (0.0, 0.0);
+        self.output = [[0.0; 2]; 2];
     }
 
     pub fn armed(&mut self, now: Instant) -> bool {
@@ -137,7 +159,44 @@ impl Drive {
 
     pub fn output(&mut self, config: &Config, now: Instant) -> Result<[[i16; 2]; 2], String> {
         if self.armed(now) {
-            config.mix(self.demand.0, self.demand.1)
+            let target = config.mix(self.demand.0, self.demand.1)?;
+            let elapsed = now
+                .saturating_duration_since(self.last_output)
+                .as_secs_f32();
+            self.last_output = now;
+            for (channel, target) in self
+                .output
+                .iter_mut()
+                .flatten()
+                .zip(target.iter().flatten())
+            {
+                let target = *target as f32;
+                let current = *channel;
+                let reversing = current.signum() != 0.0
+                    && target.signum() != 0.0
+                    && current.signum() != target.signum();
+                let accelerating = !reversing && target.abs() > current.abs();
+                let ramp_time = if accelerating {
+                    config.acceleration_time
+                } else {
+                    config.deceleration_time
+                };
+                let max_delta = if ramp_time == 0.0 {
+                    f32::INFINITY
+                } else {
+                    config.power_limit as f32 * elapsed / ramp_time
+                };
+                let mut next = current + (target - current).clamp(-max_delta, max_delta);
+                // Reversals first decelerate to zero; acceleration in the new
+                // direction starts on a subsequent control-loop tick.
+                if reversing && next.signum() != current.signum() {
+                    next = 0.0;
+                }
+                *channel = next;
+            }
+            Ok(self
+                .output
+                .map(|channels| channels.map(|power| power.round() as i16)))
         } else {
             Ok([[0; 2]; 2])
         }
@@ -176,13 +235,67 @@ mod tests {
     }
 
     #[test]
+    fn acceleration_and_deceleration_are_ramped_and_stop_is_immediate() {
+        let start = Instant::now();
+        let mut config = Config::default();
+        config.acceleration_time = 0.25;
+        config.deceleration_time = 0.25;
+        let mut drive = Drive::default();
+        drive.enable(start);
+        drive.command(1.0, 0.0, start).unwrap();
+
+        assert_eq!(drive.output(&config, start).unwrap(), [[0; 2]; 2]);
+        assert_eq!(
+            drive
+                .output(&config, start + Duration::from_millis(25))
+                .unwrap(),
+            [[10, 10], [10, 10]]
+        );
+        assert_eq!(
+            drive
+                .output(&config, start + Duration::from_millis(275))
+                .unwrap(),
+            [[100, 100], [100, 100]]
+        );
+
+        drive
+            .command(0.0, 0.0, start + Duration::from_millis(275))
+            .unwrap();
+        assert_eq!(
+            drive
+                .output(&config, start + Duration::from_millis(300))
+                .unwrap(),
+            [[90, 90], [90, 90]]
+        );
+        drive.stop();
+        assert_eq!(
+            drive
+                .output(&config, start + Duration::from_millis(301))
+                .unwrap(),
+            [[0; 2]; 2]
+        );
+    }
+
+    #[test]
+    fn rejects_ramp_times_above_quarter_second() {
+        let mut config = Config::default();
+        config.acceleration_time = 0.251;
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
     fn timeout_latches_and_reenable_starts_at_zero() {
         let now = Instant::now();
         let mut drive = Drive::default();
         assert!(drive.command(1.0, 0.0, now).is_err());
         drive.enable(now);
         drive.command(1.0, 0.0, now).unwrap();
-        assert_ne!(drive.output(&Config::default(), now).unwrap(), [[0; 2]; 2]);
+        assert_eq!(
+            drive
+                .output(&Config::default(), now + Duration::from_millis(250))
+                .unwrap(),
+            [[100; 2]; 2]
+        );
         let later = now + Duration::from_millis(WATCHDOG_MS);
         assert_eq!(
             drive.output(&Config::default(), later).unwrap(),

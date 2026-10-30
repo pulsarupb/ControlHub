@@ -8,7 +8,7 @@ export type GamepadConfig = {
   roll_left_button: number; roll_right_button: number; gripper_open_button: number; gripper_close_button: number;
 }
 export type FullConfig = {
-  drive: { enabled: boolean; ports: string[]; power_limit: number; motors: { controller: number; channel: number; direction: number }[] };
+  drive: { enabled: boolean; ports: string[]; power_limit: number; acceleration_time: number; deceleration_time: number; motors: { controller: number; channel: number; direction: number }[] };
   kinova: { enabled: boolean; ip: string; port: number; username: string; password: string; linear_speed: number; angular_speed: number; joint_speed: number };
   rtk: { enabled: boolean; port: string; baud: number; ntrip: { enabled: boolean; host: string; port: number; mount_point: string; username: string; password: string } };
   zed: { enabled: boolean; python: string; settings: Record<string, Record<string, string | number | boolean>>; mount_configured: boolean; mount_translation: number[]; mount_rotation_deg: number[] };
