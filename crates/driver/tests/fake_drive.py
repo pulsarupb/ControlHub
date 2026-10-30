@@ -77,7 +77,7 @@ class PairedDriveTests(unittest.TestCase):
             reserve.bind(("127.0.0.1", 0))
             port = reserve.getsockname()[1]
         self.url = f"http://127.0.0.1:{port}"
-        root = Path(__file__).resolve().parents[2]
+        root = Path(__file__).resolve().parents[3]
         self.process = subprocess.Popen(
             [str(root / "target/debug/driver"), "--bind", f"127.0.0.1:{port}",
              "--config", str(Path(self.directory.name) / "config.json")],

@@ -25,7 +25,7 @@ From the repository root:
 cargo test -p driver -p roboteq -p kinova-control -p rtk -p zed
 python3 -m unittest discover -s crates/zed/sidecar -v
 cargo build --locked -p driver
-python3 driver/tests/fake_drive.py -v
+python3 crates/driver/tests/fake_drive.py -v
 cargo run -p driver -- --simulate --config /tmp/opencode/controlhub-dev.json
 ```
 

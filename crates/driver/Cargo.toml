@@ -5,10 +5,10 @@ edition = "2024"
 
 [dependencies]
 axum = "0.8.7"
-roboteq = { path = "../crates/roboteq" }
-kinova-control = { path = "../crates/kinova-control" }
-rtk = { path = "../crates/rtk" }
-zed = { path = "../crates/zed" }
+roboteq = { path = "../roboteq" }
+kinova-control = { path = "../kinova-control" }
+rtk = { path = "../rtk" }
+zed = { path = "../zed" }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "sync", "time", "signal"] }

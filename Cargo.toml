@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/*", "driver", "web/src-tauri", "web/src-tauri/native", "web/src-tauri/native/switch-input", "web/src-tauri/native/android-updater"]
+members = ["crates/*", "web/src-tauri", "web/src-tauri/native", "web/src-tauri/native/switch-input", "web/src-tauri/native/android-updater"]
 
 [workspace.package]
 version = "0.1.49"

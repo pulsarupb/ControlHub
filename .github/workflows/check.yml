@@ -11,7 +11,7 @@ jobs:
       - run: cargo fmt --check -p driver -p roboteq -p kinova-control -p rtk -p zed
       - run: cargo clippy --locked -p driver -p roboteq -p kinova-control -p rtk -p zed --all-targets -- -D warnings
       - run: cargo build --locked -p driver
-      - run: python3 driver/tests/fake_drive.py -v
+      - run: python3 crates/driver/tests/fake_drive.py -v
       - run: python3 -m unittest discover -s crates/zed/sidecar -v
       - run: bun install --frozen-lockfile
         working-directory: web

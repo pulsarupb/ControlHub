@@ -77,16 +77,18 @@ configuration rather than silently interpreting old motor IDs as serial channels
 - 1: `docs/rover16-implementation.md`, `docs/robot-validation.md`, `docs/provenance.md`.
 - 2–5: one directory each under `crates/{roboteq,kinova-control,rtk,zed}`; workspace
   membership in `Cargo.toml`, with the corresponding `Cargo.lock` dependency hunks.
-- 6: `driver/src/{main,config,state,api,motor,arm,sensors}.rs`, `driver/Cargo.toml`.
+- 6: `crates/driver/src/{main,config,state,api,motor,arm,sensors}.rs`,
+  `crates/driver/Cargo.toml`.
   `wifi.rs` only has two equivalent lint cleanups; hotspot setup is now opt-in.
-- 7: old backend dependency removal; deleted `driver/src/{localizer,simulator,urdf}.rs`;
-  frontend driver-specific paths renamed to `web/src/lib/rover/` and `rover-types.ts`.
+- 7: old backend dependency removal; deleted
+  `crates/driver/src/{localizer,simulator,urdf}.rs`; frontend driver-specific paths
+  renamed to `web/src/lib/rover/` and `rover-types.ts`.
 - 8: `web/src/lib/{SettingsOverlay,ConfigFields}.svelte`, `config-api.ts`,
   `hardware-types.ts`, `hardware.svelte.ts`, `rover-control.svelte.ts`, status widgets.
 - 9: `web/src/lib/rover/{ZedMapWidget,ZedVideoWidget,KinovaViewWidget,KinovaControlsWidget}.svelte`,
   `arm-model.ts`, `web/static/kinova-models/`, widget registration/templates.
 - 10: `gamepad-{control.svelte,mapping}.ts`, `widgets/GamepadWidget.svelte`, app layout.
-- 11: `driver/tests/fake_drive.py`, Rust/Python/frontend tests, CI workflows,
+- 11: `crates/driver/tests/fake_drive.py`, Rust/Python/frontend tests, CI workflows,
   native `start-services.sh`, README, release sidecar packaging/installer.
   `web/package.json` and `web/bun.lock` contain the approved dependency update:
   compatible Svelte/checker updates and TypeScript 6 (TS7 needs a second compiler).
