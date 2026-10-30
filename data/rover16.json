@@ -1,0 +1,133 @@
+{
+  "drive": {
+    "enabled": true,
+    "ports": [
+      "/dev/serial/by-id/usb-Roboteq_Motor_Controller_8D8C43705649-if00",
+      "/dev/serial/by-id/usb-Roboteq_Motor_Controller_8D8D438F5649-if00"
+    ],
+    "motors": [
+      {
+        "controller": 0,
+        "channel": 1,
+        "direction": 1
+      },
+      {
+        "controller": 1,
+        "channel": 1,
+        "direction": -1
+      },
+      {
+        "controller": 0,
+        "channel": 2,
+        "direction": 1
+      },
+      {
+        "controller": 1,
+        "channel": 2,
+        "direction": -1
+      }
+    ],
+    "power_limit": 1000
+  },
+  "kinova": {
+    "enabled": false,
+    "ip": "192.168.1.10",
+    "port": 10000,
+    "username": "admin",
+    "password": "",
+    "linear_speed": 0.02,
+    "angular_speed": 5.0,
+    "joint_speed": 5.0
+  },
+  "rtk": {
+    "enabled": false,
+    "port": "",
+    "baud": 115200,
+    "ntrip": {
+      "enabled": false,
+      "host": "rtk2go.com",
+      "port": 2101,
+      "mount_point": "SemaAgoraRobotics",
+      "username": "rtk2go@rtk2go.com",
+      "password": ""
+    }
+  },
+  "zed": {
+    "enabled": false,
+    "python": "python3",
+    "settings": {
+      "init": {
+        "camera_disable_self_calib": false,
+        "camera_fps": 60,
+        "camera_image_flip": "AUTO",
+        "camera_resolution": "VGA",
+        "coordinate_system": "RIGHT_HANDED_Z_UP",
+        "coordinate_units": "METER",
+        "depth_maximum_distance": -1,
+        "depth_minimum_distance": -1,
+        "depth_mode": "NEURAL_LIGHT",
+        "depth_stabilization": 30,
+        "enable_image_enhancement": true,
+        "sensors_required": false
+      },
+      "mapping": {
+        "enabled": true,
+        "map_type": "MESH",
+        "max_memory_usage": 2048,
+        "range_meter": -1,
+        "resolution": "LOW",
+        "reverse_vertex_order": false,
+        "save_texture": false,
+        "stability_counter": 0,
+        "use_chunk_only": true
+      },
+      "runtime": {
+        "confidence_threshold": 30,
+        "enable_depth": true,
+        "enable_fill_mode": false,
+        "remove_saturated_areas": false,
+        "texture_confidence_threshold": 100
+      },
+      "tracking": {
+        "depth_min_range": -1,
+        "enable_2d_ground_mode": false,
+        "enable_area_memory": true,
+        "enable_imu_fusion": true,
+        "enable_pose_smoothing": false,
+        "mode": "GEN_3",
+        "set_as_static": false,
+        "set_floor_as_origin": false,
+        "set_gravity_as_origin": true
+      }
+    },
+    "mount_configured": false,
+    "mount_translation": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "mount_rotation_deg": [
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "gamepad": {
+    "dead_zone": 0.12,
+    "toggle_button": 3,
+    "deadman_button": 4,
+    "stop_button": 1,
+    "throttle_axis": 1,
+    "steering_axis": 2,
+    "arm_x_axis": 1,
+    "arm_y_axis": 0,
+    "arm_z_axis": 3,
+    "arm_yaw_axis": 2,
+    "pitch_up_button": 12,
+    "pitch_down_button": 13,
+    "roll_left_button": 14,
+    "roll_right_button": 15,
+    "gripper_open_button": 6,
+    "gripper_close_button": 7
+  }
+}
