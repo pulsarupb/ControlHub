@@ -1,7 +1,7 @@
 target
-web/node_modules
-web/build
-web/.svelte-kit
+app/node_modules
+app/build
+app/.svelte-kit
 .git
 .gitignore
 Dockerfile

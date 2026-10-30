@@ -4,12 +4,12 @@
   files from `Kinova-VLA/crates/kinova-control`. No application, AI or inference
   code was copied. Vendor BSD terms are in `proto/LICENSE` (from Kinova's
   [ros_kortex license](https://github.com/Kinovarobotics/ros_kortex/blob/noetic-devel/LICENSE)).
-- `web/static/kinova-models`: Gen3 Lite URDF and STL geometry from the existing
+- `app/static/kinova-models`: Gen3 Lite URDF and STL geometry from the existing
   `Kinova-VLA/crates/test-kinova/src/static/models` viewer, originally Kinova
   description assets. Kinova BSD terms accompany the assets. The URDF's embedded
   ROS control declarations are inert: only visual geometry and joints are parsed;
   no ROS plugin is loaded and embedded connection parameters are not used.
-- `web/src/lib/rover/arm-model.ts`: small typed adaptation of that viewer's URDF
+- `app/src/lib/rover/arm-model.ts`: small typed adaptation of that viewer's URDF
   parsing, joint/mimic updates and gripper visual offset. Uses the existing Three.js
   dependency, not a second bundled copy or a browser IK implementation.
   The draggable tool target retains the source viewer's Three.js `XYZ` Euler

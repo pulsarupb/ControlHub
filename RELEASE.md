@@ -21,7 +21,7 @@
 
 ## Post-release
 
-The release workflow automatically commits updated `updates.json` and `web/src-tauri/tauri.conf.json` back to `main`.
+The release workflow automatically commits updated `updates.json` and `app/src-tauri/tauri.conf.json` back to `main`.
 
 ## Version verification
 

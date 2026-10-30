@@ -3,11 +3,11 @@ data
 
 target
 __pycache__/
-web/node_modules
-web/build
-web/.svelte-kit
+app/node_modules
+app/build
+app/.svelte-kit
 
 # Generated Tauri Android projects and native plugin build artifacts
-/web/src-tauri/gen/
-/web/src-tauri/native/**/android/.tauri/
-/web/src-tauri/native/**/android/build/
+/app/src-tauri/gen/
+/app/src-tauri/native/**/android/.tauri/
+/app/src-tauri/native/**/android/build/

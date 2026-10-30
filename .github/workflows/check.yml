@@ -14,10 +14,10 @@ jobs:
       - run: python3 crates/driver/tests/fake_drive.py -v
       - run: python3 -m unittest discover -s crates/zed/sidecar -v
       - run: bun install --frozen-lockfile
-        working-directory: web
+        working-directory: app
       - run: bun test
-        working-directory: web
+        working-directory: app
       - run: bun run check
-        working-directory: web
+        working-directory: app
       - run: bun run build
-        working-directory: web
+        working-directory: app

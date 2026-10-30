@@ -29,7 +29,7 @@ python3 crates/driver/tests/fake_drive.py -v
 cargo run -p driver -- --simulate --config /tmp/opencode/controlhub-dev.json
 ```
 
-In another terminal, from `web/`:
+In another terminal, from `app/`:
 
 ```sh
 bun install --frozen-lockfile

@@ -82,15 +82,15 @@ configuration rather than silently interpreting old motor IDs as serial channels
   `wifi.rs` only has two equivalent lint cleanups; hotspot setup is now opt-in.
 - 7: old backend dependency removal; deleted
   `crates/driver/src/{localizer,simulator,urdf}.rs`; frontend driver-specific paths
-  renamed to `web/src/lib/rover/` and `rover-types.ts`.
-- 8: `web/src/lib/{SettingsOverlay,ConfigFields}.svelte`, `config-api.ts`,
+  renamed to `app/src/lib/rover/` and `rover-types.ts`.
+- 8: `app/src/lib/{SettingsOverlay,ConfigFields}.svelte`, `config-api.ts`,
   `hardware-types.ts`, `hardware.svelte.ts`, `rover-control.svelte.ts`, status widgets.
-- 9: `web/src/lib/rover/{ZedMapWidget,ZedVideoWidget,KinovaViewWidget,KinovaControlsWidget}.svelte`,
-  `arm-model.ts`, `web/static/kinova-models/`, widget registration/templates.
+- 9: `app/src/lib/rover/{ZedMapWidget,ZedVideoWidget,KinovaViewWidget,KinovaControlsWidget}.svelte`,
+  `arm-model.ts`, `app/static/kinova-models/`, widget registration/templates.
 - 10: `gamepad-{control.svelte,mapping}.ts`, `widgets/GamepadWidget.svelte`, app layout.
 - 11: `crates/driver/tests/fake_drive.py`, Rust/Python/frontend tests, CI workflows,
   native `start-services.sh`, README, release sidecar packaging/installer.
-  `web/package.json` and `web/bun.lock` contain the approved dependency update:
+  `app/package.json` and `app/bun.lock` contain the approved dependency update:
   compatible Svelte/checker updates and TypeScript 6 (TS7 needs a second compiler).
 
 ## Actual local results — 2026-10-30
