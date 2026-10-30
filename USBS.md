@@ -1,0 +1,2 @@
+- Left controller: /dev/serial/by-id/usb-Roboteq_Motor_Controller_8D8C43705649-if00
+- Right controller: /dev/serial/by-id/usb-Roboteq_Motor_Controller_8D8D438F5649-if00
