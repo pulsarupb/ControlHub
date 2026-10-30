@@ -81,8 +81,8 @@ impl Default for Config {
                 direction: 1,
             }),
             power_limit: 100,
-            acceleration_time_ms: MAX_RAMP_TIME_MS,
-            deceleration_time_ms: MAX_RAMP_TIME_MS,
+            acceleration_time_ms: DEFAULT_RAMP_TIME_MS,
+            deceleration_time_ms: DEFAULT_RAMP_TIME_MS,
         }
     }
 }
