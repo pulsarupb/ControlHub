@@ -7,6 +7,14 @@ services:
     container_name: controlhub-driver
     platform: linux/arm64
     restart: unless-stopped
+    command:
+      - --config
+      - /data/rover16.json
+      - --sidecar
+      - /opt/controlhub/sidecar/main.py
+      - --bind
+      - 0.0.0.0:8080
+      - --hotspot
     network_mode: host
     privileged: true
     init: true
