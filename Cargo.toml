@@ -3,5 +3,5 @@ resolver = "2"
 members = ["crates/*", "app/src-tauri", "app/src-tauri/native", "app/src-tauri/native/switch-input", "app/src-tauri/native/android-updater"]
 
 [workspace.package]
-version = "0.1.50"
+version = "0.1.51"
 edition = "2024"
