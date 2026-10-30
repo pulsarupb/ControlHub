@@ -79,7 +79,7 @@
       onpointerleave={releaseFwd}
     >
       <div class="track"></div>
-      <div class="puck" style={`transform: translateY(${rover.throttle * FWD_RANGE}px)`}></div>
+      <div class="puck" style={`transform: translateY(${-rover.throttle * FWD_RANGE}px)`}></div>
     </div>
 
     <div
