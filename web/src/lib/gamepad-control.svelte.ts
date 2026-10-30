@@ -1,109 +1,62 @@
-import { rover as controlRover } from "$lib/rover-control.svelte"
-import { rover as displayRover } from "$lib/data/rover.svelte"
+import { rover } from "$lib/rover-control.svelte"
+import { rover as display } from "$lib/data/rover.svelte"
+import { hardware, releaseArm, armAction } from "$lib/hardware.svelte"
+import { gamepadDemand } from "$lib/gamepad-mapping"
 
-const AXIS_DEAD_ZONE = 0.12
-const NUM_AXES = 4
-const NUM_BUTTONS = 17
+let frame: number | null = null
+let lastToggle = false, lastStop = false, lastGripper: number | null = null
+let controlling: "drive" | "arm" | null = null
+let requireRelease = true
 
-const Button = {
-  CROSS: 0,
-  CIRCLE: 1,
-  SQUARE: 2,
-  TRIANGLE: 3,
-  L1: 4,
-  R1: 5,
-  L2: 6,
-  R2: 7,
-  SHARE: 8,
-  OPTIONS: 9,
-  L3: 10,
-  R3: 11,
-  DPAD_UP: 12,
-  DPAD_DOWN: 13,
-  DPAD_LEFT: 14,
-  DPAD_RIGHT: 15,
-  PS: 16,
-} as const
+export function releaseGamepad() {
+  if (controlling === "drive") rover.releaseJoystick()
+  if (controlling === "arm") releaseArm()
+  controlling = null
+  requireRelease = true
+}
 
-let rafHandle: number | null = null
-let wasInDeadZone = true
-let prevButtons = new Array(NUM_BUTTONS).fill(false)
-let prevConnected = false
-
-function applyDeadZone(value: number): number {
-  if (Math.abs(value) < AXIS_DEAD_ZONE) return 0
-  return (value - Math.sign(value) * AXIS_DEAD_ZONE) / (1 - AXIS_DEAD_ZONE)
+export function setGamepadMode(mode: "drive" | "arm") {
+  releaseGamepad()
+  hardware.mode = mode
 }
 
 function poll() {
-  const pads = navigator.getGamepads()
-  const gamepad = pads ? Array.from(pads).find(Boolean) : undefined
-
-  if (gamepad) {
-    if (!prevConnected) {
-      prevButtons.fill(false)
-    }
-
-    displayRover.gamepadConnected = true
-    displayRover.gamepadId = gamepad.id
-    displayRover.gamepadAxes = Array.from({ length: NUM_AXES }, (_, i) => gamepad.axes[i] ?? 0)
-    displayRover.gamepadButtons = Array.from({ length: NUM_BUTTONS }, (_, i) => gamepad.buttons[i]?.pressed ?? false)
-
-    if (!controlRover.mouseJoystickActive && !controlRover.stopped) {
-      const rawThrottle = gamepad.axes[1] ?? 0
-      const rawSteering = gamepad.axes[2] ?? 0
-      const throttle = applyDeadZone(rawThrottle)
-      const steering = applyDeadZone(rawSteering)
-      const throttleInDeadZone = Math.abs(throttle) < 0.01
-      const steeringInDeadZone = Math.abs(steering) < 0.01
-      const bothInDeadZone = throttleInDeadZone && steeringInDeadZone
-
-      if (bothInDeadZone) {
-        if (!wasInDeadZone) {
-          controlRover.releaseJoystick()
-          wasInDeadZone = true
+  const pad = Array.from(navigator.getGamepads?.() ?? []).find(p => p?.connected)
+  display.gamepadConnected = Boolean(pad)
+  display.gamepadId = pad?.id ?? "No gamepad connected"
+  display.gamepadAxes = Array.from(pad?.axes ?? [0, 0, 0, 0])
+  display.gamepadButtons = Array.from(pad?.buttons ?? [], b => b.pressed)
+  const config = hardware.config?.gamepad
+  if (!pad || !config || document.hidden || !document.hasFocus()) {
+    releaseGamepad()
+    lastToggle = lastStop = false
+    lastGripper = null
+  } else {
+    const input = gamepadDemand(pad.axes, display.gamepadButtons, config)
+    if (input.stop && !lastStop) { releaseGamepad(); void rover.stopRover() }
+    if (input.toggle && !lastToggle) setGamepadMode(hardware.mode === "drive" ? "arm" : "drive")
+    lastStop = input.stop; lastToggle = input.toggle
+    const targetArmed = hardware.mode === "drive" ? !rover.stopped : Boolean(rover.status?.devices.kinova.data.armed)
+    if (!targetArmed) releaseGamepad()
+    // After a mode switch, disconnect, blur, or Stop, the operator must release
+    // and press the deadman again. Holding it cannot carry motion across modes.
+    if (!input.deadman) { releaseGamepad(); requireRelease = false }
+    else if (!requireRelease && !input.stop && targetArmed) {
+      if (hardware.mode === "drive" && !rover.mouseJoystickActive) {
+        if (rover.startJoystick()) {
+          controlling = "drive"; rover.setThrottle(input.throttle); rover.setSteering(input.steering)
         }
-      } else {
-        if (wasInDeadZone) {
-          controlRover.startJoystick()
-          wasInDeadZone = false
-        }
-        controlRover.setThrottle(-throttle)
-        controlRover.setSteering(steering)
+      } else if (hardware.mode === "arm" && rover.status?.devices.kinova.data.armed) {
+        controlling = "arm"
+        if (input.cartesian.some(v => v !== 0)) hardware.jog = { cartesian: input.cartesian }
+        else releaseArm()
+        if (input.gripper !== null && input.gripper !== lastGripper) void armAction({ action: "gripper", position: input.gripper })
       }
     }
-
-    for (let i = 0; i < NUM_BUTTONS; i++) {
-      prevButtons[i] = gamepad.buttons[i]?.pressed ?? false
-    }
-
-    prevConnected = true
-  } else {
-    if (prevConnected) {
-      displayRover.gamepadConnected = false
-      displayRover.gamepadId = "No gamepad connected"
-      displayRover.gamepadAxes = [0, 0, 0, 0]
-      displayRover.gamepadButtons = Array.from({ length: NUM_BUTTONS }, () => false)
-      controlRover.releaseJoystick()
-      prevConnected = false
-    }
+    lastGripper = input.deadman ? input.gripper : null
   }
-
-  rafHandle = requestAnimationFrame(poll)
+  frame = requestAnimationFrame(poll)
 }
 
-export function startGamepad() {
-  if (rafHandle !== null) return
-  wasInDeadZone = true
-  prevConnected = false
-  prevButtons.fill(false)
-  poll()
-}
-
-export function stopGamepad() {
-  if (rafHandle !== null) {
-    cancelAnimationFrame(rafHandle)
-    rafHandle = null
-  }
-  controlRover.releaseJoystick()
-}
+export function startGamepad() { if (frame === null) { requireRelease = true; poll() } }
+export function stopGamepad() { if (frame !== null) cancelAnimationFrame(frame); frame = null; releaseGamepad() }

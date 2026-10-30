@@ -29,7 +29,8 @@ echo "Downloading driver server..."
 curl -L -o driver "$URL"
 
 echo "Verifying checksum..."
-CHECKSUM_URL="https://github.com/$REPO/releases/latest/download/SHA256SUMS"
+RELEASE_URL="${URL%/*}"
+CHECKSUM_URL="$RELEASE_URL/SHA256SUMS"
 expected=$(curl -sL "$CHECKSUM_URL" | grep "$ASSET" | awk '{print $1}')
 if [ -z "$expected" ]; then
   echo "Warning: Could not fetch checksum, skipping verification."
@@ -47,5 +48,16 @@ fi
 
 chmod +x driver
 
+echo "Downloading matching ZED sidecar (Python/SDK must be installed separately)..."
+SIDECAR="zed-sidecar.tar.gz"
+curl -fL -o "$SIDECAR" "$RELEASE_URL/$SIDECAR"
+expected=$(curl -fsL "$CHECKSUM_URL" | grep " $SIDECAR\$" | awk '{print $1}')
+if [ -z "$expected" ] || [ "$expected" != "$(sha256sum "$SIDECAR" | awk '{print $1}')" ]; then
+  echo "Error: ZED sidecar checksum missing or mismatched; not extracting."
+  exit 1
+fi
+tar -xzf "$SIDECAR"
+
 echo "Done. Installed $(pwd)/driver"
-echo "Run sudo ./driver to start the server."
+echo "Run ./driver --sidecar ./sidecar/main.py to start the server."
+echo "Devices start disabled. Configure serial permissions and hardware settings before enabling."

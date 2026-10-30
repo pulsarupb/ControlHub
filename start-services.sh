@@ -1,15 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "=== Starting ControlHub Services ==="
-
-echo "Starting KasmVNC desktop..."
-sudo systemctl start kasmvnc
-
-echo "Starting driver (Docker)..."
-docker compose up -d
-
-echo ""
-echo "=== All services started ==="
-echo "  Driver API:  http://<rover-ip>:8080/"
-echo "  Kasm Desktop: http://<rover-ip>:6901/"
+# Native deployment; no implicit Docker, networking or desktop-service changes.
+cd "$(dirname "$0")"
+exec "${CONTROLHUB_DRIVER:-./target/release/driver}" \
+  --config "${CONTROLHUB_CONFIG:-data/rover16.json}" \
+  --sidecar "${CONTROLHUB_SIDECAR:-crates/zed/sidecar/main.py}" "$@"

@@ -22,11 +22,14 @@ RUN apt-get update \
         iproute2 \
         libudev1 \
         network-manager \
+        python3 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/target/release/driver /usr/local/bin/driver
 COPY data/ /data/
+COPY crates/zed/sidecar/ /opt/controlhub/sidecar/
 
 EXPOSE 8080
 
 ENTRYPOINT ["/usr/local/bin/driver"]
+CMD ["--config", "/data/config.json", "--sidecar", "/opt/controlhub/sidecar/main.py"]

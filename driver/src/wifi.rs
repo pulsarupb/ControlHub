@@ -53,28 +53,27 @@ fn find_wifi_interface() -> Option<String> {
     if let Ok(output) = Command::new("nmcli")
         .args(["-t", "-f", "TYPE,DEVICE", "d"])
         .output()
+        && output.status.success()
     {
-        if output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            for line in stdout.lines() {
-                if line.starts_with("wifi:") {
-                    let iface = line.trim_start_matches("wifi:").trim();
-                    if !iface.is_empty() {
-                        return Some(iface.to_string());
-                    }
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        for line in stdout.lines() {
+            if line.starts_with("wifi:") {
+                let iface = line.trim_start_matches("wifi:").trim();
+                if !iface.is_empty() {
+                    return Some(iface.to_string());
                 }
             }
         }
     }
 
-    if let Ok(output) = Command::new("iw").args(["dev"]).output() {
-        if output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            for line in stdout.lines() {
-                let trimmed = line.trim();
-                if let Some(iface) = trimmed.strip_prefix("Interface ") {
-                    return Some(iface.to_string());
-                }
+    if let Ok(output) = Command::new("iw").args(["dev"]).output()
+        && output.status.success()
+    {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        for line in stdout.lines() {
+            let trimmed = line.trim();
+            if let Some(iface) = trimmed.strip_prefix("Interface ") {
+                return Some(iface.to_string());
             }
         }
     }

@@ -3,8 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: moteus-testing-driver:jetson
-    container_name: moteus-testing-driver
+    image: controlhub-driver:jetson
+    container_name: controlhub-driver
     platform: linux/arm64
     restart: unless-stopped
     network_mode: host
@@ -17,4 +17,3 @@ services:
       - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket
     environment:
       - RUST_BACKTRACE=1
-

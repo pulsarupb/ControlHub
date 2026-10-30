@@ -1,8 +1,9 @@
-import { DEFAULT_POSE, ZERO_JOYSTICK } from "$lib/constants";
+import { ZERO_JOYSTICK } from "$lib/constants";
 import { apiFetch } from "$lib/api-client";
 import { clamp } from "$lib/math";
-import type { ConnectionState, JoystickPosition, PathPoint, Pose, RoverControl, RoverStatus } from "$lib/moteus-types";
+import type { ConnectionState, JoystickPosition, RoverControl, RoverStatus } from "$lib/rover-types";
 import { roverConnection } from "$lib/rover-connection.svelte";
+import { hardware, releaseArm } from "$lib/hardware.svelte";
 
 type RoverState = {
   status: RoverStatus | null;
@@ -27,9 +28,7 @@ function createRoverControl(): RoverControl {
     connectionState: "connecting",
   });
 
-  const pose = $derived<Pose>(state.status?.pose ?? DEFAULT_POSE);
-  const path = $derived<PathPoint[]>(state.status?.path ?? []);
-  const stopped = $derived(Boolean(state.status?.emergency_stop || state.status?.watchdog_stopped));
+  const stopped = $derived(state.connectionState !== "online" || !state.status?.devices.drive.data.armed);
 
   async function api(path: string, options: RequestInit = {}): Promise<RoverStatus> {
     const response = await apiFetch(roverConnection.apiUrl(path), {
@@ -41,13 +40,14 @@ function createRoverControl(): RoverControl {
       throw new Error(`${path} failed with ${response.status}`);
     }
 
-    state.status = (await response.json()) as RoverStatus;
+    if (path === "/api/status") state.status = (await response.json()) as RoverStatus;
     state.connectionState = "online";
     roverConnection.setState("online", "Rover API online");
-    return state.status;
+    return state.status!;
   }
 
   function markOffline(): void {
+    zeroControls();
     state.connectionState = "offline";
     roverConnection.setState("offline", "Rover API request failed");
   }
@@ -61,7 +61,7 @@ function createRoverControl(): RoverControl {
   }
 
   async function sendControlTick(): Promise<void> {
-    if (state.pendingRequest || state.status?.emergency_stop) return;
+    if (state.pendingRequest || stopped) return;
 
     state.pendingRequest = true;
     try {
@@ -77,6 +77,7 @@ function createRoverControl(): RoverControl {
   }
 
   function zeroControls(): void {
+    state.mouseJoystickActive = false;
     state.throttle = 0;
     state.steering = 0;
     state.joystick = { ...ZERO_JOYSTICK };
@@ -85,9 +86,12 @@ function createRoverControl(): RoverControl {
 
   async function stopRover(): Promise<void> {
     zeroControls();
+    releaseArm();
+    hardware.preview = null;
 
     try {
       await api("/api/stop", { method: "POST" });
+      await refreshStatus();
     } catch (error) {
       markOffline();
     }
@@ -97,14 +101,15 @@ function createRoverControl(): RoverControl {
     zeroControls();
 
     try {
-      await api("/api/reset", { method: "POST" });
+      await api("/api/drive/enable", { method: "POST" });
+      await refreshStatus();
     } catch (error) {
       markOffline();
     }
   }
 
   function startJoystick(): boolean {
-    if (state.status?.emergency_stop) return false;
+    if (stopped) return false;
 
     state.joystickActive = true;
     return true;
@@ -146,12 +151,6 @@ function createRoverControl(): RoverControl {
     },
     get connectionState() {
       return state.connectionState;
-    },
-    get pose() {
-      return pose;
-    },
-    get path() {
-      return path;
     },
     get stopped() {
       return stopped;

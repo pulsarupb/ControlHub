@@ -1,129 +1,142 @@
-use crate::localizer::ChassisConfig;
-use crate::localizer::Pose2d;
-use serde::{Deserialize, Serialize};
+use crate::config::Config;
+use serde::Serialize;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
+
+pub fn epoch() -> f64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs_f64()
+}
 
 #[derive(Clone)]
-pub(crate) struct AppState {
-    pub(crate) rover: Arc<Mutex<RoverState>>,
-    pub(crate) simulate: bool,
-    pub(crate) urdf_json: Arc<String>,
-    pub(crate) config_path: String,
-    pub(crate) chassis_config: Arc<Mutex<ChassisConfig>>,
+pub struct AppState {
+    pub config: Arc<Mutex<Config>>,
+    pub config_path: Arc<String>,
+    pub status: Arc<Mutex<Status>>,
+    pub drive: Arc<Mutex<roboteq::Drive>>,
+    pub drive_generation: Arc<AtomicU64>,
+    pub arm_enabled: Arc<AtomicBool>,
+    pub arm_stop: Arc<AtomicU64>,
+    pub arm_jog: Arc<Mutex<Option<(crate::arm::Jog, Instant)>>>,
+    pub arm_seen: Arc<Mutex<Instant>>,
+    pub arm_tx: tokio::sync::mpsc::Sender<crate::arm::Request>,
+    pub zed_reset: Arc<AtomicBool>,
+    pub images: Arc<Mutex<[Vec<u8>; 2]>>,
+    pub simulate: bool,
 }
 
 impl AppState {
-    pub(crate) fn new(simulate: bool, urdf_json: String, config_path: String, chassis_config: Arc<Mutex<ChassisConfig>>) -> Self {
+    pub fn new(
+        config: Config,
+        path: String,
+        simulate: bool,
+    ) -> (Self, tokio::sync::mpsc::Receiver<crate::arm::Request>) {
+        let (arm_tx, arm_rx) = tokio::sync::mpsc::channel(8);
+        (
+            Self {
+                config: Arc::new(Mutex::new(config)),
+                config_path: Arc::new(path),
+                status: Default::default(),
+                drive: Default::default(),
+                drive_generation: Arc::new(AtomicU64::new(0)),
+                arm_enabled: Arc::new(AtomicBool::new(false)),
+                arm_stop: Arc::new(AtomicU64::new(0)),
+                arm_jog: Default::default(),
+                arm_seen: Arc::new(Mutex::new(Instant::now())),
+                arm_tx,
+                zed_reset: Arc::new(AtomicBool::new(false)),
+                images: Default::default(),
+                simulate,
+            },
+            arm_rx,
+        )
+    }
+    pub fn stop_drive(&self) {
+        self.drive.lock().unwrap().stop();
+        self.drive_generation.fetch_add(1, Ordering::SeqCst);
+    }
+    pub fn stop_arm(&self) {
+        let mut jog = self.arm_jog.lock().unwrap();
+        self.arm_enabled.store(false, Ordering::SeqCst);
+        self.arm_stop.fetch_add(1, Ordering::SeqCst);
+        *jog = None;
+    }
+    pub fn stop_all(&self) {
+        self.stop_drive();
+        self.stop_arm();
+    }
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct Device<T: Serialize> {
+    pub enabled: bool,
+    pub connected: bool,
+    pub simulated: bool,
+    pub updated_at: Option<f64>,
+    pub error: Option<String>,
+    pub data: T,
+}
+
+impl<T: Serialize + Default> Default for Device<T> {
+    fn default() -> Self {
         Self {
-            rover: Arc::new(Mutex::new(RoverState::new())),
-            simulate,
-            urdf_json: Arc::new(urdf_json),
-            config_path,
-            chassis_config,
+            enabled: false,
+            connected: false,
+            simulated: false,
+            updated_at: None,
+            error: None,
+            data: T::default(),
         }
     }
 }
 
-#[derive(Debug)]
-pub(crate) struct RoverState {
-    pub(crate) throttle: f32,
-    pub(crate) steering: f32,
-    pub(crate) emergency_stop: bool,
-    pub(crate) watchdog_stopped: bool,
-    pub(crate) reset_requested: bool,
-    pub(crate) last_ui_seen: Instant,
-    pub(crate) pose: Pose2d,
-    pub(crate) path: Vec<Pose2d>,
-    pub(crate) motors: [MotorTelemetry; 4],
-    pub(crate) last_error: Option<String>,
-}
-
-impl RoverState {
-    pub(crate) fn new() -> Self {
-        Self {
-            throttle: 0.0,
-            steering: 0.0,
-            emergency_stop: true,
-            watchdog_stopped: true,
-            reset_requested: false,
-            last_ui_seen: Instant::now(),
-            pose: Pose2d::default(),
-            path: vec![Pose2d::default()],
-            motors: [
-                MotorTelemetry::new(1),
-                MotorTelemetry::new(2),
-                MotorTelemetry::new(3),
-                MotorTelemetry::new(4),
-            ],
-            last_error: None,
-        }
+impl<T: Serialize> Device<T> {
+    pub fn update(&mut self, data: T) {
+        self.data = data;
+        self.connected = true;
+        self.updated_at = Some(epoch());
+        self.error = None;
     }
-
-    pub(crate) fn status(&self) -> StatusResponse {
-        StatusResponse {
-            throttle: self.throttle,
-            steering: self.steering,
-            emergency_stop: self.emergency_stop,
-            watchdog_stopped: self.watchdog_stopped,
-            pose: self.pose.into(),
-            path: self.path.iter().copied().map(Into::into).collect(),
-            motors: self.motors,
-            last_error: self.last_error.clone(),
-        }
+    pub fn fail(&mut self, error: impl ToString) {
+        self.connected = false;
+        self.error = Some(error.to_string());
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize)]
-pub(crate) struct MotorTelemetry {
-    pub(crate) id: u8,
-    pub(crate) position: f32,
-    pub(crate) velocity: f32,
-    pub(crate) fault: i8,
+#[derive(Clone, Debug, Default, Serialize)]
+pub struct DriveData {
+    pub armed: bool,
+    pub power: [[i16; 2]; 2],
+    pub controllers: [roboteq::Telemetry; 2],
 }
 
-impl MotorTelemetry {
-    pub(crate) fn new(id: u8) -> Self {
-        Self {
-            id,
-            position: 0.0,
-            velocity: 0.0,
-            fault: 0,
-        }
-    }
+#[derive(Clone, Debug, Default, Serialize)]
+pub struct ArmData {
+    pub armed: bool,
+    pub joints: Vec<f32>,
+    pub pose: Option<[f32; 6]>,
+    pub gripper: Option<f32>,
+    pub arm_state: Option<i32>,
+    pub preview: Option<crate::arm::Preview>,
 }
 
-#[derive(Debug, Deserialize)]
-pub(crate) struct ControlRequest {
-    pub(crate) throttle: f32,
-    pub(crate) steering: f32,
+#[derive(Clone, Debug, Default, Serialize)]
+pub struct RtkData {
+    pub fix: Option<rtk::Fix>,
+    pub bytes_read: u64,
+    pub parse_errors: u64,
+    pub ntrip_connected: bool,
+    pub correction_bytes: u64,
+    pub ntrip_error: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
-pub(crate) struct StatusResponse {
-    throttle: f32,
-    steering: f32,
-    emergency_stop: bool,
-    watchdog_stopped: bool,
-    pose: Pose2dResponse,
-    path: Vec<Pose2dResponse>,
-    motors: [MotorTelemetry; 4],
-    last_error: Option<String>,
-}
-
-#[derive(Debug, Clone, Copy, Serialize)]
-pub(crate) struct Pose2dResponse {
-    x_m: f32,
-    y_m: f32,
-    heading_rad: f32,
-}
-
-impl From<Pose2d> for Pose2dResponse {
-    fn from(pose: Pose2d) -> Self {
-        Self {
-            x_m: pose.x_m,
-            y_m: pose.y_m,
-            heading_rad: pose.heading_rad,
-        }
-    }
+#[derive(Clone, Debug, Default, Serialize)]
+pub struct Status {
+    pub drive: Device<DriveData>,
+    pub kinova: Device<ArmData>,
+    pub rtk: Device<RtkData>,
+    pub zed: Device<zed::Snapshot>,
 }

@@ -3,10 +3,10 @@
 </script>
 
 <div class="emergency-widget">
-  <button class="estop" onclick={rover.stopRover} aria-label="Emergency stop all rover motors">
+  <button class="estop" onclick={rover.stopRover} aria-label="Stop drive and arm">
     <strong>STOP</strong>
   </button>
-  <button class="reset" onclick={rover.resetRover}>Reset Rover</button>
+  <button class="reset" onclick={rover.resetRover}>Enable Drive</button>
 </div>
 
 <style>

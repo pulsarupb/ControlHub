@@ -1,4 +1,4 @@
-import type { ConnectionState } from "$lib/moteus-types"
+import type { ConnectionState } from "$lib/rover-types"
 import { apiFetch } from "$lib/api-client"
 
 const ROVER_LOCAL_URL = "http://10.42.0.1:8080"

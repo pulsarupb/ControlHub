@@ -1,0 +1,81 @@
+/*
+ * KINOVA (R) KORTEX (TM)
+ *
+ * Copyright (c) 2018 Kinova inc. All rights reserved.
+ *
+ * This software may be modified and distributed
+ * under the terms of the BSD 3-Clause license.
+ *
+ * Refer to the LICENSE file for details.
+ *
+ */
+
+syntax = "proto3";
+
+import public "Errors.proto";
+
+package Kinova.Api;
+
+//////////////////////////////
+// HEADER BLOCK
+
+// Frame Information Bitmask(s):
+// FIELDMASK_HEADER_VERSION     0xF0000000
+// FIELDMASK_FRAME_TYPE         0x0F000000
+// FIELDMASK_DEVICE_ID          0x00FF0000
+// FIELDMASK_ERROR_CODE         0x0000F000
+// FIELDMASK_ERROR_SUBCODE      0x00000FFF
+
+// Message Information Bitmask(s):
+// FIELDMASK_SESSION_ID         0xFFFF0000
+// FIELDMASK_MESSAGE_ID         0x0000FFFF
+
+// Service  Information Bitmask(s):
+// FIELDMASK_SERVICE_VERSION    0xF0000000
+// FIELDMASK_SERVICE_ID         0x0FFF0000
+// FIELDMASK_FUNCTION_ID        0x0000FFFF
+
+// Payload Information Bitmask(s):
+// FIELDMASK_RESERVED           0xFF000000
+// FIELDMASK_PAYLOAD_LENGTH     0x00FFFFFF
+
+// Current version of the header
+enum HeaderVersion {
+    RESERVED_0 = 0;
+    CURRENT_VERSION = 1;  // Current version
+}
+
+// Admissible frame types
+enum FrameTypes {
+    RESERVED = 0;
+    MSG_FRAME_REQUEST = 1;
+    MSG_FRAME_RAW = 2;
+    MSG_FRAME_RESPONSE = 3;
+    MSG_FRAME_NOTIFICATION = 5;
+    MSG_FRAME_PING = 7;
+    MSG_FRAME_PONG = 8;
+
+    // Available value: 4;
+    // Available value: 6;
+}
+
+// Defines a Frame format including its header and payload
+message Frame {
+    Header header = 1;
+    bytes payload = 2;
+}
+
+// Defines the frame header
+message Header {
+    fixed32 frame_info = 1;     // Includes frame type, device handle identifier, error code and sub error code
+    fixed32 message_info = 2;   // Includes session identifier and message identifier 
+    fixed32 service_info = 3;   // Includes service version, service identifier and function identifier
+    fixed32 payload_info = 4;   // Includes payload length
+}
+
+// Defines an error message
+message Error {
+    ErrorCodes error_code = 1;  // Error code. Please refer to Errors.proto for list of error codes
+    uint32 error_sub_code = 2;  // Sub error code. Please refer to Errors.proto for list of sub error codes
+    string error_sub_string = 3;// For internal usage
+}

@@ -23,7 +23,7 @@
   import type { Manager } from "./grid/widgets.svelte"
   import TemplatesChoose from "./grid/TemplatesChoose.svelte"
   import AllNotifications from "./AllNotifications.svelte"
-  import RoverConnectionOverlay from "$lib/moteus/RoverConnectionOverlay.svelte"
+  import RoverConnectionOverlay from "$lib/rover/RoverConnectionOverlay.svelte"
   import SettingsOverlay from "$lib/SettingsOverlay.svelte"
   import { roverConnection } from "$lib/rover-connection.svelte"
 

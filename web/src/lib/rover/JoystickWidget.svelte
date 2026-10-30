@@ -10,16 +10,16 @@
   const SPIN_RANGE = 40
 
   function fwdPointerPos(event: PointerEvent): void {
-    if (!fwdActive || !fwdEl) return
+    if (!fwdActive || !fwdEl || !rover.mouseJoystickActive) return
     const rect = fwdEl.getBoundingClientRect()
     const halfHeight = rect.height * 0.5
     const centerY = rect.top + halfHeight
     const rawY = (event.clientY - centerY) / halfHeight
-    rover.setThrottle(rawY)
+    rover.setThrottle(-rawY)
   }
 
   function spinPointerPos(event: PointerEvent): void {
-    if (!spinActive || !spinEl) return
+    if (!spinActive || !spinEl || !rover.mouseJoystickActive) return
     const rect = spinEl.getBoundingClientRect()
     const halfWidth = rect.width * 0.5
     const centerX = rect.left + halfWidth
@@ -31,6 +31,7 @@
     if (!rover.startJoystick()) return
     fwdEl?.setPointerCapture(event.pointerId)
     fwdActive = true
+    rover.mouseJoystickActive = true
     fwdPointerPos(event)
   }
 
@@ -38,21 +39,24 @@
     if (!rover.startJoystick()) return
     spinEl?.setPointerCapture(event.pointerId)
     spinActive = true
+    rover.mouseJoystickActive = true
     spinPointerPos(event)
   }
 
   function releaseFwd(): void {
     fwdActive = false
     rover.setThrottle(0)
-    if (!fwdActive && !spinActive) rover.releaseJoystick()
+    if (!fwdActive && !spinActive) { rover.releaseJoystick(); rover.mouseJoystickActive = false }
   }
 
   function releaseSpin(): void {
     spinActive = false
     rover.setSteering(0)
-    if (!fwdActive && !spinActive) rover.releaseJoystick()
+    if (!fwdActive && !spinActive) { rover.releaseJoystick(); rover.mouseJoystickActive = false }
   }
 </script>
+
+<svelte:window onblur={() => { releaseFwd(); releaseSpin() }} />
 
 <div class="joystick-widget">
   <strong class="readout">T {rover.throttle.toFixed(2)} / S {rover.steering.toFixed(2)}</strong>

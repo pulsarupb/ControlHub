@@ -6,6 +6,8 @@
   import { rover as controlRover } from "$lib/rover-control.svelte"
   import { xboxButtonMap, xboxAxesMap } from "virtual-gamepad-lib"
   import { switchInput } from "$lib/switch-input/input.svelte"
+  import { hardware } from "$lib/hardware.svelte"
+  import { setGamepadMode } from "$lib/gamepad-control.svelte"
 
   type DragState = {
     id: string
@@ -285,7 +287,7 @@
     const target = e.target as SVGElement
     if (!target.id.endsWith("_tap_target")) return
 
-    if (controlRover.stopped) return
+    if (controlRover.stopped || hardware.mode !== "drive") return
 
     const buttonId = target.id.replace("_tap_target", "")
 
@@ -329,7 +331,7 @@
       stickEl.style.transform = `translate(${clampedDx}px, ${clampedDy}px)`
     }
 
-    if (!controlRover.stopped) {
+    if (!controlRover.stopped && controlRover.mouseJoystickActive) {
       if (dragState.id === "stick_button_left") {
         controlRover.setThrottle(-ny)
       } else {
@@ -359,6 +361,8 @@
 </script>
 
 <section
+  role="group"
+  aria-label="Gamepad controls"
   class="gamepad"
   class:connected={displayRover.gamepadConnected}
   onpointerdown={onPointerDown}
@@ -366,6 +370,12 @@
   onpointerup={onPointerUp}
   onpointerleave={onPointerUp}
 >
+  <div class="mode-controls">
+    <label>Gamepad target <select value={hardware.mode} onchange={e => setGamepadMode(e.currentTarget.value as "drive" | "arm")}><option value="drive">Drive</option><option value="arm">Arm</option></select></label>
+    <small>Y/△: switch · LB/L1: hold to jog · B/○: global Stop. Release LB after switching. Bindings in Settings.</small>
+    {#if hardware.config}<small>Current button indices: switch {hardware.config.gamepad.toggle_button}, hold {hardware.config.gamepad.deadman_button}, stop {hardware.config.gamepad.stop_button}. Labels below describe defaults.</small>{/if}
+    <small>{hardware.mode === "drive" ? "Left Y: drive · Right X: steering. Virtual sticks below are drive-only." : "Left stick: base XY · Right Y: Z · Right X: yaw · D-pad: pitch/roll · Triggers: gripper."}</small>
+  </div>
   <div class="gamepad-shell" bind:this={gamepadEl} aria-label="Xbox controller state">
     {@html GAMEPAD_SVG}
   </div>

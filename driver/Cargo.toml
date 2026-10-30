@@ -5,10 +5,15 @@ edition = "2024"
 
 [dependencies]
 axum = "0.8.7"
-clap = "4.6.1"
-moteus = { workspace = true }
-quick-xml = "0.41.0"
+roboteq = { path = "../crates/roboteq" }
+kinova-control = { path = "../crates/kinova-control" }
+rtk = { path = "../crates/rtk" }
+zed = { path = "../crates/zed" }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0"
-tokio = { version = "1.52.3", features = ["macros", "rt-multi-thread", "net", "sync", "time"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "sync", "time", "signal"] }
 tower-http = { version = "0.7.0", features = ["cors"] }
+
+[dev-dependencies]
+tempfile = "3"
+tower = { version = "0.5", features = ["util"] }

@@ -1,128 +1,123 @@
-# ControlHub - Panels ERC Edition
+# ControlHub — Rover 1.6
 
-[![Release](https://img.shields.io/github/v/release/pulsarupb/ControlHub)](https://github.com/pulsarupb/ControlHub/releases)
+Panels is the cross-platform rover dashboard. `driver` is the native Rust API
+server running on one Jetson. Hardware support lives in four independent crates:
 
-Remote control and monitoring dashboard for the Pulsar rover. Two components work together:
+| Crate | Responsibility |
+|---|---|
+| `roboteq` | Two USB SDC2130 controllers, four mapped motors, open-loop tank drive |
+| `kinova-control` | Native Kortex TCP, measured state, joint/Cartesian control and IK |
+| `rtk` | Serial NMEA receiver and configurable NTRIP correction forwarding |
+| `zed` | Supervised, modular Python/pyzed camera, depth, tracking and mapping |
 
-- **Panels** - cross-platform dashboard (Android / Windows / Linux). Joystick, minimap, motor telemetry, gamepad support, and a customizable widget grid.
-- **driver** - Rust server that runs on the rover (Jetson). Communicates with four Moteus brushless motor controllers over CAN-FD, handles tank-drive control, autonomous point-following, and WiFi hotspot management.
+No ROS, AI/inference or autonomous driving is included. **RTK and ZED localization
+are independent; no GNSS fixes or fixtures are sent to ZED.** Wheel encoders are
+telemetry only, never a source of map pose.
 
----
+## Local development
 
-## Quick Start
+Prerequisites: stable Rust, Bun, Python 3. No robot, GPU SDK, Python packages or
+`protoc` installation is needed for the hardware-free Rust tests.
 
-### Operators - Using Panels
-
-1. **Download Panels** from the [Releases page](https://github.com/pulsarupb/ControlHub/releases):
-   - Linux: `.AppImage` or `.deb`
-   - Windows: `.msi`
-   - Android (ARM64): `Panels-Android-ARM64-*.apk` (enable installation from this source when prompted)
-2. **Connect your device to the rover's WiFi** - SSID `Pulsar-Rover` (password: `password`).
-3. **Launch Panels** - it auto-connects to the rover at `10.42.0.1:8080`.
-
-> If Panels can't find the rover, check you're connected to the rover's WiFi and click the connection indicator in the top bar to switch modes (Local / Dev / Remote).
-
-### Operators - Installing the Server on the Rover
-
-SSH into the Jetson and run:
+From the repository root:
 
 ```sh
-curl -sSL https://raw.githubusercontent.com/pulsarupb/ControlHub/main/install-server.sh | bash
-sudo ./driver
+cargo test -p driver -p roboteq -p kinova-control -p rtk -p zed
+python3 -m unittest discover -s crates/zed/sidecar -v
+cargo build --locked -p driver
+python3 driver/tests/fake_drive.py -v
+cargo run -p driver -- --simulate --config /tmp/opencode/controlhub-dev.json
 ```
 
-This downloads the latest `driver` binary and starts the server.
-
-### Developers - Building from Source
-
-**Prerequisites:**
-
-- [Rust](https://rustup.rs/) (stable)
-- [Bun](https://bun.sh/)
-- Linux only: `libwebkit2gtk-4.1-dev`, `libappindicator3-dev`, `librsvg2-dev`, `patchelf`
+In another terminal, from `web/`:
 
 ```sh
-# Clone the repo
-git clone https://github.com/pulsarupb/ControlHub.git
-cd ControlHub
-
-# Build & run the driver (simulated mode — no real motors needed)
-cargo build -p driver --release
-./target/release/driver --simulate
-
-# In another terminal — build & run Panels
-cd web
-bun install
-bun run tauri dev
+bun install --frozen-lockfile
+bun test
+bun run check
+bun run dev
 ```
 
----
+Choose **Dev** in the connection dialog. Open Settings to enable/configure devices.
+In simulation, use distinct placeholder drive ports (e.g. `simulation-A` and
+`simulation-B`). Simulation never opens hardware or contacts an NTRIP caster.
+It does not fabricate GPS fixes, camera measurements or IK solutions. Every
+simulated device is labeled. Real IK requires the connected arm.
 
-## Connecting to the Rover
+## Native Jetson deployment
 
-The dashboard has three connection modes, selectable from the connection indicator in the top bar:
+1. Install the vendor-supported ZED SDK/pyzed for the Jetson's actual JetPack
+   version. Install OpenCV and compatible NumPy for that Python interpreter.
+   These vendor dependencies are intentionally not managed by Cargo.
+2. Build with `cargo build -p driver` or use the matching release binary.
+3. Keep `crates/zed/sidecar/{main,camera,settings}.py` together. Release installs
+   include `zed-sidecar.tar.gz`; source runs use the source directory directly.
+4. Run as an account permitted to use the chosen serial devices. Prefer
+   `/dev/serial/by-id/` paths; do not assume ACM numbering or motor directions.
+5. Start the API without changing networking:
 
-| Mode       | URL                     | When to use                                                            |
-| ---------- | ----------------------- | ---------------------------------------------------------------------- |
-| **Local**  | `http://10.42.0.1:8080` | Connected to the rover's WiFi hotspot                                  |
-| **Dev**    | `http://127.0.0.1:8080` | Driver running locally on your machine (`--simulate` or real hardware) |
-| **Remote** | custom URL              | Rover is on a different network (e.g., a separate router)              |
+   ```sh
+   cargo run -p driver -- --config data/rover16.json
+   ```
 
-> The rover's WiFi hotspot serves `10.42.0.1/24`. Ensure your computer's IP is in this subnet (most devices auto-assign correctly).
+   A downloaded binary uses `./driver --config data/rover16.json --sidecar ./sidecar/main.py`.
+   `--hotspot` explicitly opts into the existing NetworkManager hotspot helper.
 
----
+**Do not deploy to the robot or enable motion until following
+[`docs/robot-validation.md`](docs/robot-validation.md). No Jetson was available
+during development.** Docker files are retained for existing core deployments;
+the full ZED/JetPack container runtime is not provisioned or validated here.
 
-### Jetson Docker
+## Configuration and controls
 
-```sh
-docker compose up -d --build
-```
+Configuration is JSON, default `data/config.json`. Missing files start with every
+hardware device disabled. The new schema has `drive`, `kinova`, `rtk`, `zed` and
+`gamepad` sections, all editable in Settings. The API rejects the old
+`chassis`/`motors` schema: back it up and use a new config path rather than silently
+reinterpreting old controller IDs. Saving changes only restarts affected devices;
+connection changes stop their motion and never resume old demands.
 
-The Compose file uses host networking and privileged device access so the driver can bind port `8080`, access CAN / serial devices, and manage the WiFi hotspot through NetworkManager.
+- **Drive:** controller indices 0/1, channels 1/2, direction ±1. Wheel order is left
+  front, right front, left back, right back. Power cap is 1–1000 controller units,
+  not a guaranteed speed. Start stopped, explicitly enable, stop on stale commands
+  or either controller failure, and explicitly enable again after recovery.
+- **Arm:** manual joint/Cartesian jogging, gripper, Home and fault controls.
+  Cartesian targets use robot-base XYZ meters and roll/pitch/yaw degrees. Drag or
+  edit the target, Solve, inspect the gold IK ghost, then explicitly Execute.
+  Preview expires after 15 seconds and is rejected if the arm moved. **IK is not
+  collision checking.** Stop is software control, not a certified physical E-stop.
+- **RTK:** defaults to `rtk2go.com:2101`, mount point `SemaAgoraRobotics`, with
+  editable credentials. NTRIP is disabled until configured. A connected correction
+  stream does not imply RTK Fixed. Accuracy shown is a quality/HDOP heuristic.
+- **ZED:** color/depth video, pose/IMU, trajectory, point cloud and map reset.
+  Native coordinates are right-handed Z-up meters. Rendering applies a proper
+  rotation; a base marker appears only after explicitly configuring the measured
+  camera-to-rover mount. It is not measured chassis geometry.
+- **Gamepad:** one controller, explicit Drive/Arm target. Default Y/△ switches,
+  LB/L1 holds to jog, B/○ stops both. Release and press LB after switching. Drive
+  uses left Y/right X; arm uses left XY, right Z/yaw, D-pad pitch/roll and triggers
+  for gripper. Bindings, dead zone and speed caps are configurable.
 
----
+The map shows ZED data only. RTK and wheel/controller status have separate widgets;
+ZED video, arm controls and arm 3D/IK target are independently placeable.
 
-## Configuration
+## API / safety notes
 
-### Chassis Config (`data/config.toml`)
+`GET /api/health`, `/api/status`, `/api/config`, `/api/zed/map`;
+`PUT /api/config`; `POST /api/control`, `/api/drive/enable`, `/api/drive/stop`,
+`/api/arm/action`, `/api/arm/jog`, `/api/arm/stop`, `/api/heartbeat`, `/api/zed/reset`,
+`/api/stop`; `GET /api/zed/frame/{color|depth}`.
 
-The driver reads a TOML file describing the rover's physical setup. Pass a custom path with `--config` (defaults to `data/config.toml`).
+The API is intended for a trusted rover LAN; it has no authentication and must not
+be exposed to the public Internet. Config files contain credentials, are written
+with restrictive permissions on Unix, and passwords are redacted from GET.
+Blank password fields on save retain stored secrets. NTRIP uses the existing
+plain TCP/basic-auth transport; use trusted networks for correction credentials.
 
-```toml
-[chassis]
-wheel_radius_mm = 107.95
-track_width_mm = 440.0
-motor_rotations_per_wheel_rotation = 1.0
+Drive command timeout and controller watchdog are 500 ms. Arm jogging freshness is
+300 ms and client heartbeat timeout is 500 ms; Kortex's velocity-command duration
+is documented as unimplemented. Physical Stop behavior on process/network loss
+must be verified on the actual arm; keep a physical E-stop available.
 
-[motors.left_front]
-id = 1
-direction = 1.0
-
-[motors.right_front]
-id = 3
-direction = -1.0
-
-[motors.left_back]
-id = 4
-direction = -1.0
-
-[motors.right_back]
-id = 2
-direction = 1.0
-```
-
-| Field                                | Description                                  |
-| ------------------------------------ | -------------------------------------------- |
-| `wheel_radius_mm`                    | Radius of the wheel (mm) — used for odometry |
-| `track_width_mm`                     | Distance between left and right wheels (mm)  |
-| `motor_rotations_per_wheel_rotation` | Gear ratio from motor to wheel               |
-| `motors.*.id`                        | Moteus CAN-FD ID for each corner             |
-| `motors.*.direction`                 | `1.0` or `-1.0` — flips rotation direction   |
-
-### Driver CLI
-
-| Argument          | Description                                               |
-| ----------------- | --------------------------------------------------------- |
-| _(none)_          | Normal mode — real CAN-FD motors, WiFi hotspot            |
-| `--simulate`      | Simulated motors, no WiFi. Safe for laptops.              |
-| `--config <path>` | Path to chassis config TOML (default: `data/config.toml`) |
+See [`docs/rover16-implementation.md`](docs/rover16-implementation.md) for the
+review/commit map and validation status. Changes are not committed automatically.

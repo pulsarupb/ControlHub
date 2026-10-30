@@ -83,7 +83,7 @@
 
     const elements = document.elementsFromPoint(e.clientX, e.clientY)
     const el = elements.filter(
-      (el) =>
+      (el): el is HTMLElement =>
         el instanceof HTMLElement &&
         el.hasAttribute("data-widget") &&
         el.hasAttribute("data-index")
@@ -118,7 +118,7 @@
 
     const elements = document.elementsFromPoint(e.clientX, e.clientY)
     const el = elements.filter(
-      (el) =>
+      (el): el is HTMLElement =>
         el instanceof HTMLElement &&
         el.hasAttribute("data-widget") &&
         el.hasAttribute("data-index")

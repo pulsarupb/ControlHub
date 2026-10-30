@@ -3,7 +3,8 @@
 </script>
 
 <span class="pill" class:offline={rover.connectionState === "offline"} class:stopped={rover.stopped}>
-  {rover.connectionState} / {rover.stopped ? "locked" : "ready"}
+  {rover.connectionState} / drive {rover.stopped ? "stopped" : "enabled"}
+  {#if rover.status?.simulate} / SIMULATION{/if}
 </span>
 
 <style>
