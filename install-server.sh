@@ -48,7 +48,7 @@ fi
 
 chmod +x driver
 
-echo "Downloading matching ZED sidecar (Python/SDK must be installed separately)..."
+echo "Downloading matching ZED sidecar (uv and the vendor SDK must be installed separately)..."
 SIDECAR="zed-sidecar.tar.gz"
 curl -fL -o "$SIDECAR" "$RELEASE_URL/$SIDECAR"
 expected=$(curl -fsL "$CHECKSUM_URL" | grep " $SIDECAR\$" | awk '{print $1}')
@@ -60,4 +60,5 @@ tar -xzf "$SIDECAR"
 
 echo "Done. Installed $(pwd)/driver"
 echo "Run ./driver --sidecar ./sidecar/main.py to start the server."
+echo "The ZED sidecar is launched and its Python environment managed by uv."
 echo "Devices start disabled. Configure serial permissions and hardware settings before enabling."

@@ -16,6 +16,8 @@ RUN cargo build --locked --release -p driver
 
 FROM debian:stable-slim AS runtime
 
+COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /uvx /bin/
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \

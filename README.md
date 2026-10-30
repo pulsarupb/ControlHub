@@ -16,14 +16,14 @@ telemetry only, never a source of map pose.
 
 ## Local development
 
-Prerequisites: stable Rust, Bun, Python 3. No robot, GPU SDK, Python packages or
-`protoc` installation is needed for the hardware-free Rust tests.
+Prerequisites: stable Rust, Bun, uv, and Python 3. No robot, GPU SDK, Python
+packages or `protoc` installation is needed for the hardware-free tests.
 
 From the repository root:
 
 ```sh
 cargo test -p driver -p roboteq -p kinova-control -p rtk -p zed
-python3 -m unittest discover -s crates/zed/sidecar -v
+uv run --project crates/zed/sidecar --locked -- python -m unittest discover -s crates/zed/sidecar -v
 cargo build --locked -p driver
 python3 crates/driver/tests/fake_drive.py -v
 cargo run -p driver -- --simulate --config /tmp/opencode/controlhub-dev.json
@@ -46,15 +46,25 @@ simulated device is labeled. Real IK requires the connected arm.
 
 ## Native Jetson deployment
 
-1. Install the vendor-supported ZED SDK/pyzed for the Jetson's actual JetPack
-   version. Install OpenCV and compatible NumPy for that Python interpreter.
-   These vendor dependencies are intentionally not managed by Cargo.
-2. Build with `cargo build -p driver` or use the matching release binary.
-3. Keep `crates/zed/sidecar/{main,camera,settings}.py` together. Release installs
-   include `zed-sidecar.tar.gz`; source runs use the source directory directly.
-4. Run as an account permitted to use the chosen serial devices. Prefer
+1. Install uv using Astral's [official instructions](https://docs.astral.sh/uv/getting-started/installation/)
+   and ensure it is on the PATH of the account that runs the driver.
+2. Install the vendor-supported ZED SDK/pyzed for the Jetson's actual JetPack
+   version, including its compatible NumPy and OpenCV. The sidecar's uv
+   environment inherits system packages to preserve the SDK's native ABI. If the
+   SDK provides a matching wheel under `/usr/local/zed`, install the single wheel
+   matching the active Python/architecture into the uv environment from the repo root:
+
+   ```sh
+   uv venv --allow-existing --system-site-packages --no-managed-python --python /usr/bin/python3 crates/zed/sidecar/.venv
+   uv pip install --python crates/zed/sidecar/.venv/bin/python --no-deps /usr/local/zed/pyzed-*.whl
+   ```
+3. Build with `cargo build -p driver` or use the matching release binary.
+4. Keep `crates/zed/sidecar/{main,camera,settings}.py`, `pyproject.toml`, and
+   `uv.lock` together. The Rust supervisor prepares and runs the project with uv.
+   Release installs include all of these files in `zed-sidecar.tar.gz`.
+5. Run as an account permitted to use the chosen serial devices. Prefer
    `/dev/serial/by-id/` paths; do not assume ACM numbering or motor directions.
-5. Start the API without changing networking:
+6. Start the API without changing networking:
 
    ```sh
    cargo run -p driver -- --config data/rover16.json

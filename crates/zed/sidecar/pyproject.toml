@@ -1,0 +1,10 @@
+[project]
+name = "controlhub-zed-sidecar"
+version = "0.1.0"
+description = "Supervised Python sidecar for the ControlHub ZED camera"
+requires-python = ">=3.10"
+# pyzed and its ABI-matched NumPy/OpenCV are supplied by the installed ZED SDK.
+dependencies = []
+
+[tool.uv]
+package = false

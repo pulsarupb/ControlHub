@@ -21,8 +21,9 @@ gate; do not skip ahead to motion. A software Stop is not a physical E-stop.
 ## 1. Jetson environment (no actuator commands)
 
 - [ ] Record `uname -a`, architecture, JetPack, Python, Rust and ZED SDK versions.
-- [ ] Install the vendor-supported ZED SDK/pyzed for this JetPack; verify imports of
-      pyzed, OpenCV and NumPy in the exact interpreter configured for the sidecar.
+- [ ] Install uv and the vendor-supported ZED SDK/pyzed for this JetPack. Verify
+      `pyzed`, OpenCV and NumPy in the sidecar's uv environment, using the exact
+      SDK-matched wheel and system Python configured for the sidecar.
 - [ ] Build/test from source in debug mode first; run frontend checks/build.
 - [ ] Identify each USB device using `/dev/serial/by-id/` and `udevadm info`; use
       persistent paths, not guessed `/dev/ttyACM0` assignments. Confirm permissions.

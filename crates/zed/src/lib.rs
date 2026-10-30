@@ -3,6 +3,8 @@ use base64::{Engine, engine::general_purpose::STANDARD};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::io::{self, BufRead, BufReader, Read, Write};
+#[cfg(unix)]
+use std::os::unix::process::CommandExt;
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::thread::JoinHandle;
@@ -123,13 +125,51 @@ impl Sidecar {
     /// their executable, rather than depending on the original source repository.
     pub fn spawn(config: &Config, script: &std::path::Path) -> io::Result<Self> {
         config.validate().map_err(io::Error::other)?;
-        let mut child = Command::new(&config.python)
-            .arg("-u")
+        let project = script
+            .parent()
+            .ok_or_else(|| io::Error::other("ZED sidecar script has no project directory"))?;
+        if !project.join("pyproject.toml").is_file() || !project.join("uv.lock").is_file() {
+            return Err(io::Error::other(
+                "ZED sidecar requires pyproject.toml and uv.lock beside its scripts",
+            ));
+        }
+
+        let environment = project.join(".venv");
+        let setup = Command::new("uv")
+            .args([
+                "venv",
+                "--allow-existing",
+                "--system-site-packages",
+                "--no-managed-python",
+                "--python",
+            ])
+            .arg(&config.python)
+            .arg(&environment)
+            .stdout(Stdio::null())
+            .status()
+            .map_err(|error| {
+                io::Error::other(format!("uv is required to run the ZED sidecar: {error}"))
+            })?;
+        if !setup.success() {
+            return Err(io::Error::other(format!(
+                "uv failed to prepare the ZED sidecar environment: {setup}"
+            )));
+        }
+
+        let mut command = Command::new("uv");
+        command
+            .args(["run", "--project"])
+            .arg(project)
+            .args(["--locked", "--no-managed-python", "--python"])
+            .arg(&config.python)
+            .args(["--", "python", "-u"])
             .arg(script)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
-            .spawn()?;
+            .stderr(Stdio::inherit());
+        #[cfg(unix)]
+        command.process_group(0);
+        let mut child = command.spawn()?;
         let input = child.stdin.take().unwrap();
         let output = child.stdout.take().unwrap();
         let (tx, events) = mpsc::sync_channel(8);
@@ -185,6 +225,14 @@ impl Drop for Sidecar {
         // Disconnect receiver before joining: an error sender may be waiting.
         let (_, empty) = mpsc::channel();
         drop(std::mem::replace(&mut self.events, empty));
+        #[cfg(unix)]
+        {
+            // uv is a launcher process; kill its group so Python cannot outlive it.
+            unsafe {
+                libc::kill(-(self.child.id() as libc::pid_t), libc::SIGKILL);
+            }
+        }
+        #[cfg(not(unix))]
         let _ = self.child.kill();
         let _ = self.child.wait();
         if let Some(reader) = self.reader.take() {
@@ -239,14 +287,31 @@ mod tests {
     #[test]
     fn fake_sidecar_receives_config_and_is_reaped() {
         let directory = tempfile::tempdir().unwrap();
+        let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("sidecar");
+        for name in ["pyproject.toml", "uv.lock"] {
+            std::fs::copy(source.join(name), directory.path().join(name)).unwrap();
+        }
         let script = directory.path().join("fake.py");
-        std::fs::write(&script, "import json,sys,time\nassert json.loads(sys.stdin.readline())['type']=='configure'\nprint(json.dumps({'type':'error','error':'fake SDK offline'}),flush=True)\ntime.sleep(60)\n").unwrap();
-        let mut sidecar = Sidecar::spawn(&Config::default(), &script).unwrap();
+        std::fs::write(
+            &script,
+            "import json,sys,time\nassert json.loads(sys.stdin.readline())['type']=='configure'\nprint(json.dumps({'type':'error','error':sys.prefix}),flush=True)\ntime.sleep(60)\n",
+        )
+        .unwrap();
+        let config = Config {
+            python: "python3".into(),
+            ..Config::default()
+        };
+        let mut sidecar = Sidecar::spawn(&config, &script).unwrap();
         let pid = sidecar.child.id();
+        let expected_prefix = directory
+            .path()
+            .join(".venv")
+            .to_string_lossy()
+            .into_owned();
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
         loop {
             if let Some(event) = sidecar.poll().unwrap() {
-                assert!(matches!(event, Event::Error { error } if error == "fake SDK offline"));
+                assert!(matches!(event, Event::Error { error } if error == expected_prefix));
                 break;
             }
             assert!(

@@ -89,13 +89,14 @@ configuration rather than silently interpreting old motor IDs as serial channels
   `arm-model.ts`, `app/static/kinova-models/`, widget registration/templates.
 - 10: `gamepad-{control.svelte,mapping}.ts`, `widgets/GamepadWidget.svelte`, app layout.
 - 11: `crates/driver/tests/fake_drive.py`, Rust/Python/frontend tests, CI workflows,
-  native `start-services.sh`, README, release sidecar packaging/installer.
+  native `start-services.sh`, README, release sidecar packaging/installer, and
+  `crates/zed/sidecar/{pyproject.toml,uv.lock}`.
   `app/package.json` and `app/bun.lock` contain the approved dependency update:
   compatible Svelte/checker updates and TypeScript 6 (TS7 needs a second compiler).
 
 ## Actual local results — 2026-10-30
 
-Implementation is present and uncommitted. This is **not** hardware acceptance.
+Implementation is committed locally. This is **not** hardware acceptance.
 
 | Check | Result |
 |---|---|
