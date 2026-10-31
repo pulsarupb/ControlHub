@@ -46,6 +46,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/zed/reset", post(zed_reset))
         .route("/api/zed/frame/{kind}", get(zed_frame))
         .route("/api/oak/frame/{slot}/{kind}", get(oak_frame))
+        .route("/api/d435/frame/{kind}", get(crate::d435::frame))
         .layer(CorsLayer::permissive())
         .with_state(state)
 }

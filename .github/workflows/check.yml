@@ -8,9 +8,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: astral-sh/setup-uv@v6
       - uses: oven-sh/setup-bun@v2
-      - run: cargo test --locked -p driver -p roboteq -p kinova-control -p rtk -p zed
-      - run: cargo fmt --check -p driver -p roboteq -p kinova-control -p rtk -p zed
-      - run: cargo clippy --locked -p driver -p roboteq -p kinova-control -p rtk -p zed --all-targets -- -D warnings
+      - run: sudo apt-get update && sudo apt-get install -y libclang-dev
+      - run: cargo test --locked -p driver -p d435 -p roboteq -p kinova-control -p rtk -p zed
+      - run: cargo fmt --check -p driver -p d435 -p roboteq -p kinova-control -p rtk -p zed
+      - run: cargo clippy --locked -p driver -p d435 -p roboteq -p kinova-control -p rtk -p zed --all-targets -- -D warnings
       - run: cargo build --locked -p driver
       - run: python3 crates/driver/tests/fake_drive.py -v
       - run: uv run --project crates/zed/sidecar --locked --no-managed-python --python python3 -- python -m unittest discover -s crates/zed/sidecar -v

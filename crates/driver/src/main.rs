@@ -1,6 +1,7 @@
 mod api;
 mod arm;
 mod config;
+mod d435;
 mod motor;
 mod oak;
 mod sensors;
@@ -63,6 +64,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ));
     std::thread::spawn(move || oak::run(s, oak_script));
     tokio::spawn(arm::run(state.clone(), arm_rx));
+    if !simulate {
+        let camera = state.d435.clone();
+        let shutdown = state.shutting_down.clone();
+        std::thread::spawn(move || camera.run(&shutdown));
+    }
     println!(
         "Rover API listening on http://{address}; motion starts stopped, explicit enable required"
     );

@@ -27,6 +27,7 @@ pub struct AppState {
     pub yaw_feedback: Arc<Mutex<Option<roboteq::YawFeedback>>>,
     pub images: Arc<Mutex<[Vec<u8>; 2]>>,
     pub oak_images: Arc<Mutex<crate::oak::Images>>,
+    pub d435: d435::Camera,
     pub simulate: bool,
     pub shutting_down: Arc<AtomicBool>,
 }
@@ -54,6 +55,7 @@ impl AppState {
                 yaw_feedback: Default::default(),
                 images: Default::default(),
                 oak_images: Default::default(),
+                d435: Default::default(),
                 simulate,
                 shutting_down: Arc::new(AtomicBool::new(false)),
             },

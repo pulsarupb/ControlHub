@@ -8,6 +8,7 @@ import RtkWidget from "$lib/rover/RtkWidget.svelte"
 import RtkMapWidget from "$lib/rover/RtkMapWidget.svelte"
 import ZedVideoWidget from "$lib/rover/ZedVideoWidget.svelte"
 import OakCamerasWidget from "$lib/rover/OakCamerasWidget.svelte"
+import D435CameraWidget from "$lib/rover/D435CameraWidget.svelte"
 import KinovaViewWidget from "$lib/rover/KinovaViewWidget.svelte"
 import KinovaControlsWidget from "$lib/rover/KinovaControlsWidget.svelte"
 import StatusNavlet from "$lib/rover/StatusNavlet.svelte"
@@ -21,6 +22,7 @@ export const components: DashboardComponent[] = [
   { id: "rtk-map", name: "RTK Map (Offline)", type: "widget", component: RtkMapWidget, minW: 7, minH: 6 },
   { id: "zed-video", name: "ZED Color / Depth", type: "widget", component: ZedVideoWidget, minW: 5, minH: 4 },
   { id: "oak-cameras", name: "OAK-D Cameras (3)", type: "widget", component: OakCamerasWidget, minW: 6, minH: 5 },
+  { id: "d435-camera", name: "D435 Gripper Camera", type: "widget", component: D435CameraWidget, minW: 5, minH: 4 },
   { id: "kinova-view", name: "Kinova 3D / IK Target", type: "widget", component: KinovaViewWidget, minW: 6, minH: 5 },
   { id: "kinova-controls", name: "Kinova Manual / IK", type: "widget", component: KinovaControlsWidget, minW: 7, minH: 7 },
   { id: "gamepad", name: "Xbox Controller", type: "widget", component: GamepadWidget, minW: 5, minH: 4 },
