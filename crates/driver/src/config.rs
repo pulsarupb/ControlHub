@@ -8,7 +8,7 @@ pub struct Config {
     pub kinova: KinovaConfig,
     pub rtk: rtk::Config,
     pub zed: zed::Config,
-    pub oak: crate::oak::Config,
+    pub oak: oakd::Config,
     pub gamepad: GamepadConfig,
 }
 

@@ -49,7 +49,7 @@ ENV LOGNAME=root
 COPY --from=builder /app/target/release/driver /usr/local/bin/driver
 COPY data/ /data/
 COPY crates/zed/sidecar/ /opt/controlhub/sidecar/
-COPY crates/driver/sidecars/oak/ /opt/controlhub/oak-sidecar/
+COPY crates/oakd/sidecar/ /opt/controlhub/oak-sidecar/
 COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/controlhub-entrypoint
 
 EXPOSE 8080

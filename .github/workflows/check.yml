@@ -9,12 +9,13 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - uses: oven-sh/setup-bun@v2
       - run: sudo apt-get update && sudo apt-get install -y libclang-dev
-      - run: cargo test --locked -p driver -p d435 -p roboteq -p kinova-control -p rtk -p zed
-      - run: cargo fmt --check -p driver -p d435 -p roboteq -p kinova-control -p rtk -p zed
-      - run: cargo clippy --locked -p driver -p d435 -p roboteq -p kinova-control -p rtk -p zed --all-targets -- -D warnings
+      - run: cargo test --locked -p driver -p d435 -p roboteq -p kinova-control -p rtk -p zed -p oakd
+      - run: cargo fmt --check -p driver -p d435 -p roboteq -p kinova-control -p rtk -p zed -p oakd
+      - run: cargo clippy --locked -p driver -p d435 -p roboteq -p kinova-control -p rtk -p zed -p oakd --all-targets -- -D warnings
       - run: cargo build --locked -p driver
       - run: python3 crates/driver/tests/fake_drive.py -v
       - run: uv run --project crates/zed/sidecar --locked --no-managed-python --python python3 -- python -m unittest discover -s crates/zed/sidecar -v
+      - run: python3 -m unittest discover -s crates/oakd/sidecar -v
       - run: bun install --frozen-lockfile
         working-directory: app
       - run: bun test

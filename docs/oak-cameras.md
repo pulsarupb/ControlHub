@@ -23,7 +23,9 @@ and can be disabled per camera. These cameras do not supply ZED tracking/yaw.
   `sudo apt install python3-numpy python3-opencv libusb-1.0-0` on Ubuntu.
 - Stop OakD-Test or any other process holding these devices before enabling.
 
-The server supervises `crates/driver/sidecars/oak/main.py`; uv creates a separate
+The `crates/oakd` Rust library owns configuration, snapshots, frame decoding and
+sidecar supervision; `crates/driver/src/oak.rs` integrates it with the server state.
+The server supervises `crates/oakd/sidecar/main.py`; uv creates a separate
 system-site-packages environment and installs the locked DepthAI 3.8 dependencies.
 Use `--oak-sidecar /installed/oak-sidecar/main.py` for native installed deployments;
 keep `main.py`, `camera.py`, `pyproject.toml`, and `uv.lock` together. The release
@@ -40,8 +42,8 @@ are available at `GET /api/oak/frame/{0|1|2}/{color|depth}`.
 ## Verification
 
 ```sh
-cargo test -p driver
-python3 -m unittest discover -s crates/driver/sidecars/oak -v
+cargo test -p oakd -p driver
+python3 -m unittest discover -s crates/oakd/sidecar -v
 cd app
 bun run check
 bun run build

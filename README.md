@@ -1,7 +1,7 @@
 # ControlHub — Rover 1.6
 
 Panels is the cross-platform rover dashboard. `driver` is the native Rust API
-server running on one Jetson. Hardware support lives in four independent crates:
+server running on one Jetson. Hardware support lives in independent crates:
 
 | Crate | Responsibility |
 |---|---|
@@ -9,6 +9,7 @@ server running on one Jetson. Hardware support lives in four independent crates:
 | `kinova-control` | Native Kortex TCP, measured state, joint/Cartesian control and IK |
 | `rtk` | Serial NMEA receiver and configurable NTRIP correction forwarding |
 | `zed` | Supervised, modular Python/pyzed camera, depth, tracking and mapping |
+| `oakd` | Supervised DepthAI capture for three independent OAK-D cameras |
 
 No ROS, AI/inference or autonomous driving is included. **RTK and ZED localization
 are independent; no GNSS fixes or fixtures are sent to ZED.** Wheel encoders are
@@ -29,7 +30,8 @@ packages or `protoc` installation is needed for the hardware-free tests.
 From the repository root:
 
 ```sh
-cargo test -p driver -p roboteq -p kinova-control -p rtk -p zed
+cargo test -p driver -p roboteq -p kinova-control -p rtk -p zed -p oakd
+python3 -m unittest discover -s crates/oakd/sidecar -v
 uv run --project crates/zed/sidecar --locked -- python -m unittest discover -s crates/zed/sidecar -v
 cargo build --locked -p driver
 python3 crates/driver/tests/fake_drive.py -v

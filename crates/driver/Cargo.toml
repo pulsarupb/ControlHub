@@ -10,6 +10,7 @@ roboteq = { path = "../roboteq" }
 kinova-control = { path = "../kinova-control" }
 rtk = { path = "../rtk" }
 zed = { path = "../zed" }
+oakd = { path = "../oakd" }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0"
 libc = "0.2"

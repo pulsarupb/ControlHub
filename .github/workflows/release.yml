@@ -127,7 +127,7 @@ jobs:
           mkdir -p staging
           cp target/release/driver staging/driver-linux-x86_64
           tar -czf staging/zed-sidecar.tar.gz -C crates/zed sidecar/main.py sidecar/camera.py sidecar/settings.py sidecar/pyproject.toml sidecar/uv.lock
-          tar -czf staging/oak-sidecar.tar.gz --transform='s,^oak/,oak-sidecar/,' -C crates/driver/sidecars oak/main.py oak/camera.py oak/pyproject.toml oak/uv.lock
+          tar -czf staging/oak-sidecar.tar.gz --transform='s,^sidecar/,oak-sidecar/,' -C crates/oakd sidecar/main.py sidecar/camera.py sidecar/pyproject.toml sidecar/uv.lock
           cp crates/kinova-control/proto/LICENSE staging/KINOVA-LICENSE.txt
 
       - uses: actions/upload-artifact@v7

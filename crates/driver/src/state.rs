@@ -26,7 +26,7 @@ pub struct AppState {
     pub zed_reset: Arc<AtomicBool>,
     pub yaw_feedback: Arc<Mutex<Option<roboteq::YawFeedback>>>,
     pub images: Arc<Mutex<[Vec<u8>; 2]>>,
-    pub oak_images: Arc<Mutex<crate::oak::Images>>,
+    pub oak_images: Arc<Mutex<oakd::Images>>,
     pub d435: d435::Camera,
     pub simulate: bool,
     pub shutting_down: Arc<AtomicBool>,
@@ -151,5 +151,5 @@ pub struct Status {
     pub kinova: Device<ArmData>,
     pub rtk: Device<RtkData>,
     pub zed: Device<zed::Snapshot>,
-    pub oak: Device<crate::oak::Snapshot>,
+    pub oak: Device<oakd::Snapshot>,
 }

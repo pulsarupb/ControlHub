@@ -34,7 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     if args.iter().any(|a| a == "--help") {
         println!(
-            "driver [--simulate] [--config data/config.json] [--bind 0.0.0.0:8080] [--sidecar crates/zed/sidecar/main.py] [--oak-sidecar crates/driver/sidecars/oak/main.py] [--hotspot]"
+            "driver [--simulate] [--config data/config.json] [--bind 0.0.0.0:8080] [--sidecar crates/zed/sidecar/main.py] [--oak-sidecar crates/oakd/sidecar/main.py] [--hotspot]"
         );
         return Ok(());
     }
@@ -58,10 +58,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let s = state.clone();
     std::thread::spawn(move || sensors::zed_worker(s, script));
     let s = state.clone();
-    let oak_script = std::path::PathBuf::from(argument(
-        "--oak-sidecar",
-        "crates/driver/sidecars/oak/main.py",
-    ));
+    let oak_script =
+        std::path::PathBuf::from(argument("--oak-sidecar", "crates/oakd/sidecar/main.py"));
     std::thread::spawn(move || oak::run(s, oak_script));
     tokio::spawn(arm::run(state.clone(), arm_rx));
     if !simulate {
