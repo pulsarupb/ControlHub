@@ -164,19 +164,19 @@ impl RobotClient {
     /// Read the built-in action without motion, allowing a supervisor to check
     /// cancellation again before issuing ExecuteActionFromReference.
     pub async fn home_action(&mut self) -> Result<crate::api::base::ActionHandle, RobotError> {
-        self.read_joint_action("Home")
-            .await?
-            .handle
-            .ok_or_else(|| RobotError::ActionNotFound("Home".to_string()))
+        self.stored_joint_action("Home").await
     }
 
-    /// Read the stored Rest action without motion, allowing a supervisor to
+    /// Read a named stored joint action without motion, allowing a supervisor to
     /// check cancellation again before issuing ExecuteActionFromReference.
-    pub async fn rest_action(&mut self) -> Result<crate::api::base::ActionHandle, RobotError> {
-        self.read_joint_action("Rest")
+    pub async fn stored_joint_action(
+        &mut self,
+        name: &str,
+    ) -> Result<crate::api::base::ActionHandle, RobotError> {
+        self.read_joint_action(name)
             .await?
             .handle
-            .ok_or_else(|| RobotError::ActionNotFound("Rest".to_string()))
+            .ok_or_else(|| RobotError::ActionNotFound(name.to_string()))
     }
 
     /// Returns the built-in Home pose without commanding motion.

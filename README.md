@@ -143,6 +143,7 @@ preserve the host file owner when running in the privileged container.
   editable credentials. NTRIP is disabled until configured. A connected correction
   stream does not imply RTK Fixed. Accuracy shown is a quality/HDOP heuristic.
 - **ZED:** color/depth video, pose/IMU, trajectory, point cloud and map reset.
+- **OAK-D:** one panel for three cameras, independent color/disparity views, distance statistics and reconnect status. See [setup](docs/oak-cameras.md).
   Native coordinates are right-handed Z-up meters. Rendering applies a proper
   rotation; a base marker appears only after explicitly configuring the measured
   camera-to-rover mount. It is not measured chassis geometry.

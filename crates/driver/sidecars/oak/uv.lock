@@ -1,0 +1,34 @@
+version = 1
+revision = 3
+requires-python = ">=3.10"
+resolution-markers = [
+    "python_full_version >= '3.12'",
+    "python_full_version == '3.11.*'",
+    "python_full_version < '3.11'",
+]
+
+[manifest]
+excludes = ["numpy"]
+
+[[package]]
+name = "controlhub-oak-sidecar"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "depthai" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "depthai", specifier = "==3.8.0" }]
+
+[[package]]
+name = "depthai"
+version = "3.8.0"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c7/9c/5c1bf6e08d80c5ecca1f67a4bd1bfa0fe1b63055d79c762b266ed38f5f03/depthai-3.8.0-cp39.cp310.cp311.cp312.cp313.cp314-cp39.cp310.cp311.cp312.cp313.cp314-macosx_11_0_arm64.whl", hash = "sha256:a26a2274eef34edc2a04c50360f43ad55f2ee86f3752c008898b86df1262efa2", size = 62711191, upload-time = "2026-07-10T22:47:55.533Z" },
+    { url = "https://files.pythonhosted.org/packages/14/af/ace11468e674bc9519fb048db4a15872fea56570a584088bc4f40755136c/depthai-3.8.0-cp39.cp310.cp311.cp312.cp313.cp314-cp39.cp310.cp311.cp312.cp313.cp314-macosx_11_0_x86_64.whl", hash = "sha256:84e7c5ab8d6076f724531375d7d281e826f7ac015446bf30fafcf4026f9e136b", size = 66222240, upload-time = "2026-07-10T22:47:59.289Z" },
+    { url = "https://files.pythonhosted.org/packages/cc/60/e26cda3f7f589575eb84d053a64028e516a60a632b728094daef43b52310/depthai-3.8.0-cp39.cp310.cp311.cp312.cp313.cp314-cp39.cp310.cp311.cp312.cp313.cp314-manylinux_2_28_aarch64.whl", hash = "sha256:68b722c0eefdfc2e7b148c7520b67bb9f839ce394cb6b5d8a5a20acb5050d0ee", size = 76927934, upload-time = "2026-07-10T22:48:02.839Z" },
+    { url = "https://files.pythonhosted.org/packages/d6/5f/f3de4933b80ac6902152d621e56c5b4d7f1cde78f68713d4ff9e24d7de24/depthai-3.8.0-cp39.cp310.cp311.cp312.cp313.cp314-cp39.cp310.cp311.cp312.cp313.cp314-manylinux_2_28_x86_64.whl", hash = "sha256:6d7aef6f80222f71394334babbdd7404bcb214717237c9b4c8b968fc5ea0968d", size = 82090082, upload-time = "2026-07-10T22:48:06.916Z" },
+    { url = "https://files.pythonhosted.org/packages/a5/88/645a89bc5d2daa0146e71ecd700635e7ef0c0d6218d0b74cd58eeea73d49/depthai-3.8.0-cp39.cp310.cp311.cp312.cp313.cp314-cp39.cp310.cp311.cp312.cp313.cp314-win_amd64.whl", hash = "sha256:1151bc53cf3e8a4ade85068ebef335b222c6ad1ca5ad668929d2e63bf54ebd75", size = 66999701, upload-time = "2026-07-10T22:48:10.303Z" },
+]

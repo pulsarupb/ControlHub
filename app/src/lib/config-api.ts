@@ -15,6 +15,7 @@ export type FullConfig = {
   kinova: { enabled: boolean; ip: string; port: number; username: string; password: string; linear_speed: number; angular_speed: number; joint_speed: number };
   rtk: { enabled: boolean; port: string; baud: number; ntrip: { enabled: boolean; host: string; port: number; mount_point: string; username: string; password: string } };
   zed: { enabled: boolean; python: string; settings: Record<string, Record<string, string | number | boolean>>; mount_configured: boolean; mount_translation: number[]; mount_rotation_deg: number[] };
+  oak: { enabled: boolean; python: string; fps: number; cameras: { name: string; mxid: string; rotate_180: boolean }[] };
   gamepad: GamepadConfig;
 }
 

@@ -145,12 +145,23 @@ impl RearBoundary {
 pub enum Action {
     Enable,
     Home,
-    Rest,
+    #[serde(alias = "rest")]
+    Retract,
+    Packaging,
+    Zero,
     ClearFaults,
-    Gripper { position: f32 },
-    Solve { pose: [f32; 6] },
-    Execute { preview_id: u64 },
-    MoveCartesian { pose: [f32; 6] },
+    Gripper {
+        position: f32,
+    },
+    Solve {
+        pose: [f32; 6],
+    },
+    Execute {
+        preview_id: u64,
+    },
+    MoveCartesian {
+        pose: [f32; 6],
+    },
     InstallRearZone,
 }
 
@@ -523,15 +534,20 @@ async fn action(
                         data.gripper = Some(*position);
                     }
                 }
-                Action::Home | Action::Rest => {
+                Action::Home | Action::Retract | Action::Packaging | Action::Zero => {
                     data.preview = None;
                     if !state.simulate {
-                        let handle = match action {
-                            Action::Home => robot.home_action().await,
-                            Action::Rest => robot.rest_action().await,
+                        let name = match action {
+                            Action::Home => "Home",
+                            Action::Retract => "Retract",
+                            Action::Packaging => "Packaging",
+                            Action::Zero => "Zero",
                             _ => unreachable!(),
-                        }
-                        .map_err(|e| e.to_string())?;
+                        };
+                        let handle = robot
+                            .stored_joint_action(name)
+                            .await
+                            .map_err(|e| e.to_string())?;
                         check_generation(state, generation)?;
                         robot
                             .execute_action_reference(handle)

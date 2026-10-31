@@ -3,6 +3,10 @@ export type Device<T> = {
   updated_at: number | null; error: string | null; data: T;
 }
 export type CameraPose = { translation: [number, number, number]; orientation: [number, number, number, number] }
+export type OakCamera = {
+  mxid: string; connected: boolean; updated_at: number | null; error: string | null;
+  min_mm: number | null; avg_mm: number | null; max_mm: number | null;
+}
 export type ZedMap = {
   camera_ready: boolean; camera_model: string; serial: string; fps: number;
   tracking_state: string; mapping_state: string; pose: CameraPose | null;
@@ -22,4 +26,5 @@ export type Devices = {
   rtk: Device<{ fix: { latitude: number | null; longitude: number | null; altitude_msl: number | null; quality: number; satellites: number; hdop: number | null; received_at: number; latitude_std: number } | null;
     bytes_read: number; parse_errors: number; ntrip_connected: boolean; correction_bytes: number; ntrip_error: string | null }>;
   zed: Device<ZedMap>;
+  oak: Device<{ cameras: OakCamera[] }>;
 }

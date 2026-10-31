@@ -2,6 +2,7 @@ mod api;
 mod arm;
 mod config;
 mod motor;
+mod oak;
 mod sensors;
 mod state;
 mod wifi;
@@ -15,7 +16,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     while let Some(arg) = values.next() {
         match arg.as_str() {
             "--simulate" | "--hotspot" | "--help" => {}
-            "--config" | "--bind" | "--sidecar" => {
+            "--config" | "--bind" | "--sidecar" | "--oak-sidecar" => {
                 if values.next().is_none_or(|value| value.starts_with("--")) {
                     return Err(format!("missing value for {arg}").into());
                 }
@@ -32,7 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     if args.iter().any(|a| a == "--help") {
         println!(
-            "driver [--simulate] [--config data/config.json] [--bind 0.0.0.0:8080] [--sidecar crates/zed/sidecar/main.py] [--hotspot]"
+            "driver [--simulate] [--config data/config.json] [--bind 0.0.0.0:8080] [--sidecar crates/zed/sidecar/main.py] [--oak-sidecar crates/driver/sidecars/oak/main.py] [--hotspot]"
         );
         return Ok(());
     }
@@ -55,6 +56,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let s = state.clone();
     std::thread::spawn(move || sensors::zed_worker(s, script));
+    let s = state.clone();
+    let oak_script = std::path::PathBuf::from(argument(
+        "--oak-sidecar",
+        "crates/driver/sidecars/oak/main.py",
+    ));
+    std::thread::spawn(move || oak::run(s, oak_script));
     tokio::spawn(arm::run(state.clone(), arm_rx));
     println!(
         "Rover API listening on http://{address}; motion starts stopped, explicit enable required"
@@ -62,6 +69,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     axum::serve(listener, api::router(state.clone()))
         .with_graceful_shutdown(async move {
             shutdown_signal().await;
+            state
+                .shutting_down
+                .store(true, std::sync::atomic::Ordering::SeqCst);
             state.stop_all();
             tokio::time::sleep(Duration::from_secs(2)).await;
         })
