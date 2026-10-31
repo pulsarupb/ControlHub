@@ -5,6 +5,7 @@ import JoystickWidget from "$lib/rover/JoystickWidget.svelte"
 import ZedMapWidget from "$lib/rover/ZedMapWidget.svelte"
 import WheelsWidget from "$lib/rover/WheelsWidget.svelte"
 import RtkWidget from "$lib/rover/RtkWidget.svelte"
+import RtkMapWidget from "$lib/rover/RtkMapWidget.svelte"
 import ZedVideoWidget from "$lib/rover/ZedVideoWidget.svelte"
 import KinovaViewWidget from "$lib/rover/KinovaViewWidget.svelte"
 import KinovaControlsWidget from "$lib/rover/KinovaControlsWidget.svelte"
@@ -16,6 +17,7 @@ export const components: DashboardComponent[] = [
   { id: "minimap", name: "ZED Map / Pose", type: "widget", component: ZedMapWidget, minW: 6, minH: 5 },
   { id: "motors", name: "Wheel / Controller Status", type: "widget", component: WheelsWidget, minW: 6, minH: 4 },
   { id: "rtk", name: "RTK Position", type: "widget", component: RtkWidget, minW: 5, minH: 4 },
+  { id: "rtk-map", name: "RTK Map (Offline)", type: "widget", component: RtkMapWidget, minW: 7, minH: 6 },
   { id: "zed-video", name: "ZED Color / Depth", type: "widget", component: ZedVideoWidget, minW: 5, minH: 4 },
   { id: "kinova-view", name: "Kinova 3D / IK Target", type: "widget", component: KinovaViewWidget, minW: 6, minH: 5 },
   { id: "kinova-controls", name: "Kinova Manual / IK", type: "widget", component: KinovaControlsWidget, minW: 7, minH: 7 },
