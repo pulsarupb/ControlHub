@@ -60,7 +60,7 @@
   }
 </script>
 
-<button class="icon" onpointerdown={startDrag}><IconArrowsOutCardinalRegular /></button>
+<button data-workspace-preview-ignore class="icon" onpointerdown={startDrag}><IconArrowsOutCardinalRegular /></button>
 
 <style>
   .icon {

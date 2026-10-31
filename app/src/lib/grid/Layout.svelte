@@ -3,6 +3,7 @@
   import WidgetItem from "./widget/Widget.svelte"
 
   import Overlay from "./Overlay.svelte"
+  import WorkspaceSwitcher from "./WorkspaceSwitcher.svelte"
   import PlaceOverlay from "./PlaceOverlay.svelte"
   import { setContext } from "svelte"
   import type { Manager } from "./widgets.svelte"
@@ -105,6 +106,10 @@ import TemplatesChoose from "./TemplatesChoose.svelte"
     navigateCanvas(direction)
   }
 </script>
+
+{#if enableInteractions && !preview}
+  <WorkspaceSwitcher getCanvas={() => section} />
+{/if}
 
 <div
   class="wrapper"
