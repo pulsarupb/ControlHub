@@ -190,6 +190,11 @@ async fn arm_action(
     if !available {
         return Err(unavailable("Kinova disabled or offline"));
     }
+    let timeout = if matches!(&action, arm::Action::MoveCartesian { .. }) {
+        Duration::from_secs(20)
+    } else {
+        Duration::from_secs(3)
+    };
     let (tx, rx) = tokio::sync::oneshot::channel();
     state
         .arm_tx
@@ -199,7 +204,7 @@ async fn arm_action(
             reply: tx,
         })
         .map_err(unavailable)?;
-    match tokio::time::timeout(Duration::from_secs(3), rx).await {
+    match tokio::time::timeout(timeout, rx).await {
         Ok(Ok(Ok(result))) => Ok(Json(result)),
         Ok(Ok(Err(error))) => Err(bad(error)),
         _ => {

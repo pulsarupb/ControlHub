@@ -96,7 +96,11 @@ connection changes stop their motion and never resume old demands.
   or either controller failure, and explicitly enable again after recovery.
 - **Arm:** manual joint/Cartesian jogging, gripper, Home and fault controls.
   Cartesian targets use robot-base XYZ meters and roll/pitch/yaw degrees. Drag or
-  edit the target, Solve, inspect the gold IK ghost, then explicitly Execute.
+  edit the target, Solve, inspect the gold IK ghost, then explicitly Execute. The
+  separate **Move via Kortex** action sends the bounded target to Kortex ReachPose
+  directly; it is useful when Kortex's standalone IK preview rejects a reachable
+  target. It is limited to 20 mm / 5° from measured pose and waits for measured
+  completion, but does not check collisions.
   Preview expires after 15 seconds and is rejected if the arm moved. **IK is not
   collision checking.** Stop is software control, not a certified physical E-stop.
 - **RTK:** defaults to `rtk2go.com:2101`, mount point `SemaAgoraRobotics`, with

@@ -5,6 +5,12 @@ use serde_json::{Value, json};
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
+const MAX_CARTESIAN_STEP_M: f32 = 0.02;
+const MAX_CARTESIAN_ROTATION_DEG: f32 = 5.0;
+const CARTESIAN_MOTION_TIMEOUT: Duration = Duration::from_secs(15);
+const CARTESIAN_POSITION_TOLERANCE_M: f32 = 0.001;
+const CARTESIAN_ROTATION_TOLERANCE_DEG: f32 = 0.5;
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Jog {
@@ -51,6 +57,7 @@ pub enum Action {
     Gripper { position: f32 },
     Solve { pose: [f32; 6] },
     Execute { preview_id: u64 },
+    MoveCartesian { pose: [f32; 6] },
 }
 
 pub struct Request {
@@ -371,6 +378,76 @@ async fn action(
                         .await
                         .map_err(|e| e.to_string())?;
                 }
+                Action::MoveCartesian { pose } => {
+                    data.preview = None;
+                    if state.simulate {
+                        return Err("Cartesian movement requires a real Kortex connection".into());
+                    }
+                    let target = Pose {
+                        x: pose[0],
+                        y: pose[1],
+                        z: pose[2],
+                        theta_x: pose[3],
+                        theta_y: pose[4],
+                        theta_z: pose[5],
+                    };
+                    let measured = robot
+                        .get_cartesian_pose()
+                        .await
+                        .map_err(|e| e.to_string())?;
+                    validate_cartesian_step(pose, &pose_array(measured))?;
+                    check_generation(state, generation)?;
+                    if !state.arm_enabled.load(Ordering::SeqCst) {
+                        return Err("arm stopped before Cartesian move".into());
+                    }
+                    robot
+                        .move_cartesian(&target, cfg.linear_speed, cfg.angular_speed)
+                        .await
+                        .map_err(|e| e.to_string())?;
+
+                    let deadline = Instant::now() + CARTESIAN_MOTION_TIMEOUT;
+                    loop {
+                        if state.arm_stop.load(Ordering::SeqCst) != generation
+                            || !state.arm_enabled.load(Ordering::SeqCst)
+                        {
+                            let _ = robot.stop().await;
+                            return Err("Cartesian move stopped".into());
+                        }
+                        if state.arm_seen.lock().unwrap().elapsed() > Duration::from_millis(500) {
+                            state.stop_arm();
+                            let _ = robot.stop().await;
+                            return Err("arm heartbeat expired during Cartesian move".into());
+                        }
+
+                        let measured = robot
+                            .get_cartesian_pose()
+                            .await
+                            .map_err(|e| e.to_string())?;
+                        data.arm_state =
+                            Some(robot.get_arm_state().await.map_err(|e| e.to_string())?);
+                        if data.arm_state == Some(4) {
+                            state.stop_arm();
+                            let _ = robot.stop().await;
+                            return Err("Kinova entered fault state during Cartesian move".into());
+                        }
+                        data.pose = Some(pose_array(measured));
+                        data.armed = state.arm_enabled.load(Ordering::SeqCst);
+                        state.status.lock().unwrap().kinova.update(data.clone());
+                        if cartesian_pose_reached(&pose_array(measured), pose) {
+                            return Ok(json!({
+                                "ok": true,
+                                "method": "kortex_reach_pose",
+                                "pose": pose_array(measured),
+                            }));
+                        }
+                        if Instant::now() >= deadline {
+                            state.stop_arm();
+                            let _ = robot.stop().await;
+                            return Err("Cartesian move timed out; robot stopped".into());
+                        }
+                        tokio::time::sleep(Duration::from_millis(100)).await;
+                    }
+                }
                 _ => unreachable!(),
             }
         }
@@ -397,6 +474,54 @@ fn validate_preview(preview: &Preview, id: u64, now: f64) -> Result<(), String> 
 fn angle_difference(a: f32, b: f32) -> f32 {
     ((a - b + 180.0).rem_euclid(360.0) - 180.0).abs()
 }
+
+fn pose_array(pose: Pose) -> [f32; 6] {
+    [
+        pose.x,
+        pose.y,
+        pose.z,
+        pose.theta_x,
+        pose.theta_y,
+        pose.theta_z,
+    ]
+}
+
+fn validate_cartesian_step(target: &[f32; 6], measured: &[f32; 6]) -> Result<(), String> {
+    if !target.iter().chain(measured).all(|value| value.is_finite()) {
+        return Err("Cartesian target and measured pose must be finite".into());
+    }
+    let distance = (0..3)
+        .map(|index| (target[index] - measured[index]).powi(2))
+        .sum::<f32>()
+        .sqrt();
+    if distance > MAX_CARTESIAN_STEP_M {
+        return Err(format!(
+            "Cartesian move is limited to {:.0} mm from the measured pose",
+            MAX_CARTESIAN_STEP_M * 1000.0
+        ));
+    }
+    if (3..6)
+        .any(|index| angle_difference(target[index], measured[index]) > MAX_CARTESIAN_ROTATION_DEG)
+    {
+        return Err(format!(
+            "Cartesian orientation change is limited to {:.0} degrees per axis",
+            MAX_CARTESIAN_ROTATION_DEG
+        ));
+    }
+    Ok(())
+}
+
+fn cartesian_pose_reached(measured: &[f32; 6], target: &[f32; 6]) -> bool {
+    let distance = (0..3)
+        .map(|index| (target[index] - measured[index]).powi(2))
+        .sum::<f32>()
+        .sqrt();
+    distance <= CARTESIAN_POSITION_TOLERANCE_M
+        && (3..6).all(|index| {
+            angle_difference(target[index], measured[index]) <= CARTESIAN_ROTATION_TOLERANCE_DEG
+        })
+}
+
 fn seed_matches(a: &[f32], b: &[f32]) -> bool {
     !a.is_empty()
         && a.len() == b.len()
@@ -459,5 +584,34 @@ mod tests {
         assert!(check_generation(&state, 0).is_ok());
         state.stop_arm();
         assert!(check_generation(&state, 0).is_err());
+    }
+
+    #[test]
+    fn cartesian_move_is_bounded_from_measured_pose() {
+        let measured = [0.0, 0.0, 0.4, 179.0, 0.0, 0.0];
+        let mut target = measured;
+        target[0] = 0.02;
+        target[3] = -179.0;
+        assert!(validate_cartesian_step(&target, &measured).is_ok());
+        target[2] = 0.421;
+        assert!(validate_cartesian_step(&target, &measured).is_err());
+        target = measured;
+        target[4] = 5.1;
+        assert!(validate_cartesian_step(&target, &measured).is_err());
+        target[0] = f32::NAN;
+        assert!(validate_cartesian_step(&target, &measured).is_err());
+    }
+
+    #[test]
+    fn cartesian_completion_uses_position_and_wrapped_orientation_tolerances() {
+        let target = [0.0, 0.0, 0.4, 179.9, 0.0, 0.0];
+        assert!(cartesian_pose_reached(
+            &[0.0005, 0.0, 0.4, -179.9, 0.0, 0.0],
+            &target
+        ));
+        assert!(!cartesian_pose_reached(
+            &[0.002, 0.0, 0.4, 179.9, 0.0, 0.0],
+            &target
+        ));
     }
 }

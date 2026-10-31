@@ -5,6 +5,8 @@
   import DeviceStatus from "./DeviceStatus.svelte"
   const device = $derived(rover.status?.devices.kinova)
   const labels = ["X (m)", "Y (m)", "Z (m)", "Roll (°)", "Pitch (°)", "Yaw (°)"]
+  let moving = $state(false)
+  let moveMessage = $state("")
   function jog(e: PointerEvent, axis: number, direction: number, joints = false) {
     e.currentTarget instanceof HTMLElement && e.currentTarget.setPointerCapture(e.pointerId)
     const v = Array(joints ? device?.data.joints.length ?? 6 : 6).fill(0); v[axis] = direction
@@ -16,6 +18,20 @@
     if (!hardware.preview || !confirm("Execute the previewed arm move? IK does not check collisions.")) return
     const id = hardware.preview.id; hardware.preview = null
     await armAction({ action: "execute", preview_id: id })
+  }
+  async function moveCartesian() {
+    if (!device?.data.armed || !device.connected || moving) return
+    if (!confirm("Move using Kortex Cartesian ReachPose? This is limited to 20 mm and 5° from the measured pose and does not check collisions.")) return
+    moving = true; moveMessage = "Moving with Kortex ReachPose…"; hardware.preview = null; hardware.error = ""
+    try {
+      await request("/api/arm/action", { action: "move_cartesian", pose: [...hardware.target] })
+      moveMessage = "Cartesian move completed"
+    } catch (e) {
+      hardware.error = String(e); moveMessage = "Cartesian move failed or stopped"
+    } finally {
+      moving = false
+      await rover.refreshStatus()
+    }
   }
 </script>
 <section>
@@ -33,7 +49,8 @@
   <div class="row"><button disabled={!device?.data.armed} onclick={() => armAction({ action: "gripper", position: 0 })}>Open gripper</button><button disabled={!device?.data.armed} onclick={() => armAction({ action: "gripper", position: 1 })}>Close gripper</button></div>
   <h4>IK target</h4><button onclick={useMeasured}>Use measured pose</button>
   <div class="target">{#each labels as label, i}<label>{label}<input type="number" step={i < 3 ? .01 : 1} value={hardware.target[i]} oninput={e => { hardware.target[i] = e.currentTarget.valueAsNumber; hardware.preview = null }} /></label>{/each}</div>
-  <div class="row"><button onclick={solveTarget}>Solve / preview</button><button disabled={!hardware.preview || !device?.data.armed} onclick={execute}>Execute preview</button></div>
+  <div class="row"><button onclick={solveTarget}>Solve / preview</button><button disabled={!hardware.preview || !device?.data.armed} onclick={execute}>Execute preview</button><button disabled={!device?.connected || !device?.data.armed || moving} onclick={moveCartesian}>{moving ? "Moving…" : "Move via Kortex"}</button></div>
+  {#if moveMessage}<p>{moveMessage}</p>{/if}
   {#if hardware.preview}<p>IK joints: {hardware.preview.joints.map(v => v.toFixed(1)).join(", ")}° · expires after 15 s</p>{/if}
   {#if hardware.error}<p role="alert">{hardware.error}</p>{/if}
 </section>
