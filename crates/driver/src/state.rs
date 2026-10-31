@@ -121,6 +121,9 @@ pub struct ArmData {
     pub gripper: Option<f32>,
     pub arm_state: Option<i32>,
     pub preview: Option<crate::arm::Preview>,
+    pub rear_boundary: Option<crate::arm::RearBoundary>,
+    pub rear_boundary_error: Option<String>,
+    pub telemetry_error: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, Serialize)]

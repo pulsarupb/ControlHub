@@ -23,7 +23,12 @@ const BASE_UID_APPLY_EMERGENCY_STOP: u32 = 0x20091;
 const BASE_UID_CLEAR_FAULTS: u32 = 0x20092;
 const BASE_UID_VALIDATE_WAYPOINT_LIST: u32 = 0x200eb;
 const BASE_UID_EXECUTE_WAYPOINT_TRAJECTORY: u32 = 0x200e2;
+const BASE_UID_COMPUTE_FORWARD_KINEMATICS: u32 = 0x200e9;
 const BASE_UID_COMPUTE_INVERSE_KINEMATICS: u32 = 0x200ea;
+const BASE_UID_CREATE_PROTECTION_ZONE: u32 = 0x20014;
+const BASE_UID_UPDATE_PROTECTION_ZONE: u32 = 0x20015;
+const BASE_UID_READ_ALL_PROTECTION_ZONES: u32 = 0x20018;
+pub const REAR_PROTECTION_ZONE_APPLICATION_DATA: &str = "pulsar-controlhub-rear-plane-v1";
 
 use crate::api::base::action::ActionParameters;
 use crate::api::base::cartesian_trajectory_constraint;
@@ -32,8 +37,10 @@ use crate::api::base::{
     Action, ActionList, ActionType, ArmStateInformation, CartesianSpeed,
     CartesianTrajectoryConstraint, CartesianWaypoint, ConstrainedJointAngles, ConstrainedPose,
     Finger, Gripper, GripperCommand, GripperMode, GripperRequest, IkData, JointAngle, JointAngles,
-    JointTrajectoryConstraint, JointTrajectoryConstraintType, Pose, RequestedActionType,
-    ServoingMode, ServoingModeInformation, Waypoint, WaypointList, WaypointValidationReport,
+    JointTrajectoryConstraint, JointTrajectoryConstraintType, Point, Pose, ProtectionZone,
+    ProtectionZoneHandle, ProtectionZoneList, RequestedActionType, RotationMatrix,
+    RotationMatrixRow, ServoingMode, ServoingModeInformation, ShapeType, Waypoint, WaypointList,
+    WaypointValidationReport, ZoneShape,
 };
 use crate::api::common::CartesianReferenceFrame;
 use crate::api::common::Empty;
@@ -157,6 +164,30 @@ impl RobotClient {
     /// Read the built-in action without motion, allowing a supervisor to check
     /// cancellation again before issuing ExecuteActionFromReference.
     pub async fn home_action(&mut self) -> Result<crate::api::base::ActionHandle, RobotError> {
+        self.read_home_action()
+            .await?
+            .handle
+            .ok_or_else(|| RobotError::ActionNotFound("Home".to_string()))
+    }
+
+    /// Returns the built-in Home pose without commanding motion.
+    pub async fn home_pose(&mut self) -> Result<Pose, RobotError> {
+        let action = self.read_home_action().await?;
+        let joints = match action.action_parameters {
+            Some(ActionParameters::ReachJointAngles(constrained)) => constrained
+                .joint_angles
+                .ok_or_else(|| RobotError::Other("Home action has no joint angles".into()))?,
+            _ => {
+                return Err(RobotError::Other(
+                    "Home action is not a joint-space action".into(),
+                ));
+            }
+        };
+        self.call_response(BASE_UID_COMPUTE_FORWARD_KINEMATICS, Some(joints))
+            .await
+    }
+
+    async fn read_home_action(&mut self) -> Result<Action, RobotError> {
         let req = RequestedActionType {
             action_type: ActionType::ReachJointAngles as i32,
         };
@@ -167,8 +198,48 @@ impl RobotClient {
         list.action_list
             .into_iter()
             .find(|a| a.name == "Home")
-            .and_then(|a| a.handle)
             .ok_or_else(|| RobotError::ActionNotFound("Home".to_string()))
+    }
+
+    pub async fn read_protection_zones(&mut self) -> Result<Vec<ProtectionZone>, RobotError> {
+        let zones: ProtectionZoneList = self
+            .call_response(BASE_UID_READ_ALL_PROTECTION_ZONES, None::<Empty>)
+            .await?;
+        Ok(zones.protection_zones)
+    }
+
+    /// Installs or updates only ControlHub's tagged rear boundary. Kinova
+    /// requires the arm to be powered off for these protection-zone writes.
+    pub async fn configure_rear_protection_zone(
+        &mut self,
+        forward: [f32; 2],
+        wall_offset_m: f32,
+        length_m: f32,
+        width_m: f32,
+        height_m: f32,
+    ) -> Result<(), RobotError> {
+        let existing = self
+            .read_protection_zones()
+            .await?
+            .into_iter()
+            .find(|zone| zone.application_data == REAR_PROTECTION_ZONE_APPLICATION_DATA);
+        let zone = make_rear_protection_zone(
+            forward,
+            wall_offset_m,
+            length_m,
+            width_m,
+            height_m,
+            existing.as_ref().and_then(|zone| zone.handle),
+        )?;
+
+        if existing.is_some() {
+            self.call_response::<Empty>(BASE_UID_UPDATE_PROTECTION_ZONE, Some(zone))
+                .await?;
+        } else {
+            self.call_response::<ProtectionZoneHandle>(BASE_UID_CREATE_PROTECTION_ZONE, Some(zone))
+                .await?;
+        }
+        Ok(())
     }
 
     pub async fn execute_action_reference(
@@ -386,6 +457,68 @@ impl RobotClient {
     }
 }
 
+fn make_rear_protection_zone(
+    forward: [f32; 2],
+    wall_offset_m: f32,
+    length_m: f32,
+    width_m: f32,
+    height_m: f32,
+    handle: Option<ProtectionZoneHandle>,
+) -> Result<ProtectionZone, RobotError> {
+    let norm = forward[0].hypot(forward[1]);
+    if !norm.is_finite()
+        || (norm - 1.0).abs() > 0.001
+        || ![wall_offset_m, length_m, width_m, height_m]
+            .iter()
+            .all(|value| value.is_finite())
+        || wall_offset_m >= 0.0
+        || length_m <= 0.0
+        || width_m <= 0.0
+        || height_m <= 0.0
+    {
+        return Err(RobotError::Other(
+            "invalid rear protection-zone geometry".into(),
+        ));
+    }
+
+    let center_distance = wall_offset_m - length_m / 2.0;
+    Ok(ProtectionZone {
+        handle,
+        name: "ControlHub rear boundary".into(),
+        application_data: REAR_PROTECTION_ZONE_APPLICATION_DATA.into(),
+        is_enabled: true,
+        shape: Some(ZoneShape {
+            shape_type: ShapeType::RectangularPrism as i32,
+            origin: Some(Point {
+                x: forward[0] * center_distance,
+                y: forward[1] * center_distance,
+                z: 0.0,
+            }),
+            orientation: Some(RotationMatrix {
+                row1: Some(RotationMatrixRow {
+                    column1: forward[0],
+                    column2: -forward[1],
+                    column3: 0.0,
+                }),
+                row2: Some(RotationMatrixRow {
+                    column1: forward[1],
+                    column2: forward[0],
+                    column3: 0.0,
+                }),
+                row3: Some(RotationMatrixRow {
+                    column1: 0.0,
+                    column2: 0.0,
+                    column3: 1.0,
+                }),
+            }),
+            dimensions: vec![length_m, width_m, height_m],
+            envelope_thickness: 0.0,
+        }),
+        limitations: Vec::new(),
+        envelope_limitations: Vec::new(),
+    })
+}
+
 /// Kortex can omit joint identifiers in IK results (all default to zero).
 /// In that case the response order is actuator order, as in Kinova's SDK example.
 fn ordered_ik_angles(result: JointAngles, expected: usize) -> Result<Vec<f32>, RobotError> {
@@ -499,5 +632,32 @@ mod tests {
             ],
         };
         assert!(ordered_ik_angles(ambiguous, 3).is_err());
+    }
+
+    #[test]
+    fn rear_protection_zone_is_a_home_aligned_box_behind_the_wall() {
+        let zone = make_rear_protection_zone([0.6, 0.8], -0.05, 2.0, 3.0, 3.0, None).unwrap();
+        assert!(zone.is_enabled);
+        assert_eq!(zone.application_data, REAR_PROTECTION_ZONE_APPLICATION_DATA);
+        let shape = zone.shape.unwrap();
+        assert_eq!(shape.shape_type, ShapeType::RectangularPrism as i32);
+        assert_eq!(shape.dimensions, vec![2.0, 3.0, 3.0]);
+        let origin = shape.origin.unwrap();
+        assert!((origin.x + 0.63).abs() < 1e-6);
+        assert!((origin.y + 0.84).abs() < 1e-6);
+        let rotation = shape.orientation.unwrap();
+        let row1 = rotation.row1.unwrap();
+        let row2 = rotation.row2.unwrap();
+        assert!((row1.column1 - 0.6).abs() < 1e-6);
+        assert!((row1.column2 + 0.8).abs() < 1e-6);
+        assert!((row2.column1 - 0.8).abs() < 1e-6);
+        assert!((row2.column2 - 0.6).abs() < 1e-6);
+    }
+
+    #[test]
+    fn rear_protection_zone_rejects_invalid_axis_or_dimensions() {
+        assert!(make_rear_protection_zone([1.0, 1.0], -0.05, 2.0, 3.0, 3.0, None).is_err());
+        assert!(make_rear_protection_zone([1.0, 0.0], 0.05, 2.0, 3.0, 3.0, None).is_err());
+        assert!(make_rear_protection_zone([1.0, 0.0], -0.05, 0.0, 3.0, 3.0, None).is_err());
     }
 }

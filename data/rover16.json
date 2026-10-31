@@ -55,7 +55,7 @@
     }
   },
   "zed": {
-    "enabled": false,
+    "enabled": true,
     "python": "python3",
     "settings": {
       "init": {

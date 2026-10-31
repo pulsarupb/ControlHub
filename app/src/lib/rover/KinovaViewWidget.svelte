@@ -23,6 +23,13 @@
     const orbit = new OrbitControls(camera, renderer.domElement); orbit.target.set(0, .25, 0)
     scene.add(new THREE.GridHelper(2, 20))
     const native = new THREE.Group(); native.rotation.x = -Math.PI / 2; scene.add(native)
+    const rearBoundary = new THREE.Group()
+    const rearGeometry = new THREE.BoxGeometry(2, 3, 3)
+    const rearMaterial = new THREE.MeshBasicMaterial({ color: "#ff263b", transparent: true, opacity: .16, depthWrite: false })
+    const rearVolume = new THREE.Mesh(rearGeometry, rearMaterial); rearVolume.position.x = -1
+    const rearEdges = new THREE.LineSegments(new THREE.EdgesGeometry(rearGeometry), new THREE.LineBasicMaterial({ color: "#ff263b" })); rearEdges.position.x = -1
+    const rearPlane = new THREE.Mesh(new THREE.BoxGeometry(.008, 3, 3), new THREE.MeshBasicMaterial({ color: "#ff263b", transparent: true, opacity: .75, depthWrite: false }))
+    rearBoundary.add(rearVolume, rearEdges, rearPlane); rearBoundary.visible = false; native.add(rearBoundary)
     const target = new THREE.Group(); target.add(new THREE.AxesHelper(.15)); native.add(target)
     transform = new TransformControls(camera, renderer.domElement); transform.attach(target); scene.add(transform.getHelper())
     transform.addEventListener("dragging-changed", e => orbit.enabled = !e.value)
@@ -45,6 +52,12 @@
         frame = requestAnimationFrame(animate)
         const data = rover.status?.devices.kinova.data
         if (data) setArm(model, data.joints, data.gripper)
+        const boundary = data?.rear_boundary
+        rearBoundary.visible = Boolean(boundary)
+        if (boundary) {
+          rearBoundary.position.set(boundary.forward[0] * boundary.wall_offset_m, boundary.forward[1] * boundary.wall_offset_m, 0)
+          rearBoundary.rotation.z = Math.atan2(boundary.forward[1], boundary.forward[0])
+        }
         preview.root.visible = Boolean(hardware.preview)
         if (hardware.preview) setArm(preview, hardware.preview.joints, data?.gripper ?? null)
         const signature = JSON.stringify(hardware.target)
@@ -68,7 +81,7 @@
 <section><header><strong>Kinova 3D / IK target</strong><label><input type="checkbox" bind:checked={rotate} /> Rotate target</label></header>
   <DeviceStatus device={rover.status?.devices.kinova} />
   <div class="viewport" bind:this={host}></div>
-  <small>Drag edits target only. Gold ghost = robot IK preview. Use Solve then Execute in Arm Controls. No collision checking.</small>
+  <small>Red volume = rear no-go area behind the Home direction (5 cm from base); gold ghost = IK preview. Controller protection applies to the whole arm when installed.</small>
   {#if error}<p role="alert">{error}</p>{/if}
 </section>
 <style>section { height: 100%; padding: .6rem; display: flex; flex-direction: column; gap: .4rem; }header { display: flex; justify-content: space-between; gap: .5rem; }.viewport { flex: 1; min-height: 100px; overflow: hidden; }label, small { font-size: .75rem; }</style>
