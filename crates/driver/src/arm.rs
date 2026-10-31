@@ -13,7 +13,7 @@ const MAX_CARTESIAN_ROTATION_DEG: f32 = 5.0;
 const CARTESIAN_MOTION_TIMEOUT: Duration = Duration::from_secs(15);
 const CARTESIAN_POSITION_TOLERANCE_M: f32 = 0.001;
 const CARTESIAN_ROTATION_TOLERANCE_DEG: f32 = 0.5;
-const REAR_WALL_OFFSET_M: f32 = -0.05;
+const REAR_WALL_OFFSET_M: f32 = -0.08;
 const REAR_ZONE_LENGTH_M: f32 = 2.0;
 const REAR_ZONE_WIDTH_M: f32 = 3.0;
 const REAR_ZONE_HEIGHT_M: f32 = 3.0;
@@ -58,7 +58,7 @@ pub struct Preview {
 
 #[derive(Clone, Copy, Debug, Serialize)]
 pub struct RearBoundary {
-    /// Horizontal forward axis from the arm base to the built-in Home TCP pose.
+    /// Base +X forward axis; the rear wall is parallel to the base YZ plane.
     pub forward: [f32; 2],
     /// Plane offset along `forward`; the forbidden side is below this value.
     pub wall_offset_m: f32,
@@ -75,7 +75,7 @@ impl RearBoundary {
             return Err("built-in Home pose cannot define a stable forward axis".into());
         }
         Ok(Self {
-            forward: [pose.x / length, pose.y / length],
+            forward: [1.0, 0.0],
             wall_offset_m: REAR_WALL_OFFSET_M,
             zone_length_m: REAR_ZONE_LENGTH_M,
             zone_width_m: REAR_ZONE_WIDTH_M,
@@ -90,7 +90,7 @@ impl RearBoundary {
 
     fn validate_target(&self, target: &[f32; 6]) -> Result<(), String> {
         if self.signed_distance(target) < 0.0 {
-            return Err("target is behind the 5 cm rear protection plane".into());
+            return Err("target is behind the 8 cm rear protection plane".into());
         }
         Ok(())
     }
@@ -814,7 +814,7 @@ mod tests {
     }
 
     #[test]
-    fn rear_plane_follows_home_direction_and_rejects_targets_behind_it() {
+    fn rear_plane_is_base_axis_aligned_and_rejects_targets_behind_it() {
         let boundary = RearBoundary::from_home_pose(Pose {
             x: 0.2,
             y: 0.2,
@@ -824,15 +824,15 @@ mod tests {
             theta_z: 0.0,
         })
         .unwrap();
-        assert!((boundary.forward[0] - std::f32::consts::FRAC_1_SQRT_2).abs() < 1e-6);
-        assert!((boundary.forward[1] - std::f32::consts::FRAC_1_SQRT_2).abs() < 1e-6);
+        assert_eq!(boundary.forward, [1.0, 0.0]);
+        assert_eq!(boundary.wall_offset_m, -0.08);
 
         let mut target = [0.0; 6];
-        target[0] = -0.04 * boundary.forward[0];
-        target[1] = -0.04 * boundary.forward[1];
+        target[0] = -0.07;
+        target[1] = 0.5;
         assert!(boundary.validate_target(&target).is_ok());
-        target[0] = -0.06 * boundary.forward[0];
-        target[1] = -0.06 * boundary.forward[1];
+        target[0] = -0.09;
+        target[1] = -0.5;
         assert!(boundary.validate_target(&target).is_err());
     }
 

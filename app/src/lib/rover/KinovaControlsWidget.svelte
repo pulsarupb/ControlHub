@@ -58,7 +58,7 @@
   <h3>Arm controls</h3><DeviceStatus {device} />
   {#if device?.data.rear_boundary}
     <div class="boundary-status" style="border: 1px solid #b32935; border-radius: .4rem; padding: .5rem; margin: .5rem 0; color: #ff9aa2">
-      <strong>Rear no-go plane: 5 cm behind built-in Home direction</strong>
+      <strong>Rear no-go plane: 8 cm behind base, aligned to base X axis</strong>
       <p>{device.data.rear_boundary.controller_zone_installed ? "Kortex controller zone installed (whole-arm protection)" : "Controller zone not installed; arm motion remains disabled"}</p>
       {#if device.data.rear_boundary_error}<p role="alert">Zone readback: {device.data.rear_boundary_error}</p>{/if}
       {#if !device.data.rear_boundary.controller_zone_installed}<button disabled={!device.connected || device.data.armed} onclick={() => pendingConfirmation = "install-zone"}>Install controller zone</button>{/if}

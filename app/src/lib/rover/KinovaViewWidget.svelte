@@ -81,7 +81,7 @@
 <section><header><strong>Kinova 3D / IK target</strong><label><input type="checkbox" bind:checked={rotate} /> Rotate target</label></header>
   <DeviceStatus device={rover.status?.devices.kinova} />
   <div class="viewport" bind:this={host}></div>
-  <small>Red volume = rear no-go area behind the Home direction (5 cm from base); gold ghost = IK preview. Controller protection applies to the whole arm when installed.</small>
+  <small>Red volume = rear no-go area (8 cm behind base, parallel to base YZ plane); gold ghost = IK preview. Controller whole-arm enforcement is not verified.</small>
   {#if error}<p role="alert">{error}</p>{/if}
 </section>
 <style>section { height: 100%; padding: .6rem; display: flex; flex-direction: column; gap: .4rem; }header { display: flex; justify-content: space-between; gap: .5rem; }.viewport { flex: 1; min-height: 100px; overflow: hidden; }label, small { font-size: .75rem; }</style>

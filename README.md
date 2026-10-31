@@ -104,7 +104,7 @@ preserve the host file owner when running in the privileged container.
   directly; it is useful when Kortex's standalone IK preview rejects a reachable
   target. It is limited to 20 mm / 5° from measured pose and waits for measured
   completion, but does not check collisions. A rear no-go plane is aligned to the
-  built-in Home TCP direction and placed 50 mm behind the arm base. The dashboard
+  base X axis and placed 80 mm behind the arm base (parallel to YZ). The dashboard
   draws the red forbidden volume. Arm motion stays disabled until the matching
   persistent Kortex protection zone is installed and read back; install it from
   Arm Controls with the arm powered off. ControlHub also rejects tool targets
