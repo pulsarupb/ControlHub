@@ -108,7 +108,7 @@
       "tracking": {
         "depth_min_range": -1,
         "enable_2d_ground_mode": false,
-        "enable_area_memory": true,
+        "enable_area_memory": false,
         "enable_imu_fusion": true,
         "enable_pose_smoothing": false,
         "mode": "GEN_3",
@@ -117,11 +117,11 @@
         "set_gravity_as_origin": true
       }
     },
-    "mount_configured": false,
+    "mount_configured": true,
     "mount_translation": [
       0.0,
       0.0,
-      0.0
+      1.15
     ],
     "mount_rotation_deg": [
       0.0,
