@@ -29,7 +29,22 @@
     ],
     "power_limit": 1000,
     "acceleration_time_ms": 2000,
-    "deceleration_time_ms": 2000
+    "deceleration_time_ms": 2000,
+    "yaw_control": {
+      "enabled": true,
+      "steering_yaw_sign": -1,
+      "max_rate_rad_s": 0.6,
+      "max_accel_rad_s2": 0.6,
+      "kp": 0.15,
+      "ki": 0.03,
+      "correction_limit": 0.2,
+      "filter_time_ms": 100,
+      "feedback_timeout_ms": 250,
+      "max_measured_rate_rad_s": 3.0,
+      "heading_hold": true,
+      "heading_kp": 1.0,
+      "steering_deadband": 0.03
+    }
   },
   "kinova": {
     "enabled": true,
@@ -112,6 +127,28 @@
       0.0,
       0.0,
       0.0
+    ]
+  },
+  "oak": {
+    "enabled": true,
+    "python": "python3",
+    "fps": 10,
+    "cameras": [
+      {
+        "name": "OAK-D 1",
+        "mxid": "",
+        "rotate_180": true
+      },
+      {
+        "name": "OAK-D 2",
+        "mxid": "",
+        "rotate_180": true
+      },
+      {
+        "name": "OAK-D 3",
+        "mxid": "",
+        "rotate_180": true
+      }
     ]
   },
   "gamepad": {
