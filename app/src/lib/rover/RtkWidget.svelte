@@ -9,9 +9,9 @@
 <section>
   <h3>RTK position</h3><DeviceStatus {device} />
   <p class:stale={age !== null && age > 3}>{names[fix?.quality ?? 0]} · {age === null ? "No fix received" : `${age.toFixed(1)} s old`}</p>
-  <dl><dt>Latitude</dt><dd>{fix?.latitude?.toFixed(8) ?? "—"}°</dd><dt>Longitude</dt><dd>{fix?.longitude?.toFixed(8) ?? "—"}°</dd>
-    <dt>Altitude MSL</dt><dd>{fix?.altitude_msl?.toFixed(2) ?? "—"} m</dd><dt>Satellites / HDOP</dt><dd>{fix?.satellites ?? "—"} / {fix?.hdop ?? "—"}</dd>
-    <dt>Estimated σ (heuristic)</dt><dd>{fix?.latitude_std?.toFixed(3) ?? "—"} m</dd>
+  <dl><dt>Latitude</dt><dd>{fix?.latitude?.toFixed(8) ?? "-"}°</dd><dt>Longitude</dt><dd>{fix?.longitude?.toFixed(8) ?? "-"}°</dd>
+    <dt>Altitude MSL</dt><dd>{fix?.altitude_msl?.toFixed(2) ?? "-"} m</dd><dt>Satellites / HDOP</dt><dd>{fix?.satellites ?? "-"} / {fix?.hdop ?? "-"}</dd>
+    <dt>Estimated σ (heuristic)</dt><dd>{fix?.latitude_std?.toFixed(3) ?? "-"} m</dd>
     <dt>NTRIP</dt><dd>{device?.data.ntrip_connected ? "Connected" : "Disconnected / disabled"}</dd>
     <dt>Correction bytes</dt><dd>{device?.data.correction_bytes ?? 0}</dd><dt>NMEA bytes / errors</dt><dd>{device?.data.bytes_read ?? 0} / {device?.data.parse_errors ?? 0}</dd>
   </dl>
