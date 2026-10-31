@@ -13,8 +13,8 @@
     <tbody>{#each hardware.config?.drive.motors ?? [] as m, i}
       {@const c = drive?.data.controllers[m.controller]}
       <tr><th>{names[i]}</th><td>{m.controller === 0 ? "A" : "B"}/{m.channel}</td>
-        <td>{drive?.data.power[m.controller]?.[m.channel - 1] ?? "—"}</td>
-        <td>{c?.encoder_counts[m.channel - 1] ?? "—"}</td><td>{c?.speed_rpm[m.channel - 1] ?? "—"}</td><td>{c?.faults ?? "—"}</td></tr>
+        <td>{drive?.data.power[m.controller]?.[m.channel - 1] ?? "-"}</td>
+        <td>{c?.encoder_counts[m.channel - 1] ?? "-"}</td><td>{c?.speed_rpm[m.channel - 1] ?? "-"}</td><td>{c?.faults ?? "-"}</td></tr>
     {/each}</tbody>
   </table>
 </section>

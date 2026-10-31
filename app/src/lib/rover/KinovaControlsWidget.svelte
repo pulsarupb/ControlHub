@@ -68,8 +68,8 @@
   <div class="row"><button disabled={!device?.data.rear_boundary?.controller_zone_installed} onclick={enable}>Enable arm</button><button onclick={() => { releaseArm(); void request("/api/arm/stop").catch(e => hardware.error = String(e)) }}>Stop arm</button>
     <button onclick={() => armAction({ action: "clear_faults" })}>Clear faults</button>
     <button disabled={!device?.data.armed} onclick={() => pendingConfirmation = "home"}>Home</button></div>
-  <p>{device?.data.armed ? "Arm enabled" : "Arm stopped"} · State {device?.data.arm_state ?? "—"} · Gripper {device?.data.gripper?.toFixed(2) ?? "—"}</p>
-  <h4>Hold to jog — base coordinates</h4>
+  <p>{device?.data.armed ? "Arm enabled" : "Arm stopped"} · State {device?.data.arm_state ?? "-"} · Gripper {device?.data.gripper?.toFixed(2) ?? "-"}</p>
+  <h4>Hold to jog in base coordinates</h4>
   <div class="jogs">{#each labels as label, i}<div><span>{label.split(" ")[0]}</span>
     {#each [-1, 1] as direction}<button disabled={!device?.data.armed} onpointerdown={e => jog(e, i, direction)} onpointerup={releaseArm} onpointercancel={releaseArm} onlostpointercapture={releaseArm}>{direction < 0 ? "−" : "+"}</button>{/each}</div>{/each}</div>
   <h4>Joint jogs (degrees/s)</h4>
