@@ -88,7 +88,10 @@ hardware device disabled. The new schema has `drive`, `kinova`, `rtk`, `zed` and
 `gamepad` sections, all editable in Settings. The API rejects the old
 `chassis`/`motors` schema: back it up and use a new config path rather than silently
 reinterpreting old controller IDs. Saving changes only restarts affected devices;
-connection changes stop their motion and never resume old demands.
+connection changes stop their motion and never resume old demands. Credentials are
+stored in an ignored `*.secrets.json` sidecar (mode `0600`); legacy inline passwords
+are migrated automatically so the main JSON can be committed. Atomic config saves
+preserve the host file owner when running in the privileged container.
 
 - **Drive:** controller indices 0/1, channels 1/2, direction ±1. Wheel order is left
   front, right front, left back, right back. Power cap is 1–1000 controller units,

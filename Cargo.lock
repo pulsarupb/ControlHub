@@ -857,6 +857,7 @@ version = "0.1.51"
 dependencies = [
  "axum",
  "kinova-control",
+ "libc",
  "roboteq",
  "rtk",
  "serde",

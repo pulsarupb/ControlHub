@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::path::{Path, PathBuf};
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[serde(default, deny_unknown_fields)]
@@ -8,6 +9,13 @@ pub struct Config {
     pub rtk: rtk::Config,
     pub zed: zed::Config,
     pub gamepad: GamepadConfig,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
+struct ConfigSecrets {
+    kinova_password: String,
+    rtk_ntrip_password: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -140,27 +148,86 @@ impl Config {
 }
 
 pub fn load(path: &str) -> Result<Config, String> {
-    match std::fs::read_to_string(path) {
+    let config_path = Path::new(path);
+    let mut config = match std::fs::read_to_string(config_path) {
         Ok(text) => {
             let config: Config = serde_json::from_str(&text).map_err(|e| {
                 format!("invalid configuration (back up and migrate old schema): {e}")
             })?;
-            config.validate()?;
             Ok(config)
         }
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Config::default()),
         Err(e) => Err(e.to_string()),
+    }?;
+
+    let legacy_has_secrets =
+        !config.kinova.password.is_empty() || !config.rtk.ntrip.password.is_empty();
+    let secrets_path = secrets_path(config_path);
+    match std::fs::read_to_string(&secrets_path) {
+        Ok(text) => {
+            let secrets: ConfigSecrets = serde_json::from_str(&text)
+                .map_err(|e| format!("invalid credentials file: {e}"))?;
+            config.kinova.password = secrets.kinova_password;
+            config.rtk.ntrip.password = secrets.rtk_ntrip_password;
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(e.to_string()),
     }
+    config.validate()?;
+
+    // Migrate older configs that stored credentials inline. The regular config
+    // is rewritten without secrets, while the ignored sidecar stays mode 0600.
+    if legacy_has_secrets {
+        save(path, &config)?;
+    }
+    Ok(config)
 }
 
 pub fn save(path: &str, config: &Config) -> Result<(), String> {
-    use std::io::Write;
     config.validate()?;
-    let path = std::path::Path::new(path);
-    if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+    let path = Path::new(path);
+    let secrets = ConfigSecrets {
+        kinova_password: config.kinova.password.clone(),
+        rtk_ntrip_password: config.rtk.ntrip.password.clone(),
+    };
+    atomic_write(
+        &secrets_path(path),
+        serde_json::to_string_pretty(&secrets)
+            .map_err(|e| e.to_string())?
+            .as_bytes(),
+        0o600,
+    )?;
+
+    let mut public_config = config.clone();
+    public_config.kinova.password.clear();
+    public_config.rtk.ntrip.password.clear();
+    atomic_write(
+        path,
+        serde_json::to_string_pretty(&public_config)
+            .map_err(|e| e.to_string())?
+            .as_bytes(),
+        0o644,
+    )
+}
+
+fn secrets_path(path: &Path) -> PathBuf {
+    let name = path
+        .file_stem()
+        .and_then(|name| name.to_str())
+        .unwrap_or("config");
+    path.with_file_name(format!("{name}.secrets.json"))
+}
+
+fn atomic_write(path: &Path, contents: &[u8], mode: u32) -> Result<(), String> {
+    use std::io::Write;
+    let parent = path.parent().filter(|p| !p.as_os_str().is_empty());
+    if let Some(parent) = parent {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     let temporary = path.with_extension("json.tmp");
+    let owner = std::fs::metadata(path)
+        .ok()
+        .or_else(|| parent.and_then(|parent| std::fs::metadata(parent).ok()));
     let mut options = std::fs::OpenOptions::new();
     options.write(true).create(true).truncate(true);
     #[cfg(unix)]
@@ -169,9 +236,30 @@ pub fn save(path: &str, config: &Config) -> Result<(), String> {
         options.mode(0o600);
     }
     let mut file = options.open(&temporary).map_err(|e| e.to_string())?;
-    file.write_all(serde_json::to_string_pretty(config).unwrap().as_bytes())
-        .map_err(|e| e.to_string())?;
+    file.write_all(contents).map_err(|e| e.to_string())?;
     file.sync_all().map_err(|e| e.to_string())?;
+
+    #[cfg(unix)]
+    {
+        use std::ffi::CString;
+        use std::os::unix::ffi::OsStrExt;
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+        if let Some(owner) = owner.filter(|owner| {
+            owner.uid() != unsafe { libc::geteuid() } || owner.gid() != unsafe { libc::getegid() }
+        }) {
+            let temporary_path =
+                CString::new(temporary.as_os_str().as_bytes()).map_err(|e| e.to_string())?;
+            // Atomic rename otherwise changes a bind-mounted config to root:root
+            // whenever the privileged container saves settings.
+            let result = unsafe { libc::chown(temporary_path.as_ptr(), owner.uid(), owner.gid()) };
+            if result != 0 {
+                return Err(std::io::Error::last_os_error().to_string());
+            }
+        }
+        file.set_permissions(std::fs::Permissions::from_mode(mode))
+            .map_err(|e| e.to_string())?;
+    }
+
     std::fs::rename(temporary, path).map_err(|e| e.to_string())
 }
 
@@ -187,6 +275,50 @@ mod tests {
             serde_json::from_str::<Config>(&serde_json::to_string(&c).unwrap()).unwrap(),
             c
         );
+    }
+
+    #[test]
+    fn config_commit_file_redacts_credentials_and_keeps_private_sidecar() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("rover16.json");
+        let mut config = Config::default();
+        config.kinova.password = "arm-secret".into();
+        config.rtk.ntrip.password = "caster-secret".into();
+
+        save(path.to_str().unwrap(), &config).unwrap();
+        let public: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(public["kinova"]["password"], "");
+        assert_eq!(public["rtk"]["ntrip"]["password"], "");
+        assert!(!public.to_string().contains("secret"));
+        assert_eq!(load(path.to_str().unwrap()).unwrap(), config);
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            let secrets = std::fs::metadata(secrets_path(&path)).unwrap();
+            assert_eq!(secrets.mode() & 0o777, 0o600);
+            let config_metadata = std::fs::metadata(path).unwrap();
+            assert_eq!(config_metadata.mode() & 0o777, 0o644);
+            assert_eq!(
+                config_metadata.uid(),
+                std::fs::metadata(dir.path()).unwrap().uid()
+            );
+        }
+    }
+
+    #[test]
+    fn legacy_inline_credentials_are_migrated_on_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("rover16.json");
+        let mut legacy = Config::default();
+        legacy.kinova.password = "legacy-secret".into();
+        std::fs::write(&path, serde_json::to_vec(&legacy).unwrap()).unwrap();
+
+        assert_eq!(load(path.to_str().unwrap()).unwrap(), legacy);
+        let public: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+        assert_eq!(public["kinova"]["password"], "");
     }
     #[test]
     fn reject_old_schema_and_shared_ports() {

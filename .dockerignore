@@ -6,3 +6,5 @@ app/.svelte-kit
 .gitignore
 Dockerfile
 docker-compose.yml
+/data/rover16.json
+/data/*.secrets.json
