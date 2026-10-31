@@ -57,11 +57,11 @@
     "joint_speed": 5.0
   },
   "rtk": {
-    "enabled": false,
+    "enabled": true,
     "port": "/dev/serial/by-id/usb-u-blox_AG_-_www.u-blox.com_u-blox_GNSS_receiver-if00",
     "baud": 115200,
     "ntrip": {
-      "enabled": false,
+      "enabled": true,
       "host": "rtk2go.com",
       "port": 2101,
       "mount_point": "SemaAgoraRobotics",
@@ -121,7 +121,7 @@
     "mount_translation": [
       0.0,
       0.0,
-      1.15
+      1.02
     ],
     "mount_rotation_deg": [
       0.0,
@@ -137,17 +137,17 @@
       {
         "name": "OAK-D 1",
         "mxid": "",
-        "rotate_180": true
+        "rotate_180": false
       },
       {
         "name": "OAK-D 2",
         "mxid": "",
-        "rotate_180": true
+        "rotate_180": false
       },
       {
         "name": "OAK-D 3",
         "mxid": "",
-        "rotate_180": true
+        "rotate_180": false
       }
     ]
   },
