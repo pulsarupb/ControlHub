@@ -117,6 +117,55 @@ async function enforceAndroidLandscapeOrientation() {
   }
 }
 
+async function enforceAndroidLocalNetworkPermission() {
+  const manifestPath = "src-tauri/gen/android/app/src/main/AndroidManifest.xml";
+  if (!existsSync(manifestPath)) return;
+
+  const permission = "android.permission.ACCESS_LOCAL_NETWORK";
+  let manifest = await Bun.file(manifestPath).text();
+  if (!manifest.includes(permission)) {
+    manifest = manifest.replace(
+      /(<manifest\b[^>]*>)/,
+      `$1\n    <uses-permission android:name="${permission}" />`,
+    );
+    await Bun.write(manifestPath, manifest);
+  }
+
+  const root = "src-tauri/gen/android/app/src/main/java";
+  if (!existsSync(root)) return;
+  const files = new Bun.Glob("**/MainActivity.kt").scan({ cwd: root, absolute: true });
+  for await (const path of files) {
+    let source = await Bun.file(path).text();
+    if (source.includes(permission)) continue;
+
+    const request = `
+    if (android.os.Build.VERSION.SDK_INT >= 37 &&
+      checkSelfPermission("${permission}") != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+      requestPermissions(arrayOf("${permission}"), 3701)
+    }`;
+    const onCreate = /override fun onCreate\(savedInstanceState: Bundle\?\)\s*\{/;
+
+    if (onCreate.test(source)) {
+      const superOnCreate = /super\.onCreate\(savedInstanceState\)/;
+      if (superOnCreate.test(source)) {
+        source = source.replace(superOnCreate, (match) => `${match}${request}`);
+      } else {
+        source = source.replace(onCreate, (match) => `${match}${request}`);
+      }
+    } else {
+      const activityClass = /class MainActivity : TauriActivity\(\)\s*\{/;
+      if (!activityClass.test(source)) {
+        throw new Error(`Could not find MainActivity in ${path}`);
+      }
+      source = source.replace(
+        activityClass,
+        `$&\n  override fun onCreate(savedInstanceState: android.os.Bundle?) {\n    super.onCreate(savedInstanceState)${request}\n  }\n`,
+      );
+    }
+    await Bun.write(path, source);
+  }
+}
+
 async function installAndroidAppIcons() {
   const source = "src-tauri/icons/android";
   const resources = "src-tauri/gen/android/app/src/main/res";
@@ -354,6 +403,7 @@ if (args[0] === "dev" && isWsl()) {
       await includeSwitchInputAndroidPlugin();
     }
     await enforceAndroidLandscapeOrientation();
+    await enforceAndroidLocalNetworkPermission();
     if (args.includes("build")) {
       await installAndroidAppIcons();
       await syncAndroidAppName();
@@ -372,6 +422,7 @@ if (args[0] === "dev" && isWsl()) {
           await includeSwitchInputAndroidPlugin();
         }
         await enforceAndroidLandscapeOrientation();
+        await enforceAndroidLocalNetworkPermission();
         await installAndroidAppIcons();
         await syncAndroidAppName();
       }
