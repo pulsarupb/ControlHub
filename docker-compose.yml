@@ -14,6 +14,8 @@ services:
       - /data/rover16.json
       - --sidecar
       - /opt/controlhub/sidecar/main.py
+      - --oak-sidecar
+      - /opt/controlhub/oak-sidecar/main.py
       - --bind
       - 0.0.0.0:8080
       - --hotspot

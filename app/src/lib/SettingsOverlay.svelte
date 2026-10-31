@@ -12,7 +12,7 @@
   let active: keyof FullConfig = $state("drive")
   let error = $state("")
   let saving = $state(false)
-  const tabs: [keyof FullConfig, string][] = [["drive", "Motors"], ["kinova", "Kinova"], ["rtk", "RTK / NTRIP"], ["zed", "ZED"], ["gamepad", "Gamepad"]]
+  const tabs: [keyof FullConfig, string][] = [["drive", "Motors"], ["kinova", "Kinova"], ["rtk", "RTK / NTRIP"], ["zed", "ZED"], ["oak", "OAK-D Cameras"], ["gamepad", "Gamepad"]]
   $effect(() => {
     if (!show) return
     let active = true
@@ -51,6 +51,8 @@
           <p>NTRIP corrections go only to the receiver, not ZED. RTK2go and the Agora mount point are editable. HDOP is not accuracy in meters.</p>
         {:else if active === "zed"}
           <p>Native right-handed Z-up meters. Mount translation/rotation describe camera in rover base (meters / RPY degrees). Check Mount configured only after measuring it; otherwise no rover-base marker is shown. No RTK fusion.</p>
+        {:else if active === "oak"}
+          <p>Three independent camera slots (0–2). Blank MXID discovers devices in sorted ID order; enter each full ID shown in the camera panel to keep its position across server restarts. FPS: 1–15. Rotation applies to both views. Depth view is colorized disparity, not a metric depth image; distance statistics are in meters. Host Python requires NumPy/OpenCV; uv installs DepthAI.</p>
         {:else}
           <p>Standard Gamepad API indices. Y/△ toggles target, LB/L1 holds to jog, B/○ stops both by default. Axes and button bindings are configurable below.</p>
         {/if}

@@ -8,6 +8,7 @@ pub struct Config {
     pub kinova: KinovaConfig,
     pub rtk: rtk::Config,
     pub zed: zed::Config,
+    pub oak: crate::oak::Config,
     pub gamepad: GamepadConfig,
 }
 
@@ -92,6 +93,7 @@ impl Default for GamepadConfig {
 
 impl Config {
     pub fn validate(&self) -> Result<(), String> {
+        self.oak.validate()?;
         self.drive.validate()?;
         self.rtk.validate()?;
         self.zed.validate()?;

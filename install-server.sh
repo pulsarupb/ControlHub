@@ -58,7 +58,18 @@ if [ -z "$expected" ] || [ "$expected" != "$(sha256sum "$SIDECAR" | awk '{print 
 fi
 tar -xzf "$SIDECAR"
 
+echo "Downloading matching OAK-D sidecar..."
+SIDECAR="oak-sidecar.tar.gz"
+curl -fL -o "$SIDECAR" "$RELEASE_URL/$SIDECAR"
+expected=$(curl -fsL "$CHECKSUM_URL" | grep " $SIDECAR\$" | awk '{print $1}')
+if [ -z "$expected" ] || [ "$expected" != "$(sha256sum "$SIDECAR" | awk '{print $1}')" ]; then
+  echo "Error: OAK-D sidecar checksum missing or mismatched; not extracting."
+  exit 1
+fi
+tar -xzf "$SIDECAR"
+
 echo "Done. Installed $(pwd)/driver"
-echo "Run ./driver --sidecar ./sidecar/main.py to start the server."
-echo "The ZED sidecar is launched and its Python environment managed by uv."
+echo "Run ./driver --sidecar ./sidecar/main.py --oak-sidecar ./oak-sidecar/main.py to start the server."
+echo "Camera sidecars are launched and their Python environments managed by uv."
+echo "OAK-D requires host NumPy/OpenCV, USB permissions and exclusive camera access."
 echo "Devices start disabled. Configure serial permissions and hardware settings before enabling."

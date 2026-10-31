@@ -23,6 +23,9 @@
   heuristics reference `ZED-Test/rtk_gps.py`. No Python GNSS serial owner remains.
 - `crates/zed/sidecar`: parameter/camera/tracking/mapping behavior adapted from
   `ZED-Test/zed_slam_ui.py`. No Flask server, GNSS ingestion, fixture or fusion.
+- `crates/driver/sidecars/oak`: DepthAI v3 RGB encoding, stereo disparity and
+  distance ROI adapted from `OakD-Test/main.py`. No FastAPI/static server copied;
+  ControlHub owns supervision, per-camera reconnects and frame delivery.
 
 The sibling repositories were not modified. Vendor SDKs remain separately
 installed runtime prerequisites, not vendored binaries or Cargo dependencies.

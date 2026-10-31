@@ -45,6 +45,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/zed/map", get(zed_map))
         .route("/api/zed/reset", post(zed_reset))
         .route("/api/zed/frame/{kind}", get(zed_frame))
+        .route("/api/oak/frame/{slot}/{kind}", get(oak_frame))
         .layer(CorsLayer::permissive())
         .with_state(state)
 }
@@ -54,6 +55,47 @@ async fn health(State(state): State<AppState>) -> Json<Value> {
         json!({"service": "pulsar-rover", "ok": true, "version": env!("CARGO_PKG_VERSION"),
         "mode": if state.simulate { "simulated" } else { "real" }}),
     )
+}
+
+async fn oak_frame(
+    State(state): State<AppState>,
+    Path((slot, kind)): Path<(usize, String)>,
+) -> Result<impl IntoResponse, Error> {
+    let index = match kind.as_str() {
+        "color" => 0,
+        "depth" => 1,
+        _ => return Err(bad("expected color or depth")),
+    };
+    if slot >= 3 {
+        return Err(bad("OAK-D slot must be 0, 1 or 2"));
+    }
+    if !state.config.lock().unwrap().oak.enabled {
+        return Err(unavailable("OAK-D disabled"));
+    }
+    let status = state.status.lock().unwrap();
+    let camera = &status.oak.data.cameras[slot];
+    if !status.oak.connected
+        || !camera.connected
+        || !camera
+            .updated_at
+            .is_some_and(|t| (0.0..3.0).contains(&(epoch() - t)))
+    {
+        return Err(unavailable("OAK-D camera offline or stale"));
+    }
+    let images = state.oak_images.lock().unwrap();
+    let Some((bytes, captured)) = &images[slot][index] else {
+        return Err(unavailable("No OAK-D frame available"));
+    };
+    if captured.elapsed() > Duration::from_secs(3) {
+        return Err(unavailable("OAK-D frame stale"));
+    }
+    Ok((
+        [
+            (header::CONTENT_TYPE, "image/jpeg"),
+            (header::CACHE_CONTROL, "no-store"),
+        ],
+        bytes.clone(),
+    ))
 }
 
 async fn status(State(state): State<AppState>) -> Json<Value> {
@@ -306,6 +348,83 @@ mod tests {
         let mut status = state.status.lock().unwrap();
         status.drive.enabled = true;
         status.drive.connected = true;
+    }
+
+    #[tokio::test]
+    async fn oak_frames_are_independent_validated_and_never_stale() {
+        let (state, router) = setup();
+        assert_eq!(
+            call(router.clone(), "GET", "/api/oak/frame/0/color", json!({}))
+                .await
+                .0,
+            StatusCode::CONFLICT
+        );
+        assert_eq!(
+            call(router.clone(), "GET", "/api/oak/frame/3/color", json!({}))
+                .await
+                .0,
+            StatusCode::BAD_REQUEST
+        );
+        assert_eq!(
+            call(router.clone(), "GET", "/api/oak/frame/0/unknown", json!({}))
+                .await
+                .0,
+            StatusCode::BAD_REQUEST
+        );
+        state.config.lock().unwrap().oak.enabled = true;
+        {
+            let mut status = state.status.lock().unwrap();
+            status.oak.connected = true;
+            status.oak.data.cameras[0].connected = true;
+            status.oak.data.cameras[0].updated_at = Some(epoch());
+        }
+        state.oak_images.lock().unwrap()[0][0] =
+            Some((vec![0xff, 0xd8, 0xff, 0xd9], Instant::now()));
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/oak/frame/0/color")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.headers()[header::CONTENT_TYPE], "image/jpeg");
+        assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
+        assert_eq!(
+            &to_bytes(response.into_body(), 100).await.unwrap()[..],
+            &[0xff, 0xd8, 0xff, 0xd9]
+        );
+        assert_eq!(
+            call(router.clone(), "GET", "/api/oak/frame/1/color", json!({}))
+                .await
+                .0,
+            StatusCode::CONFLICT
+        );
+        assert_eq!(
+            call(router.clone(), "GET", "/api/oak/frame/0/depth", json!({}))
+                .await
+                .0,
+            StatusCode::CONFLICT
+        );
+        state.oak_images.lock().unwrap()[0][0].as_mut().unwrap().1 =
+            Instant::now() - Duration::from_secs(4);
+        assert_eq!(
+            call(router.clone(), "GET", "/api/oak/frame/0/color", json!({}))
+                .await
+                .0,
+            StatusCode::CONFLICT
+        );
+        state.oak_images.lock().unwrap()[0][0].as_mut().unwrap().1 = Instant::now();
+        state.status.lock().unwrap().oak.data.cameras[0].updated_at = Some(epoch() - 4.0);
+        assert_eq!(
+            call(router, "GET", "/api/oak/frame/0/color", json!({}))
+                .await
+                .0,
+            StatusCode::CONFLICT
+        );
     }
 
     #[tokio::test]
