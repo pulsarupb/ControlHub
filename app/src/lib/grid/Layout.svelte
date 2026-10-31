@@ -108,7 +108,13 @@ import TemplatesChoose from "./TemplatesChoose.svelte"
 </script>
 
 {#if enableInteractions && !preview}
-  <WorkspaceSwitcher getCanvas={() => section} />
+  <WorkspaceSwitcher
+    getCanvas={() => section}
+    previewKey={JSON.stringify([manager.WIDTH, manager.HEIGHT, manager.widgets.map((widget) => [
+      widget.id, widget.x, widget.y, widget.w, widget.h, widget.selected,
+      widget.widgets.map((panel) => panel.widgetID),
+    ])])}
+  />
 {/if}
 
 <div

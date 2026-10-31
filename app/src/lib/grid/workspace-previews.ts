@@ -1,9 +1,9 @@
 /** Capture the mounted dashboard once, then cut it into six workspace thumbnails.
  * Only the cloned document is changed: no scrolling or duplicate widget instances.
  */
-export async function captureWorkspacePreviews(canvas: HTMLElement) {
+export async function captureWorkspacePreviews(canvas: HTMLElement, canCapture = () => true) {
   const { default: html2canvas } = await import("html2canvas")
-  if (!canvas.isConnected) return null
+  if (!canvas.isConnected || !canCapture()) return null
 
   const width = canvas.clientWidth
   const height = canvas.clientHeight
