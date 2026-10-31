@@ -1,21 +1,28 @@
 <script lang="ts">
-  import { onMount, untrack } from "svelte"
+  import { onMount } from "svelte"
   import Portal from "svelte-portal"
   import { activeWorkspace, moveWorkspace, type WorkspaceDirection } from "./workspace.svelte"
   import { captureWorkspacePreviews } from "./workspace-previews"
 
-  let { getCanvas }: { getCanvas: () => HTMLElement | undefined } = $props()
+  let { getCanvas, previewKey }: { getCanvas: () => HTMLElement | undefined; previewKey: string } = $props()
   let previews = $state<Awaited<ReturnType<typeof captureWorkspacePreviews>>>(null)
   let loading = $state(false)
   let disposed = false
+  let capturedKey = ""
+  let capturedAt = 0
 
-  async function refreshPreviews() {
+  async function refreshPreviews(key: string) {
     const canvas = getCanvas()
-    if (!canvas || loading) return
+    if (!canvas || loading || holding || visible || disposed) return
+    if (previews && capturedKey === key && Date.now() - capturedAt < 30_000) return
     loading = true
     try {
-      const result = await captureWorkspacePreviews(canvas)
-      if (!disposed && result) previews = result
+      const result = await captureWorkspacePreviews(canvas, () => !holding && !visible && !disposed)
+      if (!disposed && result) {
+        previews = result
+        capturedKey = key
+        capturedAt = Date.now()
+      }
     } catch (error) {
       console.warn("Unable to capture workspace previews:", error)
     } finally {
@@ -27,9 +34,25 @@
     ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
   }
   let visible = $state(false)
+  let holding = $state(false)
 
   $effect(() => {
-    if (visible) untrack(() => { void refreshPreviews() })
+    const key = previewKey
+    if (visible || holding) return
+    // Never start a DOM snapshot on the keypress path. Warm the cache after
+    // startup/layout changes or closing the switcher, when the browser is idle.
+    let idle: number | undefined
+    const timer = setTimeout(() => {
+      if ("requestIdleCallback" in window) {
+        idle = window.requestIdleCallback(() => { void refreshPreviews(key) })
+      } else {
+        void refreshPreviews(key)
+      }
+    }, 1200)
+    return () => {
+      clearTimeout(timer)
+      if (idle !== undefined) window.cancelIdleCallback(idle)
+    }
   })
 
   function routeTo(column: number, row: number) {
@@ -43,7 +66,6 @@
 
   onMount(() => {
     let timer: ReturnType<typeof setTimeout> | undefined
-    let holding = false
     let suppressed = false
 
     function hide() {
@@ -70,7 +92,7 @@
         holding = true
         suppressed = blocked(event) || event.altKey || event.shiftKey || event.metaKey
         if (!suppressed) {
-          timer = setTimeout(() => { visible = true }, 180)
+          timer = setTimeout(() => { visible = true }, 100)
         }
         return
       }
@@ -129,7 +151,7 @@
                   {#if previews}
                     <img src={previews.images[row * 3 + column]} alt="Preview of workspace {row * 3 + column + 1}" />
                   {:else}
-                    <span class="preview-placeholder">{loading ? "Preparing preview…" : "Preview unavailable"}</span>
+                    <span class="preview-placeholder">Preview preparing in background</span>
                   {/if}
                 </div>
                 <div class="tile-caption">
@@ -163,7 +185,6 @@
     place-items: center;
     padding: 1rem;
     background: rgba(0, 0, 0, 0.78);
-    backdrop-filter: blur(8px);
     pointer-events: none;
   }
   section {
