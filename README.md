@@ -78,8 +78,29 @@ simulated device is labeled. Real IK requires the connected arm.
 
 **Do not deploy to the robot or enable motion until following
 [`docs/robot-validation.md`](docs/robot-validation.md). No Jetson was available
-during development.** Docker files are retained for existing core deployments;
-the full ZED/JetPack container runtime is not provisioned or validated here.
+during development.**
+
+### ZED2i in Docker (Ubuntu 24.04 Jetson)
+
+Install the host's matching ZED SDK, CUDA, TensorRT and NVIDIA Container Toolkit first;
+Docker must list the `nvidia` runtime. Compose mounts `/usr/local/zed` (including
+writable calibration/model caches) and `/usr/local/cuda`, and enables NVIDIA
+driver injection and USB hotplug through `/dev`. The entrypoint selectively links
+TensorRT shared libraries from a read-only host-library mount; it does not add
+the entire host library directory to the loader path. Do not mount host Python
+site-packages: the image supplies ABI-matched Ubuntu NumPy/OpenCV and pyzed.
+
+The default bindings are ZED SDK 5.4 / Python 3.12. Match the installed host SDK
+major.minor when building, for example:
+
+```sh
+ZED_SDK_VERSION=5.4 docker compose build driver
+docker compose run --rm --no-deps --entrypoint /usr/local/bin/controlhub-entrypoint driver python3 -c 'import cv2, numpy, pyzed.sl as sl; print(sl.Camera().get_sdk_version(), numpy.__version__, cv2.__version__)'
+docker compose up -d driver
+```
+
+Rebuild after changing the SDK version. These mounts require the SDK and CUDA
+directories to exist; this setup is not a portable x86 or older-Ubuntu image.
 
 ## Configuration and controls
 
