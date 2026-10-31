@@ -6,6 +6,7 @@
 
 {#if manager.place != null}
   <div
+    data-workspace-preview-ignore
     class:invalid={!manager.isValid}
     style="--x:{manager.place.x};--y:{manager.place.y};--w:{manager.place
       .w};--h:{manager.place.h};"

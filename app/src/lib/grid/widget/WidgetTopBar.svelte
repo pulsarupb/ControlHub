@@ -230,7 +230,7 @@
       </button>
     {/if}
   </div>
-  <div class="actions">
+  <div class="actions" data-workspace-preview-ignore>
     <WidgetOptions bind:widget />
     <WidgetResize bind:widget bind:isPossible />
   </div>

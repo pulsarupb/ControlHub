@@ -34,6 +34,7 @@
 
 {#if isMouse}
   <button
+    data-workspace-preview-ignore
     oncontextmenu={(e) => e.preventDefault()}
     onpointerdown={(e) => {
       if (e.button != 0 || !e.isPrimary) return
@@ -58,7 +59,7 @@
     style="--x:{x};--y:{y};">+</button
   >
 {:else}
-  <div style="--x:{x};--y:{y};"></div>
+  <div data-workspace-preview-ignore style="--x:{x};--y:{y};"></div>
 {/if}
 
 <style>
