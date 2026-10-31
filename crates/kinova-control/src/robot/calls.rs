@@ -164,15 +164,24 @@ impl RobotClient {
     /// Read the built-in action without motion, allowing a supervisor to check
     /// cancellation again before issuing ExecuteActionFromReference.
     pub async fn home_action(&mut self) -> Result<crate::api::base::ActionHandle, RobotError> {
-        self.read_home_action()
+        self.read_joint_action("Home")
             .await?
             .handle
             .ok_or_else(|| RobotError::ActionNotFound("Home".to_string()))
     }
 
+    /// Read the stored Rest action without motion, allowing a supervisor to
+    /// check cancellation again before issuing ExecuteActionFromReference.
+    pub async fn rest_action(&mut self) -> Result<crate::api::base::ActionHandle, RobotError> {
+        self.read_joint_action("Rest")
+            .await?
+            .handle
+            .ok_or_else(|| RobotError::ActionNotFound("Rest".to_string()))
+    }
+
     /// Returns the built-in Home pose without commanding motion.
     pub async fn home_pose(&mut self) -> Result<Pose, RobotError> {
-        let action = self.read_home_action().await?;
+        let action = self.read_joint_action("Home").await?;
         let joints = match action.action_parameters {
             Some(ActionParameters::ReachJointAngles(constrained)) => constrained
                 .joint_angles
@@ -187,7 +196,7 @@ impl RobotClient {
             .await
     }
 
-    async fn read_home_action(&mut self) -> Result<Action, RobotError> {
+    async fn read_joint_action(&mut self, name: &str) -> Result<Action, RobotError> {
         let req = RequestedActionType {
             action_type: ActionType::ReachJointAngles as i32,
         };
@@ -197,8 +206,8 @@ impl RobotClient {
 
         list.action_list
             .into_iter()
-            .find(|a| a.name == "Home")
-            .ok_or_else(|| RobotError::ActionNotFound("Home".to_string()))
+            .find(|a| a.name == name)
+            .ok_or_else(|| RobotError::ActionNotFound(name.to_string()))
     }
 
     pub async fn read_protection_zones(&mut self) -> Result<Vec<ProtectionZone>, RobotError> {

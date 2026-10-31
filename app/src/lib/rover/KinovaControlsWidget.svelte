@@ -17,7 +17,7 @@
   let expiredTarget = $state("")
   let invalidInputs = $state<number[]>([])
   let confirmationElement = $state<HTMLDivElement>()
-  let pendingConfirmation = $state<"execute" | "move" | "home" | "install-zone" | null>(null)
+  let pendingConfirmation = $state<"execute" | "move" | "home" | "rest" | "install-zone" | null>(null)
   let confirmedTarget = $state("")
   let confirmedPreview = $state<number | null>(null)
   const targetSignature = $derived(JSON.stringify(hardware.target))
@@ -29,7 +29,7 @@
   const blockedReason = $derived(!device?.connected ? "Connect the arm to use motion controls." : !device.data.armed ? "Enable the arm to use motion controls." : moving ? "A Cartesian move is in progress." : "")
   const confirmationValid = $derived(pendingConfirmation === "install-zone"
     ? Boolean(device?.connected && !device.data.armed)
-    : ready && !moving && (pendingConfirmation === "home" || (validTarget && confirmedTarget === targetSignature && (pendingConfirmation !== "execute" || (previewReady && hardware.preview?.id === confirmedPreview)))))
+    : ready && !moving && (pendingConfirmation === "home" || pendingConfirmation === "rest" || (validTarget && confirmedTarget === targetSignature && (pendingConfirmation !== "execute" || (previewReady && hardware.preview?.id === confirmedPreview)))))
 
   onMount(() => {
     const timer = setInterval(() => now = Date.now() / 1000, 250)
@@ -103,6 +103,7 @@
       await armAction({ action: "execute", preview_id: id })
     } else if (action === "move") await moveCartesian()
     else if (action === "home") await armAction({ action: "home" })
+    else if (action === "rest") await armAction({ action: "rest" })
     else if (action === "install-zone") await installRearZone()
   }
   async function moveCartesian() {
@@ -177,7 +178,7 @@
     {#if pendingConfirmation}
       <div class="notice warning confirmation" role="group" aria-label="Confirm arm motion" tabindex="-1" bind:this={confirmationElement}>
         <strong>{pendingConfirmation === "install-zone" ? "Confirm safety setup" : "Confirm arm motion"}</strong>
-        <p>{pendingConfirmation === "execute" ? "Execute the IK preview? IK does not check collisions. Check the full path is clear." : pendingConfirmation === "move" ? "Move using Kortex Cartesian ReachPose? Limited to 20 mm and 5° from measured pose; no collision checking." : pendingConfirmation === "home" ? "Move to built-in Home? Check the full path is clear." : "Install the persistent Kortex rear safety zone? Arm power must be off. Leave the USB/controller connection powered; this action does not move the arm."}</p>
+        <p>{pendingConfirmation === "execute" ? "Execute the IK preview? IK does not check collisions. Check the full path is clear." : pendingConfirmation === "move" ? "Move using Kortex Cartesian ReachPose? Limited to 20 mm and 5° from measured pose; no collision checking." : pendingConfirmation === "home" ? "Move to built-in Home? Check the full path is clear." : pendingConfirmation === "rest" ? "Move to stored Rest position? Check the full path is clear." : "Install the persistent Kortex rear safety zone? Arm power must be off. Leave the USB/controller connection powered; this action does not move the arm."}</p>
         {#if pendingConfirmation !== "install-zone"}<p class="hint">The arm heartbeat remains active while you decide.</p>{/if}
         {#if !confirmationValid}<p role="status">Target, preview, or arm state changed. Cancel and review before continuing.</p>{/if}
         <div class="actions"><button onclick={() => pendingConfirmation = null}>Cancel</button><button class="primary" disabled={!confirmationValid} onclick={confirmPendingAction}>{pendingConfirmation === "install-zone" ? "Install zone" : "Confirm motion"}</button></div>
@@ -185,8 +186,8 @@
     {/if}
     {#if moveMessage}<p class="notice" role="status">{moveMessage}</p>{/if}
 
-    <div class="utilities"><button disabled={!canMove} onclick={() => confirm("home")}>Home arm</button><span class="hint">{device?.data.rear_boundary?.controller_zone_installed ? "Rear controller zone installed" : "Rear zone not verified"}</span></div>
-    <details class="diagnostics"><summary>Safety & diagnostics</summary><p>Rear no-go plane: 8 cm behind the base, aligned to the base X axis.</p><p>Arm state: {device?.data.arm_state ?? "—"} · Controller zone: {device?.data.rear_boundary?.controller_zone_installed ? "Installed" : "Not verified"}</p><button disabled={!device?.connected || moving || Boolean(pendingConfirmation)} onclick={() => armAction({ action: "clear_faults" })}>Clear faults</button></details>
+    <div class="utilities"><button disabled={!canMove} onclick={() => confirm("home")}>Home arm</button><button disabled={!canMove} onclick={() => confirm("rest")}>Rest arm</button><span class="hint">{device?.data.rear_boundary?.controller_zone_installed ? "Rear controller zone installed" : "Rear zone not verified"}</span></div>
+    <details class="diagnostics"><summary>Safety & diagnostics</summary><p>Rear no-go plane: 10 cm behind the base, aligned to the base X axis.</p><p>Arm state: {device?.data.arm_state ?? "—"} · Controller zone: {device?.data.rear_boundary?.controller_zone_installed ? "Installed" : "Not verified"}</p><button disabled={!device?.connected || moving || Boolean(pendingConfirmation)} onclick={() => armAction({ action: "clear_faults" })}>Clear faults</button></details>
   </div>
 </section>
 

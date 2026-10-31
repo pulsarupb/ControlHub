@@ -556,6 +556,20 @@ mod tests {
         .await
         .unwrap();
         let router = router(state.clone());
+        let (code, error) = call(
+            router.clone(),
+            "POST",
+            "/api/arm/action",
+            json!({"action":"rest"}),
+        )
+        .await;
+        assert_eq!(code, StatusCode::BAD_REQUEST);
+        assert!(
+            error["error"]
+                .as_str()
+                .unwrap()
+                .contains("explicit enable required")
+        );
         assert_eq!(
             call(
                 router.clone(),
@@ -568,6 +582,17 @@ mod tests {
             StatusCode::OK
         );
         assert!(state.arm_enabled.load(Ordering::SeqCst));
+        assert_eq!(
+            call(
+                router.clone(),
+                "POST",
+                "/api/arm/action",
+                json!({"action":"rest"})
+            )
+            .await
+            .0,
+            StatusCode::OK
+        );
         *state.arm_seen.lock().unwrap() = Instant::now() - Duration::from_secs(1);
         tokio::time::timeout(Duration::from_secs(2), async {
             while state.arm_enabled.load(Ordering::SeqCst) {
@@ -578,6 +603,17 @@ mod tests {
         .unwrap();
         call(router.clone(), "POST", "/api/heartbeat", json!({})).await;
         assert!(!state.arm_enabled.load(Ordering::SeqCst));
+        assert_eq!(
+            call(
+                router.clone(),
+                "POST",
+                "/api/arm/action",
+                json!({"action":"rest"})
+            )
+            .await
+            .0,
+            StatusCode::BAD_REQUEST
+        );
         assert_eq!(
             call(
                 router.clone(),

@@ -13,7 +13,7 @@ const MAX_CARTESIAN_ROTATION_DEG: f32 = 5.0;
 const CARTESIAN_MOTION_TIMEOUT: Duration = Duration::from_secs(15);
 const CARTESIAN_POSITION_TOLERANCE_M: f32 = 0.001;
 const CARTESIAN_ROTATION_TOLERANCE_DEG: f32 = 0.5;
-const REAR_WALL_OFFSET_M: f32 = -0.08;
+const REAR_WALL_OFFSET_M: f32 = -0.10;
 const REAR_ZONE_LENGTH_M: f32 = 2.0;
 const REAR_ZONE_WIDTH_M: f32 = 3.0;
 const REAR_ZONE_HEIGHT_M: f32 = 3.0;
@@ -90,7 +90,7 @@ impl RearBoundary {
 
     fn validate_target(&self, target: &[f32; 6]) -> Result<(), String> {
         if self.signed_distance(target) < 0.0 {
-            return Err("target is behind the 8 cm rear protection plane".into());
+            return Err("target is behind the 10 cm rear protection plane".into());
         }
         Ok(())
     }
@@ -145,6 +145,7 @@ impl RearBoundary {
 pub enum Action {
     Enable,
     Home,
+    Rest,
     ClearFaults,
     Gripper { position: f32 },
     Solve { pose: [f32; 6] },
@@ -522,13 +523,18 @@ async fn action(
                         data.gripper = Some(*position);
                     }
                 }
-                Action::Home => {
+                Action::Home | Action::Rest => {
                     data.preview = None;
                     if !state.simulate {
-                        let home = robot.home_action().await.map_err(|e| e.to_string())?;
+                        let handle = match action {
+                            Action::Home => robot.home_action().await,
+                            Action::Rest => robot.rest_action().await,
+                            _ => unreachable!(),
+                        }
+                        .map_err(|e| e.to_string())?;
                         check_generation(state, generation)?;
                         robot
-                            .execute_action_reference(home)
+                            .execute_action_reference(handle)
                             .await
                             .map_err(|e| e.to_string())?;
                     }
@@ -825,13 +831,15 @@ mod tests {
         })
         .unwrap();
         assert_eq!(boundary.forward, [1.0, 0.0]);
-        assert_eq!(boundary.wall_offset_m, -0.08);
+        assert_eq!(boundary.wall_offset_m, -0.10);
 
         let mut target = [0.0; 6];
-        target[0] = -0.07;
+        target[0] = -0.09;
         target[1] = 0.5;
         assert!(boundary.validate_target(&target).is_ok());
-        target[0] = -0.09;
+        target[0] = -0.10;
+        assert!(boundary.validate_target(&target).is_ok());
+        target[0] = -0.11;
         target[1] = -0.5;
         assert!(boundary.validate_target(&target).is_err());
     }
@@ -891,6 +899,9 @@ mod tests {
             envelope_limitations: Vec::new(),
         };
         assert!(boundary.controller_zone_matches(&zone));
+        let mut old_zone = zone.clone();
+        old_zone.shape.as_mut().unwrap().origin.as_mut().unwrap().x += 0.02;
+        assert!(!boundary.controller_zone_matches(&old_zone));
         let mut disabled = zone.clone();
         disabled.is_enabled = false;
         assert!(!boundary.controller_zone_matches(&disabled));
