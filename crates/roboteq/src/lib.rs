@@ -359,9 +359,11 @@ mod tests {
     #[test]
     fn acceleration_and_deceleration_are_ramped_and_stop_is_immediate() {
         let start = Instant::now();
-        let mut config = Config::default();
-        config.acceleration_time_ms = 250;
-        config.deceleration_time_ms = 250;
+        let config = Config {
+            acceleration_time_ms: 250,
+            deceleration_time_ms: 250,
+            ..Config::default()
+        };
         let mut drive = Drive::default();
         drive.enable(start);
         drive.command(1.0, 0.0, start).unwrap();
@@ -400,8 +402,10 @@ mod tests {
 
     #[test]
     fn rejects_ramp_times_above_five_seconds() {
-        let mut config = Config::default();
-        config.acceleration_time_ms = 5001;
+        let mut config = Config {
+            acceleration_time_ms: 5001,
+            ..Config::default()
+        };
         assert!(config.validate().is_err());
         config.acceleration_time_ms = 5000;
         assert!(config.validate().is_ok());
