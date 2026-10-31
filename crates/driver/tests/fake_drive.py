@@ -27,6 +27,7 @@ class Controller:
         self.running = True
         self.delay_enable = False
         self.enabling = threading.Event()
+        self.watchdog = "500"
         self.thread = threading.Thread(target=self.run, daemon=True)
         self.thread.start()
 
@@ -55,7 +56,9 @@ class Controller:
                         reply = "+"
                     else:
                         prefix = command[1:].split()[0]
-                        value = {"RWD": "500", "MXMD": "0:0", "MMOD": "0",
+                        value = {"RWD": self.watchdog, "MXMD": "0:0", "MMOD": "0",
+                                 "FID": "Roboteq v1.4a SDC2XXX", "TRN": "SDC2XXX:SDC2130",
+                                 "DFC": "0:0", "PINA": "0:0:0:0:0", "AINA": "0:0:0:0",
                                  "FF": "16" if self.stopped else "0", "C": "0", "S": "0"}[prefix]
                         reply = f"{prefix}={value}"
                     os.write(self.master, (reply + "\r").encode("ascii"))
@@ -147,6 +150,14 @@ class PairedDriveTests(unittest.TestCase):
         self.api("/api/drive/enable", {}, "POST")
         self.assertTrue(self.controllers[1].enabling.wait(timeout=2))
         self.api("/api/stop", {}, "POST")
+        self.wait(lambda: all(c.stopped and c.power == [0, 0] for c in self.controllers))
+        self.assertFalse(self.drive()["data"]["armed"])
+
+    def test_configuration_change_stops_both(self):
+        self.api("/api/drive/enable", {}, "POST")
+        self.api("/api/control", {"throttle": 1, "steering": 0})
+        self.wait(lambda: all(c.power == [100, 100] for c in self.controllers))
+        self.controllers[0].watchdog = "0"
         self.wait(lambda: all(c.stopped and c.power == [0, 0] for c in self.controllers))
         self.assertFalse(self.drive()["data"]["armed"])
 

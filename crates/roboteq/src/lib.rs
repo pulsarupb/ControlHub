@@ -211,9 +211,10 @@ impl Drive {
             {
                 let target = *target as f32;
                 let current = *channel;
-                let reversing = current.signum() != 0.0
-                    && target.signum() != 0.0
-                    && current.signum() != target.signum();
+                // Float signum is +1/-1 even for signed zero. Zero is rest,
+                // not a direction: otherwise negative targets latch at zero.
+                let reversing =
+                    current != 0.0 && target != 0.0 && current.signum() != target.signum();
                 let accelerating = !reversing && target.abs() > current.abs();
                 let ramp_time_ms = if accelerating {
                     config.acceleration_time_ms
@@ -322,6 +323,68 @@ mod tests {
         assert!(config.validate().is_err());
         config.acceleration_time_ms = 5000;
         assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn rover16_all_directions_ramp_from_rest() {
+        let mut config = Config::default();
+        for motor in &mut config.motors {
+            motor.direction = if motor.controller == 0 { -1 } else { 1 };
+        }
+        for (throttle, steering, expected) in [
+            (1.0, 0.0, [[-10, -10], [10, 10]]),
+            (-1.0, 0.0, [[10, 10], [-10, -10]]),
+            (0.0, 1.0, [[-10, -10], [-10, -10]]),
+            (0.0, -1.0, [[10, 10], [10, 10]]),
+        ] {
+            let start = Instant::now();
+            let mut drive = Drive::default();
+            drive.enable(start);
+            drive.command(throttle, steering, start).unwrap();
+            assert_eq!(drive.output(&config, start).unwrap(), [[0; 2]; 2]);
+            assert_eq!(
+                drive
+                    .output(&config, start + Duration::from_millis(25))
+                    .unwrap(),
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn reversal_crosses_zero_then_accelerates_negative() {
+        let start = Instant::now();
+        let config = Config::default();
+        let mut drive = Drive::default();
+        drive.enable(start);
+        drive.command(1.0, 0.0, start).unwrap();
+        assert_eq!(
+            drive
+                .output(&config, start + Duration::from_millis(250))
+                .unwrap(),
+            [[100; 2]; 2]
+        );
+        drive
+            .command(-1.0, 0.0, start + Duration::from_millis(250))
+            .unwrap();
+        assert_eq!(
+            drive
+                .output(&config, start + Duration::from_millis(375))
+                .unwrap(),
+            [[50; 2]; 2]
+        );
+        assert_eq!(
+            drive
+                .output(&config, start + Duration::from_millis(500))
+                .unwrap(),
+            [[0; 2]; 2]
+        );
+        assert_eq!(
+            drive
+                .output(&config, start + Duration::from_millis(525))
+                .unwrap(),
+            [[-10; 2]; 2]
+        );
     }
 
     #[test]

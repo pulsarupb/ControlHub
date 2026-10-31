@@ -16,33 +16,86 @@ impl Controller<Box<dyn serialport::SerialPort>> {
         // mistaken for new configuration replies when reopening a healthy peer.
         port.clear(serialport::ClearBuffer::Input)?;
         let mut controller = Self::new(port);
-        controller.stop()?;
-        // Runtime-only configuration: never save to controller flash.
-        for command in [
-            "^MMOD 1 0".into(),
-            "^MMOD 2 0".into(),
-            format!("^RWD {WATCHDOG_MS}"),
-        ] {
-            controller.command(&command)?;
-        }
-        for channel in [1, 2] {
-            if controller.query(&format!("~MMOD {channel}"), "MMOD")? != "0" {
-                return Err(io::Error::other("controller is not in open-loop mode"));
-            }
-        }
-        if !matches!(controller.query("~MXMD", "MXMD")?.as_str(), "0" | "0:0") {
-            return Err(io::Error::other(
-                "controller channels must be independent (MXMD all-zero)",
-            ));
-        }
-        if controller.query("~RWD", "RWD")? != WATCHDOG_MS.to_string() {
-            return Err(io::Error::other("controller watchdog readback mismatch"));
-        }
+        controller.install_open_loop_safety()?;
         Ok(controller)
     }
 }
 
 impl<T: Read + Write> Controller<T> {
+    fn install_open_loop_safety(&mut self) -> io::Result<()> {
+        self.stop()?;
+        let fid = self.query("?FID", "FID")?;
+        let trn = self.query("?TRN", "TRN")?;
+        if !fid.to_ascii_uppercase().contains("ROBOTEQ")
+            || !trn.to_ascii_uppercase().contains("SDC2130")
+        {
+            return Err(io::Error::other(format!(
+                "unexpected controller identity: {trn} / {fid}"
+            )));
+        }
+        // Runtime-only configuration: never save to controller flash.
+        for command in ["^MMOD 1 0".into(), "^MMOD 2 0".into(), "^DFC 0 0".into()]
+            .into_iter()
+            .chain((1..=5).map(|channel| format!("^PINA {channel} 0")))
+            .chain((1..=4).map(|channel| format!("^AINA {channel} 0")))
+            .chain([format!("^RWD {WATCHDOG_MS}")])
+        {
+            self.command(&command)?;
+        }
+        self.verify_drive_mode()?;
+        for (command, prefix, expected) in [
+            ("~DFC", "DFC", "0:0"),
+            ("~PINA", "PINA", "0:0:0:0:0"),
+            ("~AINA", "AINA", "0:0:0:0"),
+        ] {
+            let value = self.query(command, prefix)?;
+            if value != expected {
+                return Err(io::Error::other(format!(
+                    "{prefix} readback mismatch: {value}"
+                )));
+            }
+        }
+        self.require_faults(16)
+    }
+
+    pub fn verify_setting(&mut self, index: usize) -> io::Result<()> {
+        let (command, prefix, expected) = [
+            ("~RWD", "RWD", WATCHDOG_MS.to_string()),
+            ("~MMOD 1", "MMOD", "0".into()),
+            ("~MMOD 2", "MMOD", "0".into()),
+        ][index % 3]
+            .clone();
+        let value = self.query(command, prefix)?;
+        if value != expected {
+            return Err(io::Error::other(format!(
+                "{command} changed: {value}; expected {expected}"
+            )));
+        }
+        Ok(())
+    }
+
+    fn verify_drive_mode(&mut self) -> io::Result<()> {
+        for index in 0..3 {
+            self.verify_setting(index)?;
+        }
+        if !matches!(self.query("~MXMD", "MXMD")?.as_str(), "0" | "0:0") {
+            return Err(io::Error::other(
+                "controller channels must be independent (MXMD all-zero)",
+            ));
+        }
+        Ok(())
+    }
+
+    fn require_faults(&mut self, expected: i32) -> io::Result<()> {
+        let value = self.query("?FF", "FF")?;
+        let flags = value.parse::<i32>().map_err(io::Error::other)?;
+        if flags != expected {
+            return Err(io::Error::other(format!(
+                "controller FF={flags} ({flags:#x}); expected {expected}"
+            )));
+        }
+        Ok(())
+    }
     pub fn new(io: T) -> Self {
         Self { io }
     }
@@ -145,12 +198,10 @@ impl<T: Read + Write> Controller<T> {
     }
 
     pub fn enable(&mut self) -> io::Result<()> {
+        self.verify_drive_mode()?;
         self.power([0, 0])?;
         self.command("!MG")?;
-        if self.query("?FF", "FF")? != "0" {
-            return Err(io::Error::other("controller reports faults"));
-        }
-        Ok(())
+        self.require_faults(0)
     }
 
     pub fn power(&mut self, power: [i16; 2]) -> io::Result<()> {
@@ -233,5 +284,40 @@ mod tests {
         let mut c = controller("-\r+\r+\r+\r+\r");
         assert!(c.stop().is_err());
         assert_eq!(c.io.output, b"!G 1 0\r!G 2 0\r!MS 1\r!MS 2\r!EX\r");
+    }
+
+    fn setup_reply(pina: &str) -> String {
+        format!(
+            "{}FID=Roboteq v1.4a\rTRN=SDC2XXX:SDC2130\r{}RWD=500\rMMOD=0\rMMOD=0\rMXMD=0:0\rDFC=0:0\rPINA={pina}\rAINA=0:0:0:0\rFF=16\r",
+            "+\r".repeat(5),
+            "+\r".repeat(13)
+        )
+    }
+
+    #[test]
+    fn initialization_verifies_input_configuration_before_arming() {
+        let mut c = controller(&setup_reply("0:0:0:0:0"));
+        c.install_open_loop_safety().unwrap();
+        let commands = String::from_utf8(c.io.output.clone()).unwrap();
+        assert!(commands.contains("^DFC 0 0\r"));
+        assert!(commands.contains("^PINA 5 0\r"));
+        assert!(commands.contains("^AINA 4 0\r"));
+        assert!(!commands.contains("!MG"));
+        let mut c = controller(&setup_reply("17:33:0:0:0"));
+        assert!(
+            c.install_open_loop_safety()
+                .unwrap_err()
+                .to_string()
+                .contains("PINA")
+        );
+    }
+
+    #[test]
+    fn enable_rejects_changed_mode_and_reports_remaining_fault() {
+        let mut c = controller("RWD=500\rMMOD=1\r");
+        assert!(c.enable().is_err());
+        assert!(!String::from_utf8_lossy(&c.io.output).contains("!MG"));
+        let mut c = controller("RWD=500\rMMOD=0\rMMOD=0\rMXMD=0:0\r+\r+\r+\rFF=18\r");
+        assert!(c.enable().unwrap_err().to_string().contains("FF=18 (0x12)"));
     }
 }
