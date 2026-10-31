@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import pty
 import select
+import shutil
 import socket
 import subprocess
 import tempfile
@@ -171,6 +172,66 @@ class PairedDriveTests(unittest.TestCase):
         self.api("/api/drive/enable", {}, "POST")
         self.wait(lambda: all(not c.stopped for c in self.controllers))
         self.assertTrue(all(c.power == [0, 0] for c in self.controllers))
+
+    def test_zed_yaw_corrects_without_encoders_and_feedback_loss_stops_both(self):
+        # Restart with a real supervised JSON sidecar, but no SDK/camera hardware.
+        self.process.terminate()
+        self.process.wait(timeout=5)
+        # Linux PTY exclusive-open state can survive the slave's process exit.
+        for controller in self.controllers:
+            controller.close()
+        self.controllers = [Controller(), Controller()]
+        self.config["drive"]["ports"] = [c.path for c in self.controllers]
+        root = Path(__file__).resolve().parents[3]
+        project = Path(self.directory.name)
+        for name in ("pyproject.toml", "uv.lock"):
+            shutil.copy(root / "crates/zed/sidecar" / name, project / name)
+        mode = project / "mode"
+        mode.write_text("ok")
+        script = project / "fake_zed.py"
+        script.write_text('''import json, math, sys, time
+from pathlib import Path
+json.loads(sys.stdin.readline())
+start = time.monotonic()
+while True:
+    now = time.time()
+    mode = Path(__file__).with_name("mode").read_text()
+    yaw = (time.monotonic() - start) * 0.1
+    print(json.dumps({"type":"odometry", "orientation": None if mode == "lost" else [0,0,math.sin(yaw/2),math.cos(yaw/2)],
+                      "timestamp": now, "captured_at": now - (2 if mode == "stale" else 0), "epoch":0}), flush=True)
+    time.sleep(0.02)
+''')
+        self.config["drive"]["yaw_control"].update(enabled=True, heading_hold=False)
+        self.config["zed"].update(enabled=True, mount_configured=True)
+        self.config["zed"]["settings"]["tracking"]["enable_area_memory"] = False
+        (project / "config.json").write_text(json.dumps(self.config))
+        self.process = subprocess.Popen(
+            [*self.process.args, "--sidecar", str(script)],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.wait(lambda: self.api("/api/health")[0] == 200)
+        self.wait(lambda: self.drive()["connected"])
+        self.wait(lambda: self.api("/api/drive/enable", {}, "POST")[0] == 200)
+
+        def corrected():
+            self.api("/api/control", {"throttle": .3, "steering": 0})
+            yaw = self.drive()["data"]["yaw_control"]
+            return (yaw["active"] and yaw["correction"] > .005
+                    and self.controllers[0].power[0] > self.controllers[1].power[0])
+
+        self.wait(corrected)
+        # Controller emulators return zero encoder counts/RPM throughout this test.
+        for failure in ("lost", "stale"):
+            mode.write_text(failure)
+            self.wait(lambda: all(c.stopped and c.power == [0, 0] for c in self.controllers))
+            self.assertEqual(self.api("/api/control", {"throttle": .3, "steering": 0})[0], 400)
+            mode.write_text("ok")
+            time.sleep(.1)
+            self.assertFalse(self.drive()["data"]["armed"])
+            self.wait(lambda: self.drive()["connected"])
+            self.wait(lambda: self.api("/api/drive/enable", {}, "POST")[0] == 200)
+            self.wait(corrected)
+        self.api("/api/stop", {}, "POST")
+        self.wait(lambda: all(c.stopped and c.power == [0, 0] for c in self.controllers))
 
 
 if __name__ == "__main__":

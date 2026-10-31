@@ -51,10 +51,13 @@ fn session(state: &AppState, config: &roboteq::Config) -> Result<(), String> {
             return Ok(());
         }
         let generation = state.drive_generation.load(Ordering::SeqCst);
+        let feedback = *state.yaw_feedback.lock().unwrap();
+        // Sample first: a concurrent camera update must not look future-dated.
         let now = Instant::now();
         let (armed, power) = {
             let mut drive = state.drive.lock().unwrap();
-            (drive.armed(now), drive.output(config, now)?)
+            let power = drive.output_with_feedback(config, now, feedback)?;
+            (drive.armed(now), power)
         };
         if let Some(c) = &mut controllers {
             // A failure drops BOTH controllers, whose Drop sends a best-effort
@@ -110,10 +113,12 @@ fn session(state: &AppState, config: &roboteq::Config) -> Result<(), String> {
             }
         }
         hardware_armed = armed;
+        let yaw_control = state.drive.lock().unwrap().yaw_status();
         state.status.lock().unwrap().drive.update(DriveData {
             armed,
             power,
             controllers: telemetry.clone(),
+            yaw_control,
         });
         std::thread::sleep(Duration::from_millis(20));
     }

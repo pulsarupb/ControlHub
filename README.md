@@ -5,7 +5,7 @@ server running on one Jetson. Hardware support lives in four independent crates:
 
 | Crate | Responsibility |
 |---|---|
-| `roboteq` | Two USB SDC2130 controllers, four mapped motors, open-loop tank drive |
+| `roboteq` | Two USB SDC2130 controllers, four mapped motors, tank drive with optional ZED yaw PI |
 | `kinova-control` | Native Kortex TCP, measured state, joint/Cartesian control and IK |
 | `rtk` | Serial NMEA receiver and configurable NTRIP correction forwarding |
 | `zed` | Supervised, modular Python/pyzed camera, depth, tracking and mapping |
@@ -13,6 +13,13 @@ server running on one Jetson. Hardware support lives in four independent crates:
 No ROS, AI/inference or autonomous driving is included. **RTK and ZED localization
 are independent; no GNSS fixes or fixtures are sent to ZED.** Wheel encoders are
 telemetry only, never a source of map pose.
+
+### Encoder-free ZED steering feedback
+
+Optional ZED yaw-rate PI control and straight-line heading hold are available in
+Settings under **drive → yaw control**. See [setup and commissioning](docs/zed-yaw-control.md).
+This corrects chassis turning response under slip; it does not measure individual
+wheel slip or regulate forward speed. It is disabled by default and needs hardware tuning.
 
 ## Local development
 

@@ -56,6 +56,7 @@ def run(cfg, commands, emit):
         path, points, colors = [], [], []
         last_publish = last_map = 0.0
         grab_failures = 0
+        odometry_epoch = 0
 
         while True:
             try:
@@ -64,6 +65,7 @@ def run(cfg, commands, emit):
                     if command["type"] == "shutdown":
                         return
                     if command["type"] == "reset":
+                        odometry_epoch += 1
                         if mapping:
                             camera.disable_spatial_mapping()
                         code = camera.reset_positional_tracking(sl.Transform())
@@ -88,12 +90,17 @@ def run(cfg, commands, emit):
                 time.sleep(0.01)
                 continue
             grab_failures = 0
+            captured_at = time.time()
+            tracking = camera.get_position(pose)
+            current_pose = pose_data(pose) if tracking == sl.POSITIONAL_TRACKING_STATE.OK else None
+            # Small control message on EVERY frame, independent of 10 Hz UI/map updates.
+            emit({"type": "odometry", "orientation": current_pose["orientation"] if current_pose else None,
+                  "timestamp": camera.get_timestamp(sl.TIME_REFERENCE.IMAGE).get_nanoseconds() / 1e9,
+                  "captured_at": captured_at, "epoch": odometry_epoch})
             now = time.monotonic()
             if now - last_publish < 0.1:
                 continue
             last_publish = now
-            tracking = camera.get_position(pose)
-            current_pose = pose_data(pose) if tracking == sl.POSITIONAL_TRACKING_STATE.OK else None
             if current_pose:
                 path.append(current_pose)
                 path = path[-3000:]

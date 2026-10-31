@@ -8,7 +8,12 @@
 <section>
   <h3>Wheels / controllers</h3>
   <DeviceStatus device={drive} />
-  <p>{drive?.data.armed ? "Drive enabled" : "Drive stopped"} · Open-loop power, no wheel pose</p>
+  <p>{drive?.data.armed ? "Drive enabled" : "Drive stopped"} · {hardware.config?.drive.yaw_control?.enabled ? "ZED yaw feedback · no wheel encoders required" : "Open-loop power, no wheel pose"}</p>
+  {#if hardware.config?.drive.yaw_control?.enabled && drive?.data.yaw_control}
+    {@const yaw = drive.data.yaw_control}
+    <p>{yaw.active ? "Yaw PI active" : "Yaw PI idle / awaiting feedback"}{yaw.heading_held ? " · Heading hold" : ""}<br />
+      Target {yaw.target_rate_rad_s.toFixed(3)} / measured {yaw.measured_rate_rad_s.toFixed(3)} rad/s · Correction {yaw.correction.toFixed(3)}</p>
+  {/if}
   <table><thead><tr><th>Wheel</th><th>Link</th><th>Power</th><th>Counts</th><th>RPM</th><th>Fault</th></tr></thead>
     <tbody>{#each hardware.config?.drive.motors ?? [] as m, i}
       {@const c = drive?.data.controllers[m.controller]}

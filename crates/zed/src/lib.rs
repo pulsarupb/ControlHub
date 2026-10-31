@@ -35,6 +35,36 @@ impl Default for Config {
 }
 
 impl Config {
+    /// SDK quaternion is [x,y,z,w]; mount is camera-to-base Rz(yaw)Ry(pitch)Rx(roll).
+    pub fn base_yaw(&self, orientation: [f64; 4]) -> Option<f64> {
+        if !self.mount_configured || !orientation.iter().all(|v| v.is_finite()) {
+            return None;
+        }
+        let norm = orientation.iter().map(|v| v * v).sum::<f64>().sqrt();
+        if !(0.9..=1.1).contains(&norm) {
+            return None;
+        }
+        let [x, y, z, w] = orientation.map(|v| v / norm);
+        let [r, p, h] = self.mount_rotation_deg.map(|v| v.to_radians() / 2.0);
+        let (sr, cr) = r.sin_cos();
+        let (sp, cp) = p.sin_cos();
+        let (sh, ch) = h.sin_cos();
+        let a = -(sr * cp * ch - cr * sp * sh);
+        let b = -(cr * sp * ch + sr * cp * sh);
+        let c = -(cr * cp * sh - sr * sp * ch);
+        let d = cr * cp * ch + sr * sp * sh;
+        let bx = w * a + x * d + y * c - z * b;
+        let by = w * b - x * c + y * d + z * a;
+        let bz = w * c + x * b - y * a + z * d;
+        let bw = w * d - x * a - y * b - z * c;
+        let forward_x = 1.0 - 2.0 * (by * by + bz * bz);
+        let forward_y = 2.0 * (bx * by + bw * bz);
+        if forward_x.hypot(forward_y) < 0.1 {
+            return None;
+        }
+        Some(forward_y.atan2(forward_x))
+    }
+
     pub fn validate(&self) -> Result<(), String> {
         if self.python.is_empty()
             || !self
@@ -102,9 +132,22 @@ pub struct Snapshot {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Event {
-    State { state: Box<Snapshot> },
-    Image { kind: String, jpeg: String },
-    Error { error: String },
+    Odometry {
+        orientation: Option<[f64; 4]>,
+        timestamp: f64,
+        captured_at: f64,
+        epoch: u64,
+    },
+    State {
+        state: Box<Snapshot>,
+    },
+    Image {
+        kind: String,
+        jpeg: String,
+    },
+    Error {
+        error: String,
+    },
 }
 
 impl Event {
@@ -282,6 +325,28 @@ mod tests {
         let mut c = Config::default();
         c.settings["mapping"]["enabled"] = "true".into();
         assert!(c.validate().is_err());
+    }
+
+    #[test]
+    fn yaw_uses_verified_mount_and_normalized_sdk_quaternion() {
+        let mut c = Config::default();
+        assert!(c.base_yaw([0.0, 0.0, 0.0, 1.0]).is_none());
+        c.mount_configured = true;
+        assert_eq!(c.base_yaw([0.0; 4]), None);
+        assert_eq!(c.base_yaw([f64::NAN, 0.0, 0.0, 1.0]), None);
+        let h = std::f64::consts::FRAC_PI_4;
+        assert!((c.base_yaw([0.0, 0.0, h.sin(), h.cos()]).unwrap() - 2.0 * h).abs() < 1e-10);
+        c.mount_rotation_deg = [0.0, 0.0, 90.0];
+        assert!(c.base_yaw([0.0, 0.0, h.sin(), h.cos()]).unwrap().abs() < 1e-10);
+        // Camera rolled 90 degrees in base: removing full mount rotation matters.
+        c.mount_rotation_deg = [90.0, 0.0, 0.0];
+        assert!(c.base_yaw([h.sin(), 0.0, 0.0, h.cos()]).unwrap().abs() < 1e-10);
+    }
+
+    #[test]
+    fn odometry_protocol_is_sdk_free() {
+        let event: Event = serde_json::from_str(r#"{"type":"odometry","orientation":[0,0,0,1],"timestamp":1.25,"captured_at":2.0,"epoch":3}"#).unwrap();
+        assert!(matches!(event, Event::Odometry { epoch: 3, .. }));
     }
 
     #[test]

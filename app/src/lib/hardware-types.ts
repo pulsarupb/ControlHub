@@ -15,7 +15,8 @@ export type RearBoundary = {
   zone_width_m: number; zone_height_m: number; controller_zone_installed: boolean;
 }
 export type Devices = {
-  drive: Device<{ armed: boolean; power: number[][]; controllers: { encoder_counts: number[]; speed_rpm: number[]; faults: number }[] }>;
+  drive: Device<{ armed: boolean; power: number[][]; controllers: { encoder_counts: number[]; speed_rpm: number[]; faults: number }[];
+    yaw_control?: { active: boolean; target_rate_rad_s: number; measured_rate_rad_s: number; correction: number; heading_held: boolean } }>;
   kinova: Device<{ armed: boolean; joints: number[]; pose: number[] | null; gripper: number | null; arm_state: number | null; preview: Preview | null;
     rear_boundary: RearBoundary | null; rear_boundary_error: string | null; telemetry_error: string | null }>;
   rtk: Device<{ fix: { latitude: number | null; longitude: number | null; altitude_msl: number | null; quality: number; satellites: number; hdop: number | null; received_at: number; latitude_std: number } | null;

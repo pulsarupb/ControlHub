@@ -1,6 +1,8 @@
 //! Minimal synchronous RoboteQ SDC2130 control. No chassis, web or ROS dependency.
 mod protocol;
+mod yaw;
 pub use protocol::Controller;
+pub use yaw::{YawConfig, YawFeedback, YawStatus};
 
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
@@ -40,6 +42,7 @@ pub struct Config {
         deserialize_with = "deserialize_ramp_time_ms"
     )]
     pub deceleration_time_ms: u16,
+    pub yaw_control: YawConfig,
 }
 
 fn default_ramp_time_ms() -> u16 {
@@ -83,12 +86,14 @@ impl Default for Config {
             power_limit: 100,
             acceleration_time_ms: DEFAULT_RAMP_TIME_MS,
             deceleration_time_ms: DEFAULT_RAMP_TIME_MS,
+            yaw_control: YawConfig::default(),
         }
     }
 }
 
 impl Config {
     pub fn validate(&self) -> Result<(), String> {
+        self.yaw_control.validate()?;
         if !(1..=1000).contains(&self.power_limit) {
             return Err("drive power_limit must be 1..1000".into());
         }
@@ -144,6 +149,7 @@ pub struct Drive {
     demand: (f32, f32),
     output: [[f32; 2]; 2],
     last_output: Instant,
+    yaw: yaw::YawController,
 }
 
 impl Default for Drive {
@@ -154,12 +160,14 @@ impl Default for Drive {
             demand: (0.0, 0.0),
             output: [[0.0; 2]; 2],
             last_output: Instant::now(),
+            yaw: Default::default(),
         }
     }
 }
 
 impl Drive {
     pub fn enable(&mut self, now: Instant) {
+        self.yaw = Default::default();
         self.armed = true;
         self.last_command = now;
         self.demand = (0.0, 0.0);
@@ -168,6 +176,7 @@ impl Drive {
     }
 
     pub fn stop(&mut self) {
+        self.yaw = Default::default();
         self.armed = false;
         self.demand = (0.0, 0.0);
         self.output = [[0.0; 2]; 2];
@@ -197,8 +206,43 @@ impl Drive {
     }
 
     pub fn output(&mut self, config: &Config, now: Instant) -> Result<[[i16; 2]; 2], String> {
+        self.output_with_feedback(config, now, None)
+    }
+
+    pub fn yaw_status(&self) -> YawStatus {
+        self.yaw.status.clone()
+    }
+
+    pub fn output_with_feedback(
+        &mut self,
+        config: &Config,
+        now: Instant,
+        feedback: Option<YawFeedback>,
+    ) -> Result<[[i16; 2]; 2], String> {
+        if let Err(error) = config.validate() {
+            self.stop();
+            return Err(error);
+        }
         if self.armed(now) {
-            let target = config.mix(self.demand.0, self.demand.1)?;
+            let steering = if config.yaw_control.enabled {
+                match self
+                    .yaw
+                    .update(&config.yaw_control, self.demand, feedback, now)
+                {
+                    Ok(steering) => steering,
+                    Err(error) => {
+                        self.stop();
+                        return Err(error);
+                    }
+                }
+            } else {
+                self.demand.1
+            };
+            let target = if config.yaw_control.enabled && !self.yaw.status.active {
+                config.mix(0.0, 0.0)?
+            } else {
+                config.mix(self.demand.0, steering)?
+            };
             let elapsed = now
                 .saturating_duration_since(self.last_output)
                 .as_secs_f32();
@@ -253,6 +297,44 @@ pub struct Telemetry {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn yaw_feedback_loss_latches_stop_and_needs_explicit_enable() {
+        let mut c = Config::default();
+        c.yaw_control.enabled = true;
+        let start = Instant::now();
+        let mut drive = Drive::default();
+        drive.enable(start);
+        drive.command(0.3, 0.3, start).unwrap();
+        let f = YawFeedback {
+            yaw: 0.0,
+            timestamp: 1.0,
+            received: start,
+            epoch: 0,
+        };
+        assert_eq!(
+            drive.output_with_feedback(&c, start, Some(f)).unwrap(),
+            [[0; 2]; 2]
+        );
+        let t = start + Duration::from_millis(20);
+        let f = YawFeedback {
+            timestamp: 1.02,
+            received: t,
+            ..f
+        };
+        assert_ne!(
+            drive.output_with_feedback(&c, t, Some(f)).unwrap(),
+            [[0; 2]; 2]
+        );
+        assert!(drive.output_with_feedback(&c, t, None).is_err());
+        assert!(!drive.armed(t));
+        assert!(drive.command(0.3, 0.3, t).is_err());
+        assert_eq!(
+            drive.output_with_feedback(&c, t, Some(f)).unwrap(),
+            [[0; 2]; 2]
+        );
+        assert!(!drive.yaw_status().active);
+    }
 
     #[test]
     fn mixing_mapping_and_cap() {

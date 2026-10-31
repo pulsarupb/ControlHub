@@ -93,8 +93,11 @@ async fn put_config(
             .clone_from(&old.rtk.ntrip.password);
     }
     payload.validate().map_err(bad)?;
-    if payload.drive != old.drive {
+    if payload.drive != old.drive || (old.drive.yaw_control.enabled && payload.zed != old.zed) {
         state.stop_drive();
+        if payload.zed != old.zed {
+            *state.yaw_feedback.lock().unwrap() = None;
+        }
     }
     if payload.kinova != old.kinova {
         state.stop_arm();
@@ -140,6 +143,18 @@ async fn enable_drive(State(state): State<AppState>) -> Result<Json<Value>, Erro
     };
     if !available {
         return Err(unavailable("drive disabled or offline"));
+    }
+    let config = state.config.lock().unwrap();
+    if config.drive.yaw_control.enabled {
+        let feedback = state.yaw_feedback.lock().unwrap();
+        if !feedback.is_some_and(|f| {
+            f.received.elapsed().as_millis()
+                < u128::from(config.drive.yaw_control.feedback_timeout_ms)
+        }) {
+            return Err(unavailable(
+                "fresh measured ZED odometry required for yaw control",
+            ));
+        }
     }
     state.drive.lock().unwrap().enable(Instant::now());
     Ok(Json(json!({"ok": true})))
@@ -221,6 +236,10 @@ async fn zed_reset(State(state): State<AppState>) -> Result<Json<Value>, Error> 
     if !state.status.lock().unwrap().zed.connected {
         return Err(unavailable("ZED offline"));
     }
+    if state.config.lock().unwrap().drive.yaw_control.enabled {
+        state.stop_drive();
+    }
+    *state.yaw_feedback.lock().unwrap() = None;
     state.zed_reset.store(true, Ordering::SeqCst);
     Ok(Json(json!({"ok": true})))
 }
@@ -363,6 +382,58 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn yaw_enable_needs_fresh_feedback_and_reset_disarms() {
+        let (state, router) = setup();
+        online_drive(&state);
+        state.config.lock().unwrap().drive.yaw_control.enabled = true;
+        assert_eq!(
+            call(router.clone(), "POST", "/api/drive/enable", json!({}))
+                .await
+                .0,
+            StatusCode::CONFLICT
+        );
+        let now = Instant::now();
+        *state.yaw_feedback.lock().unwrap() = Some(roboteq::YawFeedback {
+            yaw: 0.0,
+            timestamp: 1.0,
+            received: now - Duration::from_secs(1),
+            epoch: 0,
+        });
+        assert_eq!(
+            call(router.clone(), "POST", "/api/drive/enable", json!({}))
+                .await
+                .0,
+            StatusCode::CONFLICT
+        );
+        state
+            .yaw_feedback
+            .lock()
+            .unwrap()
+            .as_mut()
+            .unwrap()
+            .received = now;
+        assert_eq!(
+            call(router.clone(), "POST", "/api/drive/enable", json!({}))
+                .await
+                .0,
+            StatusCode::OK
+        );
+        state.status.lock().unwrap().zed.connected = true;
+        assert_eq!(
+            call(router.clone(), "POST", "/api/zed/reset", json!({}))
+                .await
+                .0,
+            StatusCode::OK
+        );
+        assert!(!state.drive.lock().unwrap().armed(Instant::now()));
+        assert!(state.yaw_feedback.lock().unwrap().is_none());
+        assert_eq!(
+            call(router, "POST", "/api/drive/enable", json!({})).await.0,
+            StatusCode::CONFLICT
+        );
+    }
+
+    #[tokio::test]
     async fn global_stop_affects_both_motion_devices_not_sensors() {
         let (state, router) = setup();
         online_drive(&state);
@@ -445,6 +516,30 @@ mod tests {
         let saved = config::load(state.config_path.as_str()).unwrap();
         assert_eq!(saved.kinova.password, "secret");
         assert_eq!(saved.rtk.baud, 9600);
+    }
+
+    #[tokio::test]
+    async fn changing_zed_mount_stops_feedback_controlled_drive() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut config = config::Config::default();
+        config.drive.yaw_control.enabled = true;
+        config.zed.enabled = true;
+        config.zed.mount_configured = true;
+        config.zed.settings["tracking"]["enable_area_memory"] = false.into();
+        let (state, _) = AppState::new(
+            config,
+            dir.path().join("config.json").to_str().unwrap().into(),
+            true,
+        );
+        state.drive.lock().unwrap().enable(Instant::now());
+        let router = router(state.clone());
+        let (_, mut payload) = call(router.clone(), "GET", "/api/config", json!({})).await;
+        payload["zed"]["mount_rotation_deg"][2] = 90.into();
+        assert_eq!(
+            call(router, "PUT", "/api/config", payload).await.0,
+            StatusCode::OK
+        );
+        assert!(!state.drive.lock().unwrap().armed(Instant::now()));
     }
 
     #[tokio::test]

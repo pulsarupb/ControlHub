@@ -95,6 +95,17 @@ impl Config {
         self.drive.validate()?;
         self.rtk.validate()?;
         self.zed.validate()?;
+        if self.drive.yaw_control.enabled && (!self.zed.enabled || !self.zed.mount_configured) {
+            return Err(
+                "yaw control requires enabled ZED and a verified camera mounting transform".into(),
+            );
+        }
+        if self.drive.yaw_control.enabled
+            && (self.zed.settings["tracking"]["enable_area_memory"] != false
+                || self.zed.settings["tracking"]["set_as_static"] != false)
+        {
+            return Err("yaw control requires enable_area_memory=false and set_as_static=false for continuous local odometry".into());
+        }
         let k = &self.kinova;
         if k.ip.trim().is_empty()
             || k.port == 0
@@ -266,6 +277,21 @@ fn atomic_write(path: &Path, contents: &[u8], mode: u32) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn yaw_control_requires_measured_continuous_tracking_and_mount() {
+        let mut c = Config::default();
+        c.drive.yaw_control.enabled = true;
+        assert!(c.validate().is_err());
+        c.zed.enabled = true;
+        assert!(c.validate().is_err());
+        c.zed.mount_configured = true;
+        assert!(c.validate().is_err()); // default area memory permits loop-closure jumps
+        c.zed.settings["tracking"]["enable_area_memory"] = false.into();
+        assert!(c.validate().is_ok());
+        c.zed.settings["tracking"]["set_as_static"] = true.into();
+        assert!(c.validate().is_err());
+    }
     #[test]
     fn defaults_are_disabled_and_roundtrip() {
         let c = Config::default();

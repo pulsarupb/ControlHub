@@ -97,6 +97,7 @@ fn rtk_session(state: &AppState, config: &rtk::Config) -> Result<(), String> {
 pub fn zed_worker(state: AppState, script: std::path::PathBuf) {
     loop {
         let config = state.config.lock().unwrap().zed.clone();
+        *state.yaw_feedback.lock().unwrap() = None;
         {
             let mut s = state.status.lock().unwrap();
             s.zed = Default::default();
@@ -110,6 +111,10 @@ pub fn zed_worker(state: AppState, script: std::path::PathBuf) {
             continue;
         }
         let result = zed_session(&state, &config, &script);
+        *state.yaw_feedback.lock().unwrap() = None;
+        if state.config.lock().unwrap().drive.yaw_control.enabled {
+            state.stop_drive();
+        }
         if let Err(error) = result {
             state.status.lock().unwrap().zed.fail(error);
         }
@@ -136,6 +141,7 @@ fn zed_session(
     let mut last_event = Instant::now();
     while state.config.lock().unwrap().zed == *config {
         if state.zed_reset.swap(false, Ordering::SeqCst) {
+            *state.yaw_feedback.lock().unwrap() = None;
             sidecar
                 .send(&serde_json::json!({"type": "reset"}))
                 .map_err(|e| e.to_string())?;
@@ -143,6 +149,33 @@ fn zed_session(
         while let Some(event) = sidecar.poll().map_err(|e| e.to_string())? {
             last_event = Instant::now();
             match event {
+                zed::Event::Odometry {
+                    orientation,
+                    timestamp,
+                    captured_at,
+                    epoch,
+                } => {
+                    let age = crate::state::epoch() - captured_at;
+                    let yaw = orientation.and_then(|q| config.base_yaw(q));
+                    let feedback = yaw
+                        .filter(|_| {
+                            timestamp.is_finite()
+                                && timestamp > 0.0
+                                && age.is_finite()
+                                && (0.0..0.5).contains(&age)
+                        })
+                        .map(|yaw| roboteq::YawFeedback {
+                            yaw,
+                            timestamp,
+                            epoch,
+                            received: Instant::now() - Duration::from_secs_f64(age),
+                        });
+                    *state.yaw_feedback.lock().unwrap() = feedback;
+                    if feedback.is_none() && state.config.lock().unwrap().drive.yaw_control.enabled
+                    {
+                        state.stop_drive();
+                    }
+                }
                 zed::Event::State { state: data } => state.status.lock().unwrap().zed.update(*data),
                 zed::Event::Image { kind, jpeg } => {
                     let bytes = zed::Event::image_bytes(&jpeg).map_err(|e| e.to_string())?;

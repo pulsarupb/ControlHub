@@ -24,6 +24,7 @@ pub struct AppState {
     pub arm_seen: Arc<Mutex<Instant>>,
     pub arm_tx: tokio::sync::mpsc::Sender<crate::arm::Request>,
     pub zed_reset: Arc<AtomicBool>,
+    pub yaw_feedback: Arc<Mutex<Option<roboteq::YawFeedback>>>,
     pub images: Arc<Mutex<[Vec<u8>; 2]>>,
     pub simulate: bool,
 }
@@ -48,6 +49,7 @@ impl AppState {
                 arm_seen: Arc::new(Mutex::new(Instant::now())),
                 arm_tx,
                 zed_reset: Arc::new(AtomicBool::new(false)),
+                yaw_feedback: Default::default(),
                 images: Default::default(),
                 simulate,
             },
@@ -111,6 +113,7 @@ pub struct DriveData {
     pub armed: bool,
     pub power: [[i16; 2]; 2],
     pub controllers: [roboteq::Telemetry; 2],
+    pub yaw_control: roboteq::YawStatus,
 }
 
 #[derive(Clone, Debug, Default, Serialize)]
