@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 FROM --platform=$TARGETPLATFORM rust:1-bookworm AS builder
 
 WORKDIR /app
@@ -11,9 +12,43 @@ RUN apt-get update \
         pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-COPY . .
+# Keep runtime assets and frontend changes out of the Rust build cache key.
+COPY Cargo.toml Cargo.lock ./
+COPY crates/d435/Cargo.toml crates/d435/
+COPY crates/d435/src/ crates/d435/src/
+COPY crates/driver/Cargo.toml crates/driver/
+COPY crates/driver/src/ crates/driver/src/
+COPY crates/kinova-control/Cargo.toml crates/kinova-control/build.rs crates/kinova-control/
+COPY crates/kinova-control/src/ crates/kinova-control/src/
+COPY crates/kinova-control/proto/ crates/kinova-control/proto/
+COPY crates/oakd/Cargo.toml crates/oakd/
+COPY crates/oakd/src/ crates/oakd/src/
+COPY crates/roboteq/Cargo.toml crates/roboteq/
+COPY crates/roboteq/src/ crates/roboteq/src/
+COPY crates/rtk/Cargo.toml crates/rtk/
+COPY crates/rtk/src/ crates/rtk/src/
+COPY crates/zed/Cargo.toml crates/zed/
+COPY crates/zed/src/ crates/zed/src/
+# Embedded by include_str! in the ZED crate.
+COPY crates/zed/sidecar/defaults.json crates/zed/sidecar/defaults.json
 
-RUN cargo build --locked --release -p driver
+# Cargo loads every workspace member even when only building driver.
+COPY app/src-tauri/Cargo.toml app/src-tauri/build.rs app/src-tauri/
+COPY app/src-tauri/src/ app/src-tauri/src/
+COPY app/src-tauri/native/Cargo.toml app/src-tauri/native/build.rs app/src-tauri/native/
+COPY app/src-tauri/native/src/ app/src-tauri/native/src/
+COPY app/src-tauri/native/switch-input/Cargo.toml app/src-tauri/native/switch-input/build.rs app/src-tauri/native/switch-input/
+COPY app/src-tauri/native/switch-input/src/ app/src-tauri/native/switch-input/src/
+COPY app/src-tauri/native/android-updater/Cargo.toml app/src-tauri/native/android-updater/build.rs app/src-tauri/native/android-updater/
+COPY app/src-tauri/native/android-updater/src/ app/src-tauri/native/android-updater/src/
+
+ARG TARGETARCH
+RUN --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo/git,sharing=locked \
+    --mount=type=cache,id=controlhub-target-${TARGETARCH},target=/app/target,sharing=locked \
+    cargo build --locked --release -p driver \
+    && mkdir -p /out \
+    && cp target/release/driver /out/driver
 
 FROM --platform=$TARGETPLATFORM ubuntu:24.04 AS runtime
 
@@ -46,7 +81,7 @@ RUN uv pip install --system --break-system-packages --no-deps \
 ENV LD_LIBRARY_PATH=/usr/local/zed/lib:/usr/local/cuda/lib64:/usr/lib/aarch64-linux-gnu/nvidia:/opt/controlhub/tensorrt
 ENV LOGNAME=root
 
-COPY --from=builder /app/target/release/driver /usr/local/bin/driver
+COPY --from=builder /out/driver /usr/local/bin/driver
 COPY data/ /data/
 COPY crates/zed/sidecar/ /opt/controlhub/sidecar/
 COPY crates/oakd/sidecar/ /opt/controlhub/oak-sidecar/
