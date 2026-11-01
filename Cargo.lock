@@ -77,7 +77,7 @@ checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
 name = "app"
-version = "0.1.53"
+version = "0.1.54"
 dependencies = [
  "log",
  "serde",
@@ -710,7 +710,7 @@ checksum = "914a755b7c2d4af2bdcff7ce1739e2db9a1b81a9b07123d8015786ae03c0980d"
 
 [[package]]
 name = "d435"
-version = "0.1.53"
+version = "0.1.54"
 dependencies = [
  "image",
  "libc",
@@ -912,7 +912,7 @@ dependencies = [
 
 [[package]]
 name = "driver"
-version = "0.1.53"
+version = "0.1.54"
 dependencies = [
  "axum",
  "d435",
@@ -4788,7 +4788,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-native"
-version = "0.1.53"
+version = "0.1.54"
 dependencies = [
  "tauri",
  "tauri-plugin",
