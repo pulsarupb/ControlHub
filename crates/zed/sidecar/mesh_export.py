@@ -1,5 +1,6 @@
 """Bounded, indexed SDK mesh export. Never triangulate a sampled point cloud."""
 import base64
+import json
 
 
 def export_mesh(mesh, np, cv2, textured=False, face_limit=20000):
@@ -36,8 +37,12 @@ def export_mesh(mesh, np, cv2, textured=False, face_limit=20000):
         colors = np.full((len(vertices), 3), 128, dtype=np.uint8)
     uv = np.asarray(mesh.uv, dtype=np.float32) if texture else np.empty((0, 2))
     has_uv = uv.shape == (len(vertices), 2) and np.isfinite(uv).all()
-    return {"vertices": vertices[used].round(4).tolist(),
+    result = {"vertices": vertices[used].astype(np.float64).round(4).tolist(),
             "triangles": indices.reshape(-1, 3).tolist(),
             "colors": colors[used, :3].tolist(),
-            "uv": uv[used].round(6).tolist() if has_uv else [],
+            "uv": uv[used].astype(np.float64).round(6).tolist() if has_uv else [],
             "texture": texture if has_uv else None, "truncated": total > face_limit}
+    # Leave headroom under the sidecar's 8 MiB JSON-line transport limit.
+    if len(json.dumps(result, allow_nan=False, separators=(",", ":")).encode()) > 7 * 1024 * 1024:
+        raise RuntimeError("Mesh preview exceeds the transport budget; try a smaller scan")
+    return result

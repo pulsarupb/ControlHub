@@ -327,6 +327,27 @@ fn read_event(reader: &mut impl BufRead) -> io::Result<Event> {
 mod tests {
     use super::*;
     #[test]
+    fn mesh_protocol_accepts_indexed_textured_geometry() {
+        let message = serde_json::json!({
+            "type": "mesh", "error": null,
+            "mesh": {"vertices": [[0,0,0], [1,0,0], [0,1,0]],
+                "triangles": [[0,1,2]], "colors": [[128,128,128], [128,128,128], [128,128,128]],
+                "uv": [[0,0], [1,0], [0,1]], "texture": "data:image/jpeg;base64,anBlZw==",
+                "truncated": false}
+        });
+        let Event::Mesh {
+            mesh: Some(mesh),
+            error: None,
+        } = serde_json::from_value(message).unwrap()
+        else {
+            panic!("expected textured mesh event");
+        };
+        assert_eq!(mesh.triangles, vec![[0, 1, 2]]);
+        assert_eq!(mesh.uv.len(), mesh.vertices.len());
+        assert!(mesh.texture.is_some());
+    }
+
+    #[test]
     fn sdk_free_config_and_protocol() {
         Config::default().validate().unwrap();
         assert!(matches!(

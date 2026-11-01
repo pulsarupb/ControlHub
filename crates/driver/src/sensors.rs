@@ -153,7 +153,8 @@ fn zed_session(
                 .map_err(|e| e.to_string())?;
         }
         if state.zed_generate_mesh.swap(false, Ordering::SeqCst) {
-            sidecar.send(&serde_json::json!({"type": "generate_mesh"}))
+            sidecar
+                .send(&serde_json::json!({"type": "generate_mesh"}))
                 .map_err(|e| e.to_string())?;
         }
         while let Some(event) = sidecar.poll().map_err(|e| e.to_string())? {
@@ -208,7 +209,11 @@ fn zed_session(
                 zed::Event::Error { error } => return Err(error),
             }
         }
-        let timeout = if state.zed_mesh.lock().unwrap().generating { 180 } else { 30 };
+        let timeout = if state.zed_mesh.lock().unwrap().generating {
+            180
+        } else {
+            30
+        };
         if last_event.elapsed() > Duration::from_secs(timeout) {
             return Err("ZED sidecar stalled".into());
         }

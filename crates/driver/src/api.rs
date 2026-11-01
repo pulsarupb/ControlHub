@@ -181,6 +181,12 @@ async fn control(
 }
 
 async fn enable_drive(State(state): State<AppState>) -> Result<Json<Value>, Error> {
+    let mesh = state.zed_mesh.lock().unwrap();
+    if mesh.generating {
+        return Err(unavailable(
+            "Wait for mesh generation to finish before enabling the drive",
+        ));
+    }
     let available = {
         let s = state.status.lock().unwrap();
         s.drive.enabled && s.drive.connected
@@ -277,14 +283,23 @@ async fn zed_map(State(state): State<AppState>) -> Json<zed::Snapshot> {
     Json(state.status.lock().unwrap().zed.data.clone())
 }
 #[derive(Deserialize)]
-struct MeshQuery { since: Option<f64> }
-async fn zed_mesh(State(state): State<AppState>, Query(query): Query<MeshQuery>) -> Json<zed::MeshSnapshot> {
+struct MeshQuery {
+    since: Option<f64>,
+}
+async fn zed_mesh(
+    State(state): State<AppState>,
+    Query(query): Query<MeshQuery>,
+) -> Json<zed::MeshSnapshot> {
     let snapshot = state.zed_mesh.lock().unwrap();
     Json(zed::MeshSnapshot {
         generating: snapshot.generating,
         generated_at: snapshot.generated_at,
         error: snapshot.error.clone(),
-        mesh: if query.since.is_some() && query.since == snapshot.generated_at { None } else { snapshot.mesh.clone() },
+        mesh: if query.since.is_some() && query.since == snapshot.generated_at {
+            None
+        } else {
+            snapshot.mesh.clone()
+        },
     })
 }
 async fn zed_generate_mesh(State(state): State<AppState>) -> Result<Json<Value>, Error> {
@@ -294,7 +309,9 @@ async fn zed_generate_mesh(State(state): State<AppState>) -> Result<Json<Value>,
             return Err(unavailable("A real ZED camera must be connected"));
         }
         if status.drive.data.armed {
-            return Err(bad("Disarm the drive before baking a mesh; tracking may pause"));
+            return Err(bad(
+                "Disarm the drive before baking a mesh; tracking may pause",
+            ));
         }
     }
     {
@@ -311,10 +328,18 @@ async fn zed_generate_mesh(State(state): State<AppState>) -> Result<Json<Value>,
     }
     snapshot.generating = true;
     snapshot.error = None;
+    // Pair with enable_drive's mesh lock so a concurrent enable cannot race baking.
+    state.stop_drive();
     state.zed_generate_mesh.store(true, Ordering::SeqCst);
     Ok(Json(json!({"ok": true})))
 }
 async fn zed_reset(State(state): State<AppState>) -> Result<Json<Value>, Error> {
+    let mesh = state.zed_mesh.lock().unwrap();
+    if mesh.generating {
+        return Err(bad(
+            "Wait for mesh generation to finish before resetting tracking",
+        ));
+    }
     if !state.status.lock().unwrap().zed.connected {
         return Err(unavailable("ZED offline"));
     }
@@ -465,6 +490,24 @@ mod tests {
                 .0,
             StatusCode::CONFLICT
         );
+    }
+
+    #[tokio::test]
+    async fn mesh_generation_blocks_drive_enable_and_tracking_reset() {
+        let (state, router) = setup();
+        online_drive(&state);
+        state.zed_mesh.lock().unwrap().generating = true;
+        assert_eq!(
+            call(router.clone(), "POST", "/api/drive/enable", json!({}))
+                .await
+                .0,
+            StatusCode::CONFLICT
+        );
+        assert_eq!(
+            call(router, "POST", "/api/zed/reset", json!({})).await.0,
+            StatusCode::BAD_REQUEST
+        );
+        assert!(!state.drive.lock().unwrap().armed(Instant::now()));
     }
 
     #[tokio::test]
