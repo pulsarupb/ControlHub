@@ -1,15 +1,15 @@
 {
-  "version": "0.1.52",
-  "notes": "https://github.com/pulsarupb/ControlHub/releases/tag/v0.1.52",
-  "pub_date": "2026-10-31T17:05:45Z",
+  "version": "0.1.53",
+  "notes": "https://github.com/pulsarupb/ControlHub/releases/tag/v0.1.53",
+  "pub_date": "2026-10-31T17:51:11Z",
   "platforms": {
     "linux-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNjdub0NpanhvWEtpQ3lQVkFxZ1ltbnhMd0JHZVVCcW0zaWdYU00zbmliTHFJZlc5UFBLd0g4clFTcFVUMHdMcVFDd0ZkYko5UzhYN2ZScGhsZlVNTUJ3eGMwMEVoREFjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNDY2MTUxCWZpbGU6UGFuZWxzIEVSQyBFZGl0aW9uXzAuMS41Ml9hbWQ2NC5BcHBJbWFnZQl2ZXJzaW9uOjAuMS41Mgo0K0RnRnY2VStmOGhUdzBQczVKbTBPS2cxLzhibjdJZUs0dkFGS3V2UTJzbVRDa1NjekUzNHB2NCtJYzRRZTNhZTFESGpmQWdqOEs1bENwUXJRMExCdz09Cg==",
-      "url": "https://github.com/pulsarupb/ControlHub/releases/download/v0.1.52/Panels.ERC.Edition_0.1.52_amd64.AppImage"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNjdub0NpanhvWEZ1WGhYUEMwOUNmRzc0MlRUbVR6dmlrMjdqWjVwQnR4SVdBdFFMUDhkeThkM1Z2TEE5TzZXdUV3U3U1RWFrcDFvbGFSa2p0TVpXSE03Q0doVWtyV2dVPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNDY4OTUxCWZpbGU6UGFuZWxzIEVSQyBFZGl0aW9uXzAuMS41M19hbWQ2NC5BcHBJbWFnZQl2ZXJzaW9uOjAuMS41MwpiQ0ZlaldWUWpENGRydEhOR2pkZE1hWDU3RzJMN1B6RjNIYmxFNm9CZFRaSGtUMHFQaDJ1RGh3MVBuQmVPa3VVZW1tRG13U3J0WVpJWWpmYndpWWREdz09Cg==",
+      "url": "https://github.com/pulsarupb/ControlHub/releases/download/v0.1.53/Panels.ERC.Edition_0.1.53_amd64.AppImage"
     },
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNjdub0NpanhvWEhoa3c1SWdyWDNlandBVVVoRW42dmwxNURwYWRmN0VqRWozTlp6eW1kTTFlTVBGUkp5aVZESkdEUDFXMHU2RHNOYkFxSlhPQ3Z5VDJIYkRzMHh2eXdNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNDY2MTc4CWZpbGU6UGFuZWxzIEVSQyBFZGl0aW9uXzAuMS41Ml94NjRfZW4tVVMubXNpCXZlcnNpb246MC4xLjUyCmpuZTVvRkdBOUhpWmtVa0FxOGRlV2hCOUt3T3ZiY05JUlhQd1ZXYmVENnl3Ny9YczVyVVdxYW9TQ2FjdWFoQVh5OW9FRW9sRzNpNTBEdk1xeDd3VEFRPT0K",
-      "url": "https://github.com/pulsarupb/ControlHub/releases/download/v0.1.52/Panels.ERC.Edition_0.1.52_x64_en-US.msi"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTNjdub0NpanhvWEpNZFc5eVMzR0x0ekJPOWJ3NTQzb0VMZ1E3WlJTVitHc2E0Z0E5K0h1UUF1Z3ovR3BxL3dqY2p4bG9Md25qZEl6amNQOE85QWl1STk0YmFQN2VCbWdnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkzNDY4OTk1CWZpbGU6UGFuZWxzIEVSQyBFZGl0aW9uXzAuMS41M194NjRfZW4tVVMubXNpCXZlcnNpb246MC4xLjUzCkpYU1hPalR3RDUzeVRNYUI1c3QvNmI0KzRWU200eWlpbk9xMlhnaVAyYldnNy9uTzFTNnlELzBHbWpORjdVblNQVEdtUHpBeGNMRURtUlVJdzVjS0N3PT0K",
+      "url": "https://github.com/pulsarupb/ControlHub/releases/download/v0.1.53/Panels.ERC.Edition_0.1.53_x64_en-US.msi"
     }
   }
 }
