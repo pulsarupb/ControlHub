@@ -31,7 +31,7 @@
     "acceleration_time_ms": 2000,
     "deceleration_time_ms": 2000,
     "yaw_control": {
-      "enabled": true,
+      "enabled": false,
       "steering_yaw_sign": -1,
       "max_rate_rad_s": 0.6,
       "max_accel_rad_s2": 0.6,
@@ -130,7 +130,7 @@
     ]
   },
   "oak": {
-    "enabled": true,
+    "enabled": false,
     "python": "python3",
     "fps": 10,
     "cameras": [
