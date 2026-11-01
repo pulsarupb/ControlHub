@@ -106,6 +106,8 @@ pub fn zed_worker(state: AppState, script: std::path::PathBuf) {
         }
         *state.images.lock().unwrap() = Default::default();
         state.zed_reset.store(false, Ordering::SeqCst);
+        state.zed_generate_mesh.store(false, Ordering::SeqCst);
+        *state.zed_mesh.lock().unwrap() = Default::default();
         if !config.enabled {
             std::thread::sleep(Duration::from_millis(100));
             continue;
@@ -116,6 +118,9 @@ pub fn zed_worker(state: AppState, script: std::path::PathBuf) {
             state.stop_drive();
         }
         if let Err(error) = result {
+            let mut mesh = state.zed_mesh.lock().unwrap();
+            mesh.generating = false;
+            mesh.error = Some(error.clone());
             state.status.lock().unwrap().zed.fail(error);
         }
         std::thread::sleep(Duration::from_secs(1));
@@ -141,14 +146,28 @@ fn zed_session(
     let mut last_event = Instant::now();
     while state.config.lock().unwrap().zed == *config {
         if state.zed_reset.swap(false, Ordering::SeqCst) {
+            *state.zed_mesh.lock().unwrap() = Default::default();
             *state.yaw_feedback.lock().unwrap() = None;
             sidecar
                 .send(&serde_json::json!({"type": "reset"}))
                 .map_err(|e| e.to_string())?;
         }
+        if state.zed_generate_mesh.swap(false, Ordering::SeqCst) {
+            sidecar.send(&serde_json::json!({"type": "generate_mesh"}))
+                .map_err(|e| e.to_string())?;
+        }
         while let Some(event) = sidecar.poll().map_err(|e| e.to_string())? {
             last_event = Instant::now();
             match event {
+                zed::Event::Mesh { mesh, error } => {
+                    let mut snapshot = state.zed_mesh.lock().unwrap();
+                    snapshot.generating = false;
+                    snapshot.error = error;
+                    if mesh.is_some() {
+                        snapshot.mesh = mesh;
+                        snapshot.generated_at = Some(crate::state::epoch());
+                    }
+                }
                 zed::Event::Odometry {
                     orientation,
                     timestamp,
@@ -189,7 +208,8 @@ fn zed_session(
                 zed::Event::Error { error } => return Err(error),
             }
         }
-        if last_event.elapsed() > Duration::from_secs(30) {
+        let timeout = if state.zed_mesh.lock().unwrap().generating { 180 } else { 30 };
+        if last_event.elapsed() > Duration::from_secs(timeout) {
             return Err("ZED sidecar stalled".into());
         }
         std::thread::sleep(Duration::from_millis(20));

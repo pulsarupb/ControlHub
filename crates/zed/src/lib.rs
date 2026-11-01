@@ -129,9 +129,31 @@ pub struct Snapshot {
     pub error: Option<String>,
 }
 
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct MeshData {
+    pub vertices: Vec<[f32; 3]>,
+    pub triangles: Vec<[u32; 3]>,
+    pub colors: Vec<[u8; 3]>,
+    pub uv: Vec<[f32; 2]>,
+    pub texture: Option<String>,
+    pub truncated: bool,
+}
+
+#[derive(Clone, Debug, Default, Serialize)]
+pub struct MeshSnapshot {
+    pub generating: bool,
+    pub generated_at: Option<f64>,
+    pub mesh: Option<MeshData>,
+    pub error: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Event {
+    Mesh {
+        mesh: Option<MeshData>,
+        error: Option<String>,
+    },
     Odometry {
         orientation: Option<[f64; 4]>,
         timestamp: f64,

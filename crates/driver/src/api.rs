@@ -4,7 +4,7 @@ use crate::{
 };
 use axum::{
     Json, Router,
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::{StatusCode, header},
     response::IntoResponse,
     routing::{get, post},
@@ -43,6 +43,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/arm/jog", post(arm_jog))
         .route("/api/arm/stop", post(stop_arm))
         .route("/api/zed/map", get(zed_map))
+        .route("/api/zed/mesh", get(zed_mesh).post(zed_generate_mesh))
         .route("/api/zed/reset", post(zed_reset))
         .route("/api/zed/frame/{kind}", get(zed_frame))
         .route("/api/oak/frame/{slot}/{kind}", get(oak_frame))
@@ -274,6 +275,44 @@ async fn arm_action(
 
 async fn zed_map(State(state): State<AppState>) -> Json<zed::Snapshot> {
     Json(state.status.lock().unwrap().zed.data.clone())
+}
+#[derive(Deserialize)]
+struct MeshQuery { since: Option<f64> }
+async fn zed_mesh(State(state): State<AppState>, Query(query): Query<MeshQuery>) -> Json<zed::MeshSnapshot> {
+    let snapshot = state.zed_mesh.lock().unwrap();
+    Json(zed::MeshSnapshot {
+        generating: snapshot.generating,
+        generated_at: snapshot.generated_at,
+        error: snapshot.error.clone(),
+        mesh: if query.since.is_some() && query.since == snapshot.generated_at { None } else { snapshot.mesh.clone() },
+    })
+}
+async fn zed_generate_mesh(State(state): State<AppState>) -> Result<Json<Value>, Error> {
+    {
+        let status = state.status.lock().unwrap();
+        if !status.zed.connected || status.zed.simulated {
+            return Err(unavailable("A real ZED camera must be connected"));
+        }
+        if status.drive.data.armed {
+            return Err(bad("Disarm the drive before baking a mesh; tracking may pause"));
+        }
+    }
+    {
+        let config = state.config.lock().unwrap();
+        if config.zed.settings["mapping"]["enabled"] != true
+            || config.zed.settings["mapping"]["map_type"] != "MESH"
+        {
+            return Err(bad("Enable ZED spatial mapping with map_type MESH first"));
+        }
+    }
+    let mut snapshot = state.zed_mesh.lock().unwrap();
+    if snapshot.generating {
+        return Err(bad("Mesh generation is already in progress"));
+    }
+    snapshot.generating = true;
+    snapshot.error = None;
+    state.zed_generate_mesh.store(true, Ordering::SeqCst);
+    Ok(Json(json!({"ok": true})))
 }
 async fn zed_reset(State(state): State<AppState>) -> Result<Json<Value>, Error> {
     if !state.status.lock().unwrap().zed.connected {

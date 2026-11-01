@@ -4,6 +4,7 @@ import queue
 import time
 
 from settings import init_parameters, tracking_parameters, mapping_parameters
+from mesh_export import export_mesh
 
 
 def pose_data(pose):
@@ -64,6 +65,18 @@ def run(cfg, commands, emit):
                     command = commands.get_nowait()
                     if command["type"] == "shutdown":
                         return
+                    if command["type"] == "generate_mesh":
+                        try:
+                            if not mapping or cfg["mapping"]["map_type"] != "MESH":
+                                raise RuntimeError("Enable ZED spatial mapping with map_type MESH first")
+                            snapshot = sl.Mesh()
+                            code = camera.extract_whole_spatial_map(snapshot)
+                            if code != sl.ERROR_CODE.SUCCESS:
+                                raise RuntimeError(f"ZED mesh extraction failed: {code}")
+                            exported = export_mesh(snapshot, np, cv2, cfg["mapping"]["save_texture"])
+                            emit({"type": "mesh", "mesh": exported, "error": None})
+                        except Exception as error:
+                            emit({"type": "mesh", "mesh": None, "error": str(error)})
                     if command["type"] == "reset":
                         odometry_epoch += 1
                         if mapping:

@@ -13,6 +13,11 @@ export type ZedMap = {
   path: CameraPose[]; points: number[][]; colors: number[][];
   imu: { acceleration: number[]; angular_velocity: number[] } | null; error: string | null;
 }
+export type ZedMeshSnapshot = {
+  generating: boolean; generated_at: number | null; error: string | null;
+  mesh: { vertices: number[][]; triangles: number[][]; colors: number[][];
+    uv: number[][]; texture: string | null; truncated: boolean } | null;
+}
 export type Preview = { id: number; target: number[]; joints: number[]; seed: number[]; expires_at: number }
 export type RearBoundary = {
   forward: [number, number]; wall_offset_m: number; zone_length_m: number;
