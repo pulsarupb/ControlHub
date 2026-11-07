@@ -143,7 +143,15 @@ impl Sidecar {
         command
             .args(["run", "--project"])
             .arg(project)
-            .args(["--locked", "--no-managed-python", "--python"])
+            // Keep the runtime environment free of test-only packages so the
+            // host NumPy/OpenCV ABI stays authoritative.
+            .args([
+                "--locked",
+                "--no-dev",
+                "--exact",
+                "--no-managed-python",
+                "--python",
+            ])
             .arg(&config.python)
             .args(["--", "python", "-u"])
             .arg(script)
