@@ -206,8 +206,10 @@ pub async fn run(state: AppState, mut requests: tokio::sync::mpsc::Receiver<Requ
         match result {
             Ok(()) => state.stop_arm_preserving_reason("arm session ended"),
             Err(error) => {
-                state.record_arm_stop(error.clone());
-                state.stop_arm_preserving_reason(error.clone());
+                // Only record a stop when motion was actually enabled. An
+                // offline arm retries every second and must not log a stop
+                // reason on each failed connection attempt.
+                state.stop_arm_with(error.clone());
                 state.status.lock().unwrap().kinova.fail(error);
             }
         }
