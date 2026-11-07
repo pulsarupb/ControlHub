@@ -41,8 +41,10 @@ export type NotificationAction = {
 }
 
 export type Notification = {
+  id: string
   text: string
   timestamp: number
   actions: NotificationAction[]
+  read: boolean
   executedAction?: string
 }

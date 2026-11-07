@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { untrack } from "svelte"
   import { rover } from "$lib/rover-control.svelte"
   import { hardware, armAction } from "$lib/hardware.svelte"
+  import { global } from "$lib"
 
   const drive = $derived(rover.status?.devices.drive)
   const kinova = $derived(rover.status?.devices.kinova)
@@ -15,70 +17,62 @@
   )
   const uiError = $derived(rover.lastError && !driveStop && !armStop ? rover.lastError : "")
 
+  type ActiveNotification = { id: string; text: string }
+  const active = new Map<string, ActiveNotification>()
+
+  function notify(
+    key: string,
+    text: string,
+    actions: { text: string; task: () => void }[],
+  ) {
+    const existing = active.get(key)
+    if (existing?.text === text) return
+    if (existing) global.notificationsManager.remove(existing.id)
+
+    let id = ""
+    id = global.notificationsManager.addAction(text, [
+      ...actions,
+      { text: "Dismiss", task: () => global.notificationsManager.remove(id) },
+    ])
+    active.set(key, { id, text })
+  }
+
+  function dismiss(key: string) {
+    const existing = active.get(key)
+    if (!existing) return
+    global.notificationsManager.remove(existing.id)
+    active.delete(key)
+  }
+
   async function enableArm() {
     await armAction({ action: "enable" })
     await rover.refreshStatus()
   }
+
+  $effect(() => {
+    const entries = [
+      { key: "drive-stop", text: driveStop ? `Drive stopped: ${driveStop}` : "" },
+      { key: "arm-stop", text: armStop ? `Arm stopped: ${armStop}` : "" },
+      { key: "arm-error", text: armError ? `Arm error: ${armError}` : "" },
+      { key: "rover-error", text: uiError ? `Rover error: ${uiError}` : "" },
+    ]
+
+    untrack(() => {
+      for (const entry of entries) {
+        if (!entry.text) {
+          dismiss(entry.key)
+          continue
+        }
+
+        const actions =
+          entry.key === "drive-stop"
+            ? [{ text: "Enable Drive", task: () => void rover.resetRover() }]
+            : entry.key === "arm-stop"
+              ? [{ text: "Enable arm", task: () => void enableArm() }]
+              : []
+
+        notify(entry.key, entry.text, actions)
+      }
+    })
+  })
 </script>
-
-{#if driveStop || armStop || armError || uiError}
-  <section class="motion-banner" role="status" aria-live="polite">
-    {#if driveStop}
-      <div class="row">
-        <span><strong>Drive stopped:</strong> {driveStop}</span>
-        <button onclick={() => rover.resetRover()}>Enable Drive</button>
-      </div>
-    {/if}
-    {#if armStop}
-      <div class="row">
-        <span><strong>Arm stopped:</strong> {armStop}</span>
-        <button onclick={enableArm}>Enable arm</button>
-      </div>
-    {/if}
-    {#if armError}
-      <div class="row"><span>{armError}</span></div>
-    {/if}
-    {#if uiError}
-      <div class="row"><span>{uiError}</span></div>
-    {/if}
-  </section>
-{/if}
-
-<style>
-  .motion-banner {
-    flex: none;
-    display: grid;
-    gap: 0.35rem;
-    padding: 0.5rem 0.75rem;
-    border-bottom: 1px solid color-mix(in srgb, var(--warning) 55%, transparent);
-    background: color-mix(in srgb, var(--warning) 12%, var(--bgMedium));
-    color: #f0d9a8;
-    font-size: 0.8rem;
-    z-index: 20;
-  }
-  .row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-  }
-  .row span {
-    overflow-wrap: anywhere;
-  }
-  button {
-    flex: none;
-    min-height: 2rem;
-    padding: 0.3rem 0.65rem;
-    border: 1px solid color-mix(in srgb, var(--warning) 70%, transparent);
-    border-radius: 0.35rem;
-    background: var(--surfaceRaised);
-    color: var(--text);
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  button:hover {
-    border-color: var(--primary);
-    color: var(--primary);
-  }
-</style>

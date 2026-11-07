@@ -283,10 +283,18 @@
 
       <Overlay
         triggerStyle="display: flex;justify-content: center;align-items: center;"
+        onStateChange={(isOpen) => {
+          if (isOpen) global.notificationsManager.markAllRead()
+        }}
       >
         {#snippet trigger()}
           <span class="topbar-icon" aria-label="Notifications">
             <IconBellRegular />
+            {#if global.unreadNotifications > 0}
+              <span class="notification-badge" aria-hidden="true">
+                {global.unreadNotifications > 9 ? "9+" : global.unreadNotifications}
+              </span>
+            {/if}
           </span>
         {/snippet}
         {#snippet overlay()}
@@ -558,12 +566,30 @@
     background: color-mix(in srgb, var(--danger) 18%, transparent);
   }
   .topbar-icon {
+    position: relative;
     width: 28px;
     height: 36px;
     display: grid;
     place-items: center;
     color: var(--textMuted);
     font-size: 1.3rem;
+  }
+  .notification-badge {
+    position: absolute;
+    top: 1px;
+    right: -2px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--danger);
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    line-height: 1;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
   }
   .topbar-icon:hover {
     color: var(--text);

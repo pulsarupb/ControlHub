@@ -1,15 +1,36 @@
 import { templates } from "$lib/widgets/registry"
 import type { Notification, NotificationAction, Template } from "$lib/types"
 
+let nextNotificationId = 0
+
 class NotificationsManager {
   data: Notification[] = $state([])
 
+  private push(text: string, actions: NotificationAction[]) {
+    const id = `notification-${++nextNotificationId}`
+    this.data.push({ id, text, timestamp: Date.now(), actions, read: false })
+    return id
+  }
+
   add(text: string) {
-    this.data.push({ text, timestamp: Date.now(), actions: [] })
+    return this.push(text, [])
   }
 
   addAction(text: string, actions: NotificationAction[]) {
-    this.data.push({ text, timestamp: Date.now(), actions })
+    return this.push(text, actions)
+  }
+
+  remove(id: string) {
+    const index = this.data.findIndex((notification) => notification.id === id)
+    if (index !== -1) this.data.splice(index, 1)
+  }
+
+  markAllRead() {
+    for (const notification of this.data) notification.read = true
+  }
+
+  clear() {
+    this.data = []
   }
 }
 
@@ -20,5 +41,8 @@ export class GlobalState {
   isConnected = $state(true)
 
   notifications = $derived(this.notificationsManager.data)
+  unreadNotifications = $derived(
+    this.notificationsManager.data.filter((notification) => !notification.read).length,
+  )
   allTemplates: Template[] = $state(templates)
 }
