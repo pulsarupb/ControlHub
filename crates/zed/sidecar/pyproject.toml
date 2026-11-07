@@ -8,3 +8,10 @@ dependencies = []
 
 [tool.uv]
 package = false
+
+[dependency-groups]
+# Test-only NumPy for the hardware-free mesh export tests. The runtime sidecar
+# still uses the NumPy that ships with the installed ZED SDK.
+dev = [
+    "numpy>=2.2.6",
+]

@@ -205,7 +205,8 @@ impl Drive {
         // an already stopped drive must not record the same reason again, which
         // would spam the logs from every status poll and control-loop tick.
         if self.armed
-            && now.saturating_duration_since(self.last_command) >= Duration::from_millis(WATCHDOG_MS)
+            && now.saturating_duration_since(self.last_command)
+                >= Duration::from_millis(WATCHDOG_MS)
         {
             self.stop_with_reason_opt(Some(format!("drive command timeout ({WATCHDOG_MS} ms)")));
         }
@@ -546,10 +547,7 @@ mod tests {
         // reason; otherwise every status poll and control-loop tick logs it.
         for tick in 1..10 {
             let at = later + Duration::from_millis(20 * tick);
-            assert_eq!(
-                drive.output(&Config::default(), at).unwrap(),
-                [[0; 2]; 2]
-            );
+            assert_eq!(drive.output(&Config::default(), at).unwrap(), [[0; 2]; 2]);
             assert!(!drive.armed(at));
             assert_eq!(drive.take_stop_reason(), None);
         }
