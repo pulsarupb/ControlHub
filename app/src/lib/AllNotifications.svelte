@@ -13,17 +13,24 @@
   {:else}
     <div class="notif" class:notLast={index != global.notifications.length - 1}>
       <p class="center">{notif.text}</p>
-      <div class="flex">
-        {#each notif.actions as action}
-          <Button
-            onclick={() => {
-              action.task()
-            }}
-          >
-            {action.text}
-          </Button>
-        {/each}
-      </div>
+      {#if notif.executedAction}
+        <p class="center handled">
+          {notif.executedAction === "Dismiss" ? "Dismissed" : `Done: ${notif.executedAction}`}
+        </p>
+      {:else}
+        <div class="flex">
+          {#each notif.actions as action}
+            <Button
+              onclick={() => {
+                action.task()
+                global.notificationsManager.markActionExecuted(notif.id, action.text)
+              }}
+            >
+              {action.text}
+            </Button>
+          {/each}
+        </div>
+      {/if}
     </div>
   {/if}
 {/each}
@@ -42,6 +49,10 @@
   }
   p.center {
     text-align: center;
+  }
+  p.handled {
+    color: var(--textMuted);
+    font-size: 0.8rem;
   }
   .flex {
     display: flex;

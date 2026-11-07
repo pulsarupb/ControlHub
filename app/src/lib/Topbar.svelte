@@ -299,7 +299,14 @@
         {/snippet}
         {#snippet overlay()}
           <div class="bell-menu">
-            <h1>Notifications</h1>
+            <div class="bell-header">
+              <h1>Notifications</h1>
+              {#if global.notifications.length > 0}
+                <Button transparent onclick={() => global.notificationsManager.clear()}>
+                  Clear
+                </Button>
+              {/if}
+            </div>
             {#if global.notifications.length > 0}
               <AllNotifications />
             {:else}
@@ -524,6 +531,20 @@
   .bell-menu {
     min-width: 300px;
     max-width: 420px;
+  }
+  .bell-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--padding);
+    width: 100%;
+  }
+  .bell-header h1 {
+    margin: 0;
+  }
+  .bell-header :global(button) {
+    padding: 0.25em 0.6em;
+    font-size: 0.8rem;
   }
   .version-warning {
     border: 1px solid color-mix(in srgb, var(--danger) 65%, transparent);

@@ -27,12 +27,12 @@
   ) {
     const existing = active.get(key)
     if (existing?.text === text) return
-    if (existing) global.notificationsManager.remove(existing.id)
+    if (existing) global.notificationsManager.dismiss(existing.id)
 
     let id = ""
     id = global.notificationsManager.addAction(text, [
       ...actions,
-      { text: "Dismiss", task: () => global.notificationsManager.remove(id) },
+      { text: "Dismiss", task: () => global.notificationsManager.dismiss(id) },
     ])
     active.set(key, { id, text })
   }
@@ -40,7 +40,8 @@
   function dismiss(key: string) {
     const existing = active.get(key)
     if (!existing) return
-    global.notificationsManager.remove(existing.id)
+    // Keep the notification in the bell list as history; only hide its toast.
+    global.notificationsManager.dismiss(existing.id)
     active.delete(key)
   }
 

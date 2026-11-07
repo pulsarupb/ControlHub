@@ -51,6 +51,7 @@
             <Button
               onclick={() => {
                 action.task()
+                global.notificationsManager.markActionExecuted(notif.id, action.text)
               }}
             >
               {action.text}
