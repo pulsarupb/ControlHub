@@ -55,9 +55,12 @@ FROM --platform=$TARGETPLATFORM ubuntu:24.04 AS runtime
 ARG ZED_SDK_VERSION=5.4
 COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /uvx /bin/
 
+# curl is invoked by the ZED SDK's telemetry helper; without it the SDK logs
+# `sh: 1: curl: not found` on startup.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
+        curl \
         dbus-bin \
         iproute2 \
         kmod \
