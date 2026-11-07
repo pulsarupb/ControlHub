@@ -98,7 +98,7 @@
   async function installRearZone() {
     if (!device?.connected || device.data.armed || !device.data.rear_boundary) return
     hardware.error = ""
-    try { await request("/api/arm/action", { action: "install_rear_zone" }); await rover.refreshStatus() }
+    try { await request("/api/arm/action", { action: "install_rear_zone" }, "POST", 20000); await rover.refreshStatus() }
     catch (e) { hardware.error = String(e); await rover.refreshStatus() }
   }
   async function confirmPendingAction() {
@@ -116,7 +116,7 @@
     if (!ready || !validTarget || moving) return
     moving = true; moveMessage = "Moving with Kortex ReachPose…"; hardware.preview = null; hardware.error = ""
     try {
-      await request("/api/arm/action", { action: "move_cartesian", pose: [...hardware.target] })
+      await request("/api/arm/action", { action: "move_cartesian", pose: [...hardware.target] }, "POST", 25000)
       moveMessage = "Cartesian move completed"
     } catch (e) { hardware.error = String(e); moveMessage = "Cartesian move failed or stopped" }
     finally { moving = false; await rover.refreshStatus() }
@@ -139,6 +139,7 @@
     {/if}
     {#if device?.data.rear_boundary_error}<p class="notice error" role="alert">Rear boundary: {device.data.rear_boundary_error}</p>{/if}
     {#if device?.data.telemetry_error}<p class="notice error" role="alert">Arm telemetry: {device.data.telemetry_error}</p>{/if}
+    {#if device?.stop_reason}<p class="notice error" role="alert">Arm stopped: {device.stop_reason.reason}</p>{/if}
     {#if hardware.error}<p class="notice error" role="alert">{hardware.error}</p>{/if}
 
     <div class="segmented" role="group" aria-label="Control view">

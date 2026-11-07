@@ -150,6 +150,7 @@ pub struct Drive {
     output: [[f32; 2]; 2],
     last_output: Instant,
     yaw: yaw::YawController,
+    stop_reason: Option<String>,
 }
 
 impl Default for Drive {
@@ -161,6 +162,7 @@ impl Default for Drive {
             output: [[0.0; 2]; 2],
             last_output: Instant::now(),
             yaw: Default::default(),
+            stop_reason: None,
         }
     }
 }
@@ -173,18 +175,34 @@ impl Drive {
         self.demand = (0.0, 0.0);
         self.output = [[0.0; 2]; 2];
         self.last_output = now;
+        self.stop_reason = None;
     }
 
     pub fn stop(&mut self) {
+        self.stop_with_reason_opt(None);
+    }
+
+    fn stop_with_reason_opt(&mut self, reason: Option<String>) {
         self.yaw = Default::default();
         self.armed = false;
         self.demand = (0.0, 0.0);
         self.output = [[0.0; 2]; 2];
+        self.stop_reason = reason;
+    }
+
+    /// True while the lease is held, without running the watchdog check.
+    pub fn is_armed(&self) -> bool {
+        self.armed
+    }
+
+    /// Take the reason recorded by the most recent automatic stop.
+    pub fn take_stop_reason(&mut self) -> Option<String> {
+        self.stop_reason.take()
     }
 
     pub fn armed(&mut self, now: Instant) -> bool {
         if now.saturating_duration_since(self.last_command) >= Duration::from_millis(WATCHDOG_MS) {
-            self.stop();
+            self.stop_with_reason_opt(Some(format!("drive command timeout ({WATCHDOG_MS} ms)")));
         }
         self.armed
     }
@@ -491,8 +509,14 @@ mod tests {
             drive.output(&Config::default(), later).unwrap(),
             [[0; 2]; 2]
         );
+        let expected_reason = format!("drive command timeout ({WATCHDOG_MS} ms)");
+        assert_eq!(
+            drive.take_stop_reason().as_deref(),
+            Some(expected_reason.as_str())
+        );
         assert!(drive.command(1.0, 0.0, later).is_err());
         drive.enable(later);
+        assert_eq!(drive.take_stop_reason(), None);
         assert_eq!(
             drive.output(&Config::default(), later).unwrap(),
             [[0; 2]; 2]

@@ -94,9 +94,11 @@ fix confirmation. No drive or arm motion was commanded.
       represent the actual wiring. No wheel-derived pose should appear on the map.
 - [ ] Verify neutral, joystick release and gamepad deadman release stop demand.
 - [ ] Interrupt command traffic, close/blur the client, unplug the gamepad and
-      disconnect Wi-Fi separately. Confirm bounded stop latency; record it.
+      disconnect Wi-Fi separately. Confirm bounded stop latency; record it. Losing
+      window focus must stop both drive and arm immediately.
 - [ ] Disconnect one controller with observer ready. Confirm both sides stop and
       require explicit enable after recovery; new commands/heartbeats cannot re-arm.
+      Confirm the UI shows the controller fault as the drive stop reason.
 - [ ] Test server termination and USB failure. Verify hardware watchdog stops motors
       even if software cannot send zero. Keep clear of wheels throughout.
 - [ ] Test invalid input and settings save while enabled. No restart may resume old

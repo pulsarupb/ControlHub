@@ -175,5 +175,11 @@ Drive command timeout and controller watchdog are 500 ms. Arm jogging freshness 
 is documented as unimplemented. Physical Stop behavior on process/network loss
 must be verified on the actual arm; keep a physical E-stop available.
 
+The drive and arm stop when the client window loses focus or becomes hidden. Every
+automatic stop records a reason; `GET /api/status` exposes it as
+`devices.drive.stop_reason` and `devices.kinova.stop_reason` until the next explicit
+enable. The stop endpoints accept an optional `?reason=` query (for example
+`POST /api/stop?reason=window%20lost%20focus`) so the UI can show why motion ended.
+
 See [`docs/rover16-implementation.md`](docs/rover16-implementation.md) for the
 review/commit map and validation status. Changes are not committed automatically.

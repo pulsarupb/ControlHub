@@ -1,8 +1,9 @@
 <script lang="ts">
   import { rover } from "$lib/rover-control.svelte"
+  const reason = $derived(rover.status?.devices.drive.stop_reason?.reason ?? "")
 </script>
 
-<span class="pill" class:offline={rover.connectionState === "offline"} class:stopped={rover.stopped}>
+<span class="pill" class:offline={rover.connectionState === "offline"} class:stopped={rover.stopped} title={reason || undefined}>
   {rover.connectionState} / drive {rover.stopped ? "stopped" : "enabled"}
   {#if rover.status?.simulate} / SIMULATION{/if}
 </span>

@@ -14,7 +14,18 @@ type RoverState = {
   joystick: JoystickPosition;
   pendingRequest: boolean;
   connectionState: ConnectionState;
+  lastError: string;
 };
+
+class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
 
 function createRoverControl(): RoverControl {
   const state = $state<RoverState>({
@@ -26,37 +37,51 @@ function createRoverControl(): RoverControl {
     joystick: { ...ZERO_JOYSTICK },
     pendingRequest: false,
     connectionState: "connecting",
+    lastError: "",
   });
 
   const stopped = $derived(state.connectionState !== "online" || !state.status?.devices.drive.data.armed);
 
   async function api(path: string, options: RequestInit = {}): Promise<RoverStatus> {
-    const response = await apiFetch(roverConnection.apiUrl(path), {
-      headers: { "content-type": "application/json" },
-      ...options,
-    });
+    const motionRequest = path === "/api/status" || path.startsWith("/api/control");
+    const response = await apiFetch(
+      roverConnection.apiUrl(path),
+      {
+        headers: { "content-type": "application/json" },
+        ...options,
+      },
+      motionRequest ? 1500 : 3000,
+    );
 
     if (!response.ok) {
-      throw new Error(`${path} failed with ${response.status}`);
+      const body = (await response.json().catch(() => null)) as { error?: string } | null;
+      throw new ApiError(response.status, body?.error ?? `${path} failed with ${response.status}`);
     }
 
-    if (path === "/api/status") state.status = (await response.json()) as RoverStatus;
+    if (path === "/api/status") {
+      const wasOffline = state.connectionState === "offline";
+      state.status = (await response.json()) as RoverStatus;
+      // A recovered link should not keep showing the old network error. Motion
+      // refusals (4xx) stay visible until the operator re-enables or stops.
+      if (wasOffline) state.lastError = "";
+    }
     state.connectionState = "online";
     roverConnection.setState("online", "Rover API online");
     return state.status!;
   }
 
-  function markOffline(): void {
+  function markOffline(error?: unknown): void {
     zeroControls();
     state.connectionState = "offline";
-    roverConnection.setState("offline", "Rover API request failed");
+    state.lastError = error instanceof Error ? error.message : "Rover API request failed";
+    roverConnection.setState("offline", state.lastError);
   }
 
   async function refreshStatus(): Promise<void> {
     try {
       await api("/api/status");
     } catch (error) {
-      markOffline();
+      markOffline(error);
     }
   }
 
@@ -71,7 +96,14 @@ function createRoverControl(): RoverControl {
         body: JSON.stringify({ throttle: -state.throttle, steering: -state.steering }),
       });
     } catch (error) {
-      markOffline();
+      // A 4xx here is a motion refusal (for example "drive stopped; explicit
+      // enable required"), not a dead rover. Surface it instead of going offline.
+      if (error instanceof ApiError && error.status < 500) {
+        state.lastError = error.message;
+        void refreshStatus();
+      } else {
+        markOffline(error);
+      }
     } finally {
       state.pendingRequest = false;
     }
@@ -85,16 +117,17 @@ function createRoverControl(): RoverControl {
     state.joystickActive = false;
   }
 
-  async function stopRover(): Promise<void> {
+  async function stopRover(reason = "operator stop"): Promise<void> {
     zeroControls();
     releaseArm();
     hardware.preview = null;
 
     try {
-      await api("/api/stop", { method: "POST" });
+      await api(`/api/stop?reason=${encodeURIComponent(reason)}`, { method: "POST" });
+      state.lastError = "";
       await refreshStatus();
     } catch (error) {
-      markOffline();
+      markOffline(error);
     }
   }
 
@@ -103,9 +136,15 @@ function createRoverControl(): RoverControl {
 
     try {
       await api("/api/drive/enable", { method: "POST" });
+      state.lastError = "";
       await refreshStatus();
     } catch (error) {
-      markOffline();
+      if (error instanceof ApiError && error.status < 500) {
+        state.lastError = error.message;
+        await refreshStatus();
+      } else {
+        markOffline(error);
+      }
     }
   }
 
@@ -155,6 +194,9 @@ function createRoverControl(): RoverControl {
     },
     get stopped() {
       return stopped;
+    },
+    get lastError() {
+      return state.lastError;
     },
     refreshStatus,
     sendControlTick,

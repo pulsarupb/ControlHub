@@ -1,6 +1,8 @@
+export type StopInfo = { reason: string; at: number }
 export type Device<T> = {
   enabled: boolean; connected: boolean; simulated: boolean;
   updated_at: number | null; error: string | null; data: T;
+  stop_reason?: StopInfo | null;
 }
 export type CameraPose = { translation: [number, number, number]; orientation: [number, number, number, number] }
 export type OakCamera = {

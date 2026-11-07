@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, setContext, untrack, type Snippet } from "svelte"
   import Topbar from "$lib/Topbar.svelte"
+  import MotionBanner from "$lib/rover/MotionBanner.svelte"
   import { manager } from "$lib/grid/widgets.svelte"
   import { STATUS_RATE_MS, UI_RATE_MS } from "$lib/constants"
   import { rover } from "$lib/rover-control.svelte"
@@ -24,13 +25,18 @@
     const controlTimer = setInterval(rover.sendControlTick, UI_RATE_MS)
     const statusTimer = setInterval(rover.refreshStatus, STATUS_RATE_MS)
     const armTimer = setInterval(armTick, 100)
-    const release = () => { rover.releaseJoystick(); releaseArm(); releaseGamepad() }
-    const releaseWhenHidden = () => {
-      if (document.hidden) release()
+    // Losing focus must stop both motion devices, not just release the joystick.
+    const stopForFocusLoss = (reason: string) => {
+      releaseGamepad()
+      void rover.stopRover(reason)
+    }
+    const handleBlur = () => stopForFocusLoss("window lost focus")
+    const handleVisibility = () => {
+      if (document.hidden) stopForFocusLoss("app hidden")
     }
 
-    window.addEventListener("blur", release)
-    document.addEventListener("visibilitychange", releaseWhenHidden)
+    window.addEventListener("blur", handleBlur)
+    document.addEventListener("visibilitychange", handleVisibility)
 
     startGamepad()
 
@@ -38,10 +44,10 @@
       clearInterval(controlTimer)
       clearInterval(statusTimer)
       clearInterval(armTimer)
-      window.removeEventListener("blur", release)
-      document.removeEventListener("visibilitychange", releaseWhenHidden)
+      window.removeEventListener("blur", handleBlur)
+      document.removeEventListener("visibilitychange", handleVisibility)
       stopGamepad()
-      rover.stopRover()
+      void rover.stopRover("client closed")
     }
   })
 
@@ -50,6 +56,7 @@
 
 <section>
   <Topbar />
+  <MotionBanner />
 
   {@render children?.()}
 </section>

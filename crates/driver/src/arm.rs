@@ -174,7 +174,7 @@ pub struct Request {
 pub async fn run(state: AppState, mut requests: tokio::sync::mpsc::Receiver<Request>) {
     loop {
         let config = state.config.lock().unwrap().kinova.clone();
-        state.stop_arm();
+        state.stop_arm_preserving_reason("arm session restarting");
         {
             let mut s = state.status.lock().unwrap();
             s.kinova = Default::default();
@@ -199,13 +199,17 @@ pub async fn run(state: AppState, mut requests: tokio::sync::mpsc::Receiver<Requ
         let mut robot = RobotClient::new(cfg);
         robot.set_rpc_timeout(Duration::from_millis(250));
         let result = session(&state, &config, &mut robot, &mut requests).await;
-        state.stop_arm();
         if robot.is_connected() {
             let _ = robot.stop().await;
             let _ = robot.close_session().await;
         }
-        if let Err(error) = result {
-            state.status.lock().unwrap().kinova.fail(error);
+        match result {
+            Ok(()) => state.stop_arm_preserving_reason("arm session ended"),
+            Err(error) => {
+                state.record_arm_stop(error.clone());
+                state.stop_arm_preserving_reason(error.clone());
+                state.status.lock().unwrap().kinova.fail(error);
+            }
         }
         while let Ok(req) = requests.try_recv() {
             let _ = req
@@ -264,7 +268,7 @@ async fn session(
         if state.arm_enabled.load(Ordering::SeqCst)
             && state.arm_seen.lock().unwrap().elapsed() > Duration::from_millis(500)
         {
-            state.stop_arm();
+            state.stop_arm_with("arm heartbeat expired (500 ms)");
         }
         let generation = state.arm_stop.load(Ordering::SeqCst);
         if generation != stopped_generation {
@@ -341,8 +345,8 @@ async fn session(
                 )
                 .await
             };
-            if result.is_err() {
-                state.stop_arm();
+            if let Err(error) = &result {
+                state.stop_arm_with(error.clone());
             }
             let _ = req.reply.send(result);
         }
@@ -374,13 +378,13 @@ async fn session(
                 Err(error) => {
                     data.telemetry_error = Some(error.to_string());
                     if state.arm_enabled.load(Ordering::SeqCst) {
-                        state.stop_arm();
+                        state.stop_arm_with(format!("arm telemetry: {error}"));
                         let _ = robot.stop().await;
                     }
                 }
             }
             if data.arm_state == Some(4) {
-                state.stop_arm();
+                state.stop_arm_with("Kinova entered fault state");
             }
             telemetry_field = (telemetry_field + 1) % 4;
         }
@@ -415,10 +419,11 @@ async fn action(
             let _jog = state.arm_jog.lock().unwrap();
             check_generation(state, generation)?;
             state.arm_enabled.store(true, Ordering::SeqCst);
+            state.clear_arm_stop();
             data.preview = None;
         }
         Action::ClearFaults => {
-            state.stop_arm();
+            state.stop_arm_with("operator cleared faults");
             if !state.simulate {
                 robot.clear_faults().await.map_err(|e| e.to_string())?;
             }
@@ -610,11 +615,12 @@ async fn action(
                         if state.arm_stop.load(Ordering::SeqCst) != generation
                             || !state.arm_enabled.load(Ordering::SeqCst)
                         {
+                            state.stop_arm_with("Cartesian move stopped");
                             let _ = robot.stop().await;
                             return Err("Cartesian move stopped".into());
                         }
                         if state.arm_seen.lock().unwrap().elapsed() > Duration::from_millis(500) {
-                            state.stop_arm();
+                            state.stop_arm_with("arm heartbeat expired during Cartesian move");
                             let _ = robot.stop().await;
                             return Err("arm heartbeat expired during Cartesian move".into());
                         }
@@ -626,7 +632,7 @@ async fn action(
                         data.arm_state =
                             Some(robot.get_arm_state().await.map_err(|e| e.to_string())?);
                         if data.arm_state == Some(4) {
-                            state.stop_arm();
+                            state.stop_arm_with("Kinova entered fault state during Cartesian move");
                             let _ = robot.stop().await;
                             return Err("Kinova entered fault state during Cartesian move".into());
                         }
@@ -641,7 +647,7 @@ async fn action(
                             }));
                         }
                         if Instant::now() >= deadline {
-                            state.stop_arm();
+                            state.stop_arm_with("Cartesian move timed out; robot stopped");
                             let _ = robot.stop().await;
                             return Err("Cartesian move timed out; robot stopped".into());
                         }

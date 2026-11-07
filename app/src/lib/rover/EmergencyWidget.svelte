@@ -3,10 +3,13 @@
 </script>
 
 <div class="emergency-widget">
-  <button class="estop" onclick={rover.stopRover} aria-label="Stop drive and arm">
+  <button class="estop" onclick={() => rover.stopRover()} aria-label="Stop drive and arm">
     <strong>STOP</strong>
   </button>
   <button class="reset" onclick={rover.resetRover}>Enable Drive</button>
+  {#if rover.status?.devices.drive.stop_reason}
+    <p class="reason">Stopped: {rover.status.devices.drive.stop_reason.reason}</p>
+  {/if}
 </div>
 
 <style>
@@ -47,5 +50,11 @@
     font-weight: 700;
     padding: 0.8rem;
     text-transform: uppercase;
+  }
+  .reason {
+    margin: 0;
+    color: #f0b46a;
+    font-size: 0.75rem;
+    overflow-wrap: anywhere;
   }
 </style>

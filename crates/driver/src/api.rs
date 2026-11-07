@@ -101,14 +101,26 @@ async fn oak_frame(
 }
 
 async fn status(State(state): State<AppState>) -> Json<Value> {
-    let armed = state.drive.lock().unwrap().armed(Instant::now());
+    let (armed, stop_reason) = {
+        let mut drive = state.drive.lock().unwrap();
+        let armed = drive.armed(Instant::now());
+        (armed, drive.take_stop_reason())
+    };
+    if let Some(reason) = stop_reason {
+        state.record_drive_stop(reason);
+    }
     let mut status = state.status.lock().unwrap().clone();
     status.drive.data.armed = armed;
     status.kinova.data.armed = state.arm_enabled.load(Ordering::SeqCst);
     status.zed.data.path.clear();
     status.zed.data.points.clear();
     status.zed.data.colors.clear();
-    Json(json!({"time": epoch(), "simulate": state.simulate, "devices": status}))
+    let drive_stop = state.drive_stop_info.lock().unwrap().clone();
+    let arm_stop = state.arm_stop_info.lock().unwrap().clone();
+    let mut value = json!({"time": epoch(), "simulate": state.simulate, "devices": status});
+    value["devices"]["drive"]["stop_reason"] = json!(drive_stop);
+    value["devices"]["kinova"]["stop_reason"] = json!(arm_stop);
+    Json(value)
 }
 
 async fn get_config(State(state): State<AppState>) -> Json<config::Config> {
@@ -138,13 +150,19 @@ async fn put_config(
     }
     payload.validate().map_err(bad)?;
     if payload.drive != old.drive || (old.drive.yaw_control.enabled && payload.zed != old.zed) {
-        state.stop_drive();
+        state.stop_drive_with("drive configuration changed");
         if payload.zed != old.zed {
             *state.yaw_feedback.lock().unwrap() = None;
         }
     }
     if payload.kinova != old.kinova {
-        state.stop_arm();
+        state.stop_arm_with("arm configuration changed");
+    }
+    if !payload.drive.enabled {
+        state.clear_drive_stop();
+    }
+    if !payload.kinova.enabled {
+        state.clear_arm_stop();
     }
     config::save(&state.config_path, &payload)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({"error": e}))))?;
@@ -168,7 +186,7 @@ async fn control(
         s.drive.enabled && s.drive.connected
     };
     if !available {
-        state.stop_drive();
+        state.stop_drive_preserving_reason("drive disabled or offline");
         return Err(unavailable("drive disabled or offline"));
     }
     state
@@ -207,19 +225,25 @@ async fn enable_drive(State(state): State<AppState>) -> Result<Json<Value>, Erro
         }
     }
     state.drive.lock().unwrap().enable(Instant::now());
+    state.clear_drive_stop();
     Ok(Json(json!({"ok": true})))
 }
 
-async fn stop_drive(State(state): State<AppState>) -> Json<Value> {
-    state.stop_drive();
+#[derive(Deserialize)]
+struct StopQuery {
+    reason: Option<String>,
+}
+
+async fn stop_drive(State(state): State<AppState>, Query(query): Query<StopQuery>) -> Json<Value> {
+    state.stop_drive_with(query.reason.unwrap_or_else(|| "operator stop".into()));
     Json(json!({"ok": true}))
 }
-async fn stop_arm(State(state): State<AppState>) -> Json<Value> {
-    state.stop_arm();
+async fn stop_arm(State(state): State<AppState>, Query(query): Query<StopQuery>) -> Json<Value> {
+    state.stop_arm_with(query.reason.unwrap_or_else(|| "operator stop".into()));
     Json(json!({"ok": true}))
 }
-async fn stop(State(state): State<AppState>) -> Json<Value> {
-    state.stop_all();
+async fn stop(State(state): State<AppState>, Query(query): Query<StopQuery>) -> Json<Value> {
+    state.stop_all_with(query.reason.unwrap_or_else(|| "operator stop".into()));
     Json(json!({"ok": true}))
 }
 async fn heartbeat(State(state): State<AppState>) -> Json<Value> {
@@ -232,7 +256,7 @@ async fn arm_jog(
     Json(jog): Json<arm::Jog>,
 ) -> Result<Json<Value>, Error> {
     jog.validate().map_err(|e| {
-        state.stop_arm();
+        state.stop_arm_with("invalid arm jog");
         bad(e)
     })?;
     let mut pending_jog = state.arm_jog.lock().unwrap();
@@ -273,7 +297,7 @@ async fn arm_action(
         Ok(Ok(Ok(result))) => Ok(Json(result)),
         Ok(Ok(Err(error))) => Err(bad(error)),
         _ => {
-            state.stop_arm();
+            state.stop_arm_with("arm request timed out");
             Err(unavailable("arm request timed out; arm stopped"))
         }
     }
@@ -329,7 +353,7 @@ async fn zed_generate_mesh(State(state): State<AppState>) -> Result<Json<Value>,
     snapshot.generating = true;
     snapshot.error = None;
     // Pair with enable_drive's mesh lock so a concurrent enable cannot race baking.
-    state.stop_drive();
+    state.stop_drive_with("mesh generation");
     state.zed_generate_mesh.store(true, Ordering::SeqCst);
     Ok(Json(json!({"ok": true})))
 }
@@ -344,7 +368,7 @@ async fn zed_reset(State(state): State<AppState>) -> Result<Json<Value>, Error> 
         return Err(unavailable("ZED offline"));
     }
     if state.config.lock().unwrap().drive.yaw_control.enabled {
-        state.stop_drive();
+        state.stop_drive_with("ZED reset");
     }
     *state.yaw_feedback.lock().unwrap() = None;
     state.zed_reset.store(true, Ordering::SeqCst);
@@ -852,5 +876,28 @@ mod tests {
         );
         assert!(state.status.lock().unwrap().kinova.data.preview.is_none());
         worker.abort();
+    }
+
+    #[tokio::test]
+    async fn stop_reason_is_exposed_in_status_and_accepts_a_query_reason() {
+        let (state, router) = setup();
+        state.drive.lock().unwrap().enable(Instant::now());
+        let (code, _) = call(
+            router.clone(),
+            "POST",
+            "/api/stop?reason=window%20lost%20focus",
+            json!({}),
+        )
+        .await;
+        assert_eq!(code, StatusCode::OK);
+
+        let (code, body) = call(router, "GET", "/api/status", json!({})).await;
+        assert_eq!(code, StatusCode::OK);
+        assert_eq!(
+            body["devices"]["drive"]["stop_reason"]["reason"],
+            "window lost focus"
+        );
+        assert_eq!(body["devices"]["drive"]["data"]["armed"], false);
+        assert!(body["devices"]["kinova"]["stop_reason"].is_null());
     }
 }

@@ -115,7 +115,7 @@ pub fn zed_worker(state: AppState, script: std::path::PathBuf) {
         let result = zed_session(&state, &config, &script);
         *state.yaw_feedback.lock().unwrap() = None;
         if state.config.lock().unwrap().drive.yaw_control.enabled {
-            state.stop_drive();
+            state.stop_drive_with("ZED session ended");
         }
         if let Err(error) = result {
             let mut mesh = state.zed_mesh.lock().unwrap();
@@ -193,7 +193,7 @@ fn zed_session(
                     *state.yaw_feedback.lock().unwrap() = feedback;
                     if feedback.is_none() && state.config.lock().unwrap().drive.yaw_control.enabled
                     {
-                        state.stop_drive();
+                        state.stop_drive_with("ZED yaw feedback lost");
                     }
                 }
                 zed::Event::State { state: data } => state.status.lock().unwrap().zed.update(*data),

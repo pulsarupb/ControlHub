@@ -11,6 +11,13 @@ pub fn epoch() -> f64 {
         .as_secs_f64()
 }
 
+/// Why a motion device last stopped. Persists until the next explicit enable.
+#[derive(Clone, Debug, Serialize)]
+pub struct StopInfo {
+    pub reason: String,
+    pub at: f64,
+}
+
 #[derive(Clone)]
 pub struct AppState {
     pub config: Arc<Mutex<Config>>,
@@ -23,6 +30,8 @@ pub struct AppState {
     pub arm_jog: Arc<Mutex<Option<(crate::arm::Jog, Instant)>>>,
     pub arm_seen: Arc<Mutex<Instant>>,
     pub arm_tx: tokio::sync::mpsc::Sender<crate::arm::Request>,
+    pub drive_stop_info: Arc<Mutex<Option<StopInfo>>>,
+    pub arm_stop_info: Arc<Mutex<Option<StopInfo>>>,
     pub zed_reset: Arc<AtomicBool>,
     pub zed_generate_mesh: Arc<AtomicBool>,
     pub zed_mesh: Arc<Mutex<zed::MeshSnapshot>>,
@@ -53,6 +62,8 @@ impl AppState {
                 arm_jog: Default::default(),
                 arm_seen: Arc::new(Mutex::new(Instant::now())),
                 arm_tx,
+                drive_stop_info: Default::default(),
+                arm_stop_info: Default::default(),
                 zed_reset: Arc::new(AtomicBool::new(false)),
                 zed_generate_mesh: Arc::new(AtomicBool::new(false)),
                 zed_mesh: Default::default(),
@@ -66,19 +77,111 @@ impl AppState {
             arm_rx,
         )
     }
+    pub fn record_drive_stop(&self, reason: impl Into<String>) {
+        let reason = reason.into();
+        eprintln!("drive stopped: {reason}");
+        *self.drive_stop_info.lock().unwrap() = Some(StopInfo {
+            reason,
+            at: epoch(),
+        });
+    }
+    pub fn record_arm_stop(&self, reason: impl Into<String>) {
+        let reason = reason.into();
+        eprintln!("arm stopped: {reason}");
+        *self.arm_stop_info.lock().unwrap() = Some(StopInfo {
+            reason,
+            at: epoch(),
+        });
+    }
+    pub fn clear_drive_stop(&self) {
+        *self.drive_stop_info.lock().unwrap() = None;
+    }
+    pub fn clear_arm_stop(&self) {
+        *self.arm_stop_info.lock().unwrap() = None;
+    }
+    #[allow(dead_code)]
     pub fn stop_drive(&self) {
-        self.drive.lock().unwrap().stop();
+        self.stop_drive_with("stopped");
+    }
+    pub fn stop_drive_with(&self, reason: impl Into<String>) {
+        let was_armed = {
+            let mut drive = self.drive.lock().unwrap();
+            let was_armed = drive.is_armed();
+            drive.stop();
+            was_armed
+        };
         self.drive_generation.fetch_add(1, Ordering::SeqCst);
+        if was_armed {
+            self.record_drive_stop(reason);
+        }
     }
+    /// Stop without replacing an already-recorded, more specific reason.
+    pub fn stop_drive_preserving_reason(&self, reason: impl Into<String>) {
+        let (was_armed, internal_reason) = {
+            let mut drive = self.drive.lock().unwrap();
+            let was_armed = drive.is_armed();
+            let internal_reason = drive.take_stop_reason();
+            drive.stop();
+            (was_armed, internal_reason)
+        };
+        self.drive_generation.fetch_add(1, Ordering::SeqCst);
+        if was_armed {
+            let mut stop = self.drive_stop_info.lock().unwrap();
+            if stop.is_none() {
+                let reason = internal_reason.unwrap_or_else(|| reason.into());
+                eprintln!("drive stopped: {reason}");
+                *stop = Some(StopInfo {
+                    reason,
+                    at: epoch(),
+                });
+            }
+        }
+    }
+    #[allow(dead_code)]
     pub fn stop_arm(&self) {
-        let mut jog = self.arm_jog.lock().unwrap();
-        self.arm_enabled.store(false, Ordering::SeqCst);
-        self.arm_stop.fetch_add(1, Ordering::SeqCst);
-        *jog = None;
+        self.stop_arm_with("stopped");
     }
+    pub fn stop_arm_with(&self, reason: impl Into<String>) {
+        let was_armed = self.arm_enabled.load(Ordering::SeqCst);
+        {
+            let mut jog = self.arm_jog.lock().unwrap();
+            self.arm_enabled.store(false, Ordering::SeqCst);
+            self.arm_stop.fetch_add(1, Ordering::SeqCst);
+            *jog = None;
+        }
+        if was_armed {
+            self.record_arm_stop(reason);
+        }
+    }
+    /// Stop without replacing an already-recorded, more specific reason.
+    pub fn stop_arm_preserving_reason(&self, reason: impl Into<String>) {
+        let was_armed = self.arm_enabled.load(Ordering::SeqCst);
+        {
+            let mut jog = self.arm_jog.lock().unwrap();
+            self.arm_enabled.store(false, Ordering::SeqCst);
+            self.arm_stop.fetch_add(1, Ordering::SeqCst);
+            *jog = None;
+        }
+        if was_armed {
+            let mut stop = self.arm_stop_info.lock().unwrap();
+            if stop.is_none() {
+                let reason = reason.into();
+                eprintln!("arm stopped: {reason}");
+                *stop = Some(StopInfo {
+                    reason,
+                    at: epoch(),
+                });
+            }
+        }
+    }
+    #[allow(dead_code)]
     pub fn stop_all(&self) {
-        self.stop_drive();
-        self.stop_arm();
+        self.stop_all_with("operator stop");
+    }
+    pub fn stop_all_with(&self, reason: impl Into<String>) {
+        let reason = reason.into();
+        self.stop_drive_with(reason.clone());
+        self.stop_arm_with(reason);
     }
 }
 
@@ -156,4 +259,63 @@ pub struct Status {
     pub rtk: Device<RtkData>,
     pub zed: Device<zed::Snapshot>,
     pub oak: Device<oakd::Snapshot>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn drive_stop_reason_is_recorded_only_while_armed() {
+        let (state, _) = AppState::new(Default::default(), String::new(), true);
+        state.stop_drive_with("operator stop");
+        assert!(state.drive_stop_info.lock().unwrap().is_none());
+
+        state.drive.lock().unwrap().enable(Instant::now());
+        state.stop_drive_with("operator stop");
+        assert_eq!(
+            state
+                .drive_stop_info
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .reason,
+            "operator stop"
+        );
+
+        state.drive.lock().unwrap().enable(Instant::now());
+        state.record_drive_stop("first");
+        state.stop_drive_preserving_reason("second");
+        assert_eq!(
+            state
+                .drive_stop_info
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .reason,
+            "first"
+        );
+
+        state.clear_drive_stop();
+        assert!(state.drive_stop_info.lock().unwrap().is_none());
+    }
+
+    #[test]
+    fn arm_stop_reason_is_recorded_only_while_armed() {
+        let (state, _) = AppState::new(Default::default(), String::new(), true);
+        state.stop_arm_with("operator stop");
+        assert!(state.arm_stop_info.lock().unwrap().is_none());
+
+        state.arm_enabled.store(true, Ordering::SeqCst);
+        state.stop_arm_with("arm heartbeat expired (500 ms)");
+        assert_eq!(
+            state.arm_stop_info.lock().unwrap().as_ref().unwrap().reason,
+            "arm heartbeat expired (500 ms)"
+        );
+
+        state.clear_arm_stop();
+        assert!(state.arm_stop_info.lock().unwrap().is_none());
+    }
 }

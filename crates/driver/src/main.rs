@@ -76,7 +76,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             state
                 .shutting_down
                 .store(true, std::sync::atomic::Ordering::SeqCst);
-            state.stop_all();
+            state.stop_all_with("server shutdown");
             tokio::time::sleep(Duration::from_secs(2)).await;
         })
         .await?;

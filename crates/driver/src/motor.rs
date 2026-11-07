@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 pub fn run(state: AppState) {
     loop {
         let config = state.config.lock().unwrap().drive.clone();
-        state.stop_drive();
+        state.stop_drive_preserving_reason("drive session restarting");
         {
             let mut status = state.status.lock().unwrap();
             status.drive = Default::default();
@@ -18,9 +18,13 @@ pub fn run(state: AppState) {
             continue;
         }
         let result = session(&state, &config);
-        state.stop_drive();
-        if let Err(error) = result {
-            state.status.lock().unwrap().drive.fail(error);
+        match result {
+            Ok(()) => state.stop_drive_preserving_reason("drive session ended"),
+            Err(error) => {
+                state.record_drive_stop(error.clone());
+                state.stop_drive_preserving_reason(error.clone());
+                state.status.lock().unwrap().drive.fail(error);
+            }
         }
         std::thread::sleep(Duration::from_millis(500));
     }
@@ -54,11 +58,15 @@ fn session(state: &AppState, config: &roboteq::Config) -> Result<(), String> {
         let feedback = *state.yaw_feedback.lock().unwrap();
         // Sample first: a concurrent camera update must not look future-dated.
         let now = Instant::now();
-        let (armed, power) = {
+        let (armed, power, stop_reason) = {
             let mut drive = state.drive.lock().unwrap();
             let power = drive.output_with_feedback(config, now, feedback)?;
-            (drive.armed(now), power)
+            let armed = drive.armed(now);
+            (armed, power, drive.take_stop_reason())
         };
+        if let Some(reason) = stop_reason {
+            state.record_drive_stop(reason);
+        }
         if let Some(c) = &mut controllers {
             // A failure drops BOTH controllers, whose Drop sends a best-effort
             // stop independently. Their hardware watchdogs remain the backstop.

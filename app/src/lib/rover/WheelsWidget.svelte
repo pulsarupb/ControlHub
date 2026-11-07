@@ -9,6 +9,7 @@
   <h3>Wheels / controllers</h3>
   <DeviceStatus device={drive} />
   <p>{drive?.data.armed ? "Drive enabled" : "Drive stopped"} · {hardware.config?.drive.yaw_control?.enabled ? "ZED yaw feedback · no wheel encoders required" : "Open-loop power, no wheel pose"}</p>
+  {#if drive?.stop_reason}<p class="stop-reason">Stopped: {drive.stop_reason.reason}</p>{/if}
   {#if hardware.config?.drive.yaw_control?.enabled && drive?.data.yaw_control}
     {@const yaw = drive.data.yaw_control}
     <p>{yaw.active ? "Yaw PI active" : "Yaw PI idle / awaiting feedback"}{yaw.heading_held ? " · Heading hold" : ""}<br />
@@ -23,4 +24,4 @@
     {/each}</tbody>
   </table>
 </section>
-<style>section { padding: 1rem; overflow: auto; height: 100%; }h3 { margin: 0 0 .5rem; }p { font-size: .8rem; }table { width: 100%; font-size: .8rem; border-collapse: collapse; }th, td { text-align: left; padding: .4rem; border-bottom: 1px solid #5555; }</style>
+<style>section { padding: 1rem; overflow: auto; height: 100%; }h3 { margin: 0 0 .5rem; }p { font-size: .8rem; }.stop-reason { color: #f0b46a; }table { width: 100%; font-size: .8rem; border-collapse: collapse; }th, td { text-align: left; padding: .4rem; border-bottom: 1px solid #5555; }</style>

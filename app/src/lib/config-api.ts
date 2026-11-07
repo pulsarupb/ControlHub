@@ -19,11 +19,20 @@ export type FullConfig = {
   gamepad: GamepadConfig;
 }
 
-export async function request<T>(path: string, body?: unknown, method = "POST"): Promise<T> {
-  const response = await apiFetch(roverConnection.apiUrl(path), {
-    method, headers: { "content-type": "application/json" },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  })
+export async function request<T>(
+  path: string,
+  body?: unknown,
+  method = "POST",
+  timeoutMs = 3000,
+): Promise<T> {
+  const response = await apiFetch(
+    roverConnection.apiUrl(path),
+    {
+      method, headers: { "content-type": "application/json" },
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    },
+    timeoutMs,
+  )
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: `HTTP ${response.status}` }))
     throw new Error(error.error ?? `HTTP ${response.status}`)
