@@ -201,7 +201,12 @@ impl Drive {
     }
 
     pub fn armed(&mut self, now: Instant) -> bool {
-        if now.saturating_duration_since(self.last_command) >= Duration::from_millis(WATCHDOG_MS) {
+        // Latch the timeout only on the armed -> stopped transition. Re-checking
+        // an already stopped drive must not record the same reason again, which
+        // would spam the logs from every status poll and control-loop tick.
+        if self.armed
+            && now.saturating_duration_since(self.last_command) >= Duration::from_millis(WATCHDOG_MS)
+        {
             self.stop_with_reason_opt(Some(format!("drive command timeout ({WATCHDOG_MS} ms)")));
         }
         self.armed
@@ -521,6 +526,33 @@ mod tests {
             drive.output(&Config::default(), later).unwrap(),
             [[0; 2]; 2]
         );
+    }
+
+    #[test]
+    fn timeout_reason_is_recorded_only_once() {
+        let now = Instant::now();
+        let mut drive = Drive::default();
+        drive.enable(now);
+        drive.command(1.0, 0.0, now).unwrap();
+
+        let later = now + Duration::from_millis(WATCHDOG_MS);
+        assert_eq!(
+            drive.output(&Config::default(), later).unwrap(),
+            [[0; 2]; 2]
+        );
+        assert!(drive.take_stop_reason().is_some());
+
+        // Repeated watchdog checks while already stopped must not re-latch the
+        // reason; otherwise every status poll and control-loop tick logs it.
+        for tick in 1..10 {
+            let at = later + Duration::from_millis(20 * tick);
+            assert_eq!(
+                drive.output(&Config::default(), at).unwrap(),
+                [[0; 2]; 2]
+            );
+            assert!(!drive.armed(at));
+            assert_eq!(drive.take_stop_reason(), None);
+        }
     }
 
     #[test]
