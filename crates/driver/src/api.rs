@@ -1,6 +1,7 @@
 use crate::{
     arm, config,
     state::{AppState, epoch},
+    system,
 };
 use axum::{
     Json, Router,
@@ -39,6 +40,8 @@ pub fn router(state: AppState) -> Router {
         .route("/api/drive/stop", post(stop_drive))
         .route("/api/heartbeat", post(heartbeat))
         .route("/api/stop", post(stop))
+        .route("/api/system/shutdown", post(shutdown))
+        .route("/api/system/reboot", post(reboot))
         .route("/api/arm/action", post(arm_action))
         .route("/api/arm/jog", post(arm_jog))
         .route("/api/arm/stop", post(stop_arm))
@@ -246,6 +249,62 @@ async fn stop(State(state): State<AppState>, Query(query): Query<StopQuery>) -> 
     state.stop_all_with(query.reason.unwrap_or_else(|| "operator stop".into()));
     Json(json!({"ok": true}))
 }
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct PowerRequest {
+    confirm: bool,
+}
+
+async fn shutdown(
+    State(state): State<AppState>,
+    Json(payload): Json<PowerRequest>,
+) -> Result<Json<Value>, Error> {
+    power(&state, system::PowerAction::Shutdown, payload).await
+}
+
+async fn reboot(
+    State(state): State<AppState>,
+    Json(payload): Json<PowerRequest>,
+) -> Result<Json<Value>, Error> {
+    power(&state, system::PowerAction::Reboot, payload).await
+}
+
+async fn power(
+    state: &AppState,
+    action: system::PowerAction,
+    payload: PowerRequest,
+) -> Result<Json<Value>, Error> {
+    if !payload.confirm {
+        return Err(bad("host power action requires confirm=true"));
+    }
+    if state.simulate {
+        return Err(unavailable("simulated rover does not control host power"));
+    }
+    // Stop both motion devices and give their workers time to flush a zero
+    // command before the host starts shutting down.
+    state.stop_all_with(match action {
+        system::PowerAction::Shutdown => "host shutdown",
+        system::PowerAction::Reboot => "host reboot",
+    });
+    tokio::time::sleep(Duration::from_millis(750)).await;
+    let result = tokio::task::spawn_blocking(move || system::request(action))
+        .await
+        .map_err(|error| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({"error": format!("power task failed: {error}")})),
+            )
+        })?;
+    result.map_err(|error| {
+        (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error": error})),
+        )
+    })?;
+    Ok(Json(json!({"ok": true, "action": action.as_str()})))
+}
+
 async fn heartbeat(State(state): State<AppState>) -> Json<Value> {
     *state.arm_seen.lock().unwrap() = Instant::now();
     Json(json!({"ok": true}))
@@ -672,6 +731,42 @@ mod tests {
         assert!(!state.arm_enabled.load(Ordering::SeqCst));
         assert!(state.arm_stop.load(Ordering::SeqCst) > before);
         assert!(state.status.lock().unwrap().rtk.connected);
+    }
+
+    #[tokio::test]
+    async fn host_power_requires_confirmation_and_is_disabled_in_simulation() {
+        let (_, router) = setup();
+        assert_eq!(
+            call(
+                router.clone(),
+                "POST",
+                "/api/system/shutdown",
+                json!({"confirm": false})
+            )
+            .await
+            .0,
+            StatusCode::BAD_REQUEST
+        );
+        let (code, body) = call(
+            router.clone(),
+            "POST",
+            "/api/system/shutdown",
+            json!({"confirm": true}),
+        )
+        .await;
+        assert_eq!(code, StatusCode::CONFLICT);
+        assert!(body["error"].as_str().unwrap().contains("simulated"));
+        assert_eq!(
+            call(
+                router,
+                "POST",
+                "/api/system/reboot",
+                json!({"confirm": true})
+            )
+            .await
+            .0,
+            StatusCode::CONFLICT
+        );
     }
 
     #[tokio::test]

@@ -111,6 +111,20 @@ docker compose up -d driver
 Rebuild after changing the SDK version. These mounts require the SDK and CUDA
 directories to exist; this setup is not a portable x86 or older-Ubuntu image.
 
+### Host power control
+
+Panels can shut down or reboot the Jetson from the rover connection overlay.
+The driver first stops drive and arm motion, then asks the host through logind
+over the system D-Bus. The runtime image includes `dbus-bin`, and Compose already
+mounts the host D-Bus socket and runs the container privileged, so no extra
+Compose configuration is needed. If D-Bus is unavailable, the driver falls back
+to the privileged `reboot(2)` syscall; that path is immediate and does not stop
+services or unmount filesystems cleanly, so it is a last resort.
+
+For a native install, run the driver as root or allow its user to call
+`org.freedesktop.login1.power-off` and `org.freedesktop.login1.reboot` with a
+polkit rule. The endpoints are disabled in `--simulate` mode.
+
 ## Configuration and controls
 
 Configuration is JSON, default `data/config.json`. Missing files start with every
@@ -162,7 +176,14 @@ ZED video, arm controls and arm 3D/IK target are independently placeable.
 `GET /api/health`, `/api/status`, `/api/config`, `/api/zed/map`;
 `PUT /api/config`; `POST /api/control`, `/api/drive/enable`, `/api/drive/stop`,
 `/api/arm/action`, `/api/arm/jog`, `/api/arm/stop`, `/api/heartbeat`, `/api/zed/reset`,
-`/api/stop`; `GET /api/zed/frame/{color|depth}`.
+`/api/stop`, `/api/system/shutdown`, `/api/system/reboot`;
+`GET /api/zed/frame/{color|depth}`.
+
+The host power endpoints require a JSON body `{"confirm": true}`. They stop
+drive and arm motion, wait for the workers to flush a zero command, and then ask
+the Jetson to power off or restart. They are rejected in simulation and return
+`503` if the driver cannot reach the host power service. Like every other
+endpoint, they have no authentication; anyone on the rover LAN can call them.
 
 The API is intended for a trusted rover LAN; it has no authentication and must not
 be exposed to the public Internet. Config files contain credentials, are written

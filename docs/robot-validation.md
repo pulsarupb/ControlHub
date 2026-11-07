@@ -137,6 +137,10 @@ fix confirmation. No drive or arm motion was commanded.
       manual controls; a drive controller failure must stop the paired drive.
 - [ ] Check saved settings survive restart, disabled devices stay unopened, secrets
       are not printed, simulation is unmistakable and offline data is not shown fresh.
+- [ ] Test shutdown and reboot from the rover connection overlay. Motion must stop
+      first, the Jetson must power off/restart, and Panels must report offline then
+      online. Verify the driver has host power permission and that a failed request
+      leaves the rover online.
 - [ ] Run color/depth streams, mapping, RTK/NTRIP and arm viewer together. Record
       CPU/GPU/RAM, temperatures, stream latency and command/Stop latency under load.
 - [ ] Only after suspended tests pass, perform low-power ground driving outdoors

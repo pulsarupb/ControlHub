@@ -6,6 +6,7 @@ mod motor;
 mod oak;
 mod sensors;
 mod state;
+mod system;
 mod wifi;
 
 use std::time::Duration;
