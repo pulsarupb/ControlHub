@@ -48,7 +48,7 @@
     margin-bottom: var(--padding);
   }
   .possibilities {
-    width: 500px;
+    width: min(500px, calc(100vw - 48px));
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, auto));
     gap: 1rem;

@@ -1,6 +1,8 @@
 <script lang="ts">
   import WidgetTopBar from "./WidgetTopBar.svelte"
   import WidgetChoose from "./WidgetChoose.svelte"
+  import WidgetResize from "./WidgetResize.svelte"
+  import WidgetOptions from "./WidgetOptions.svelte"
   import { getContext } from "svelte"
   import type { ExtendedWidgetGroup, Manager } from "../widgets.svelte"
   import WidgetContent from "../WidgetContent.svelte"
@@ -62,6 +64,11 @@
       {/if}
     </section>
   </div>
+  <!-- Narrow widgets: the top bar has no room for its controls, so resize and the menu stack in the top-right corner, outside the clipped .content. Never at the bottom: bottom-edge drags close the app on some devices. -->
+  <div class="corner-grip" data-workspace-preview-ignore>
+    <WidgetResize bind:widget {isPossible} />
+    <WidgetOptions bind:widget />
+  </div>
 </div>
 
 <style>
@@ -82,6 +89,28 @@
     display: flex;
     flex-direction: column;
     padding: var(--spacing);
+    container-type: inline-size;
+  }
+  .corner-grip {
+    display: none;
+    position: absolute;
+    /* Inside the widget, not straddling its edge: the viewport clips anything above the top row. */
+    top: var(--spacing);
+    right: 0;
+    z-index: 2;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    background: var(--bgMedium);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+  }
+  /* Same threshold as WidgetTopBar: below it, the top-bar controls are hidden and this stack shows. */
+  @container (max-width: 180px) {
+    .corner-grip {
+      display: flex;
+    }
   }
   .content {
     position: relative;

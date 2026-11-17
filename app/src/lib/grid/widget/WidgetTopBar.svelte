@@ -232,7 +232,9 @@
   </div>
   <div class="actions" data-workspace-preview-ignore>
     <WidgetOptions bind:widget />
-    <WidgetResize bind:widget bind:isPossible />
+    <div class="top-resize">
+      <WidgetResize bind:widget bind:isPossible />
+    </div>
   </div>
 </nav>
 
@@ -252,8 +254,8 @@
     gap: 0.5rem;
     overflow-y: auto;
     user-select: none;
+    min-width: 0;
   }
-
   .actions {
     display: flex;
     align-items: center;
@@ -274,6 +276,11 @@
     -webkit-user-select: none;
     touch-action: none;
   }
+  @media (pointer: coarse) {
+    .tab {
+      padding-block: 0.6em;
+    }
+  }
   .tab.selected {
     color: var(--text);
     border-color: var(--borderStrong);
@@ -284,6 +291,19 @@
   }
   .moving {
     opacity: 0.5;
+  }
+  /* Narrow widgets (same threshold as Widget.svelte): hide the top-bar resize handle, shorten tab labels.
+     Declared after the base rules so these overrides win. */
+  @container (max-width: 180px) {
+    /* Resize and the menu move to the corner stack in Widget.svelte. */
+    .actions {
+      display: none;
+    }
+    .tab {
+      max-width: 6em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
   }
   .tab.absolute {
     position: absolute;
