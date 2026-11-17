@@ -1,9 +1,9 @@
 {
-  "version": "0.1.55",
-  "versionCode": 1055,
-  "apkUrl": "https://github.com/pulsarupb/ControlHub/releases/download/v0.1.55/Panels-ERC-Edition-Android-ARM64-v0.1.55.apk",
-  "sha256": "93e012b751f9ec85eb3dc6264d77aa7777a6a85f939b520f5e4961139ca4e330",
+  "version": "0.1.56",
+  "versionCode": 1056,
+  "apkUrl": "https://github.com/pulsarupb/ControlHub/releases/download/v0.1.56/Panels-ERC-Edition-Android-ARM64-v0.1.56.apk",
+  "sha256": "3c62b112e082fdd721d0a065c1e195323219f6ab1e1ed718e910c523769a58d7",
   "signingCertificateSha256": "a24bdc2d6c31c82dd022890e008c64aa66e4bba88e51fb5901286300a15b5f15",
-  "releasePageUrl": "https://github.com/pulsarupb/ControlHub/releases/tag/v0.1.55",
-  "notes": "Panels ERC Edition standard Android update 0.1.55"
+  "releasePageUrl": "https://github.com/pulsarupb/ControlHub/releases/tag/v0.1.56",
+  "notes": "Panels ERC Edition standard Android update 0.1.56"
 }
