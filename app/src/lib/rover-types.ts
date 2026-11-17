@@ -11,6 +11,8 @@ export type RoverStatus = {
   devices: import("$lib/hardware-types").Devices;
 };
 
+export type DriveAxis = "throttle" | "steering";
+
 export type RoverControl = {
   readonly status: RoverStatus | null;
   readonly throttle: number;
@@ -29,4 +31,6 @@ export type RoverControl = {
   setThrottle: (value: number) => void;
   setSteering: (value: number) => void;
   releaseJoystick: () => void;
+  beginDrag: (axes: DriveAxis[]) => boolean;
+  endDrag: (axes: DriveAxis[]) => void;
 };
