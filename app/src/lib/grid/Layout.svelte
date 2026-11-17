@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte"
+  import { onMount, tick } from "svelte"
   import WidgetItem from "./widget/Widget.svelte"
 
   import Overlay from "./Overlay.svelte"
@@ -108,14 +108,25 @@ import TemplatesChoose from "./TemplatesChoose.svelte"
       manager.navlets = [...manager.presets.data[manager.presets.selected].navlets]
     }
     manager.updateGridSize(section, preview ? undefined : viewport)
-    if (!preview) bindWorkspaceViewport(viewport)
+    // Paging reads the canvas size, so bind only after Svelte has applied the new cell size.
+    if (!preview) void tick().then(() => bindWorkspaceViewport(viewport))
     if (!manager.enableInteractions || preview) return
+    // One resize can fire many events: coalesce them into a frame, then re-measure the cells and
+    // re-align the viewport to the active workspace after Svelte has applied the new canvas size.
+    let frame: number | null = null
     const handler = () => {
-      manager.updateGridSize(section, viewport)
-      bindWorkspaceViewport(viewport)
+      if (frame !== null) return
+      frame = requestAnimationFrame(async () => {
+        frame = null
+        manager.updateGridSize(section, viewport)
+        bindWorkspaceViewport(viewport)
+        await tick()
+        bindWorkspaceViewport(viewport)
+      })
     }
     window.addEventListener("resize", handler)
     return () => {
+      if (frame !== null) cancelAnimationFrame(frame)
       window.removeEventListener("resize", handler)
       bindWorkspaceViewport(null)
     }
@@ -123,6 +134,10 @@ import TemplatesChoose from "./TemplatesChoose.svelte"
 
   let section: HTMLElement
   let viewport: HTMLElement
+
+  let canvasStyle = $derived(
+    `--width:${manager.WIDTH}px;--wCount:${manager.MAX_GRID_WIDTH};--height:${manager.HEIGHT}px;--hCount:${manager.MAX_GRID_HEIGHT};width:${preview ? "100%" : `${manager.WIDTH * manager.MAX_GRID_WIDTH}px`};height:${preview ? "100%" : `${manager.HEIGHT * manager.MAX_GRID_HEIGHT}px`};`,
+  )
 
   function navigateCanvas(direction: "up" | "down" | "left" | "right") {
     moveWorkspace(direction)
@@ -167,7 +182,7 @@ import TemplatesChoose from "./TemplatesChoose.svelte"
     role="grid"
     tabindex="0"
     aria-label="Widget canvas. Use arrow keys to change workspaces."
-    style="--width:{manager.WIDTH}px;--wCount:{manager.MAX_GRID_WIDTH};--height:{manager.HEIGHT}px;--hCount:{manager.MAX_GRID_HEIGHT};width:{preview ? '100%' : `${manager.WIDTH * manager.MAX_GRID_WIDTH}px`};height:{preview ? '100%' : `${manager.HEIGHT * manager.MAX_GRID_HEIGHT}px`};"
+    style={canvasStyle}
   >
     {#each [0, 1, 2] as column}
       {#each [0, 1] as row}
@@ -230,6 +245,7 @@ import TemplatesChoose from "./TemplatesChoose.svelte"
   }
   .wrapper {
     position: relative;
+    /* The workspace never scrolls: workspaces move by swipe or arrow keys. A widget taller than its cell scrolls inside its own body. */
     overflow: hidden;
     flex: 1 1 auto;
     height: 0;

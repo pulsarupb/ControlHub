@@ -13,12 +13,18 @@
     isPossible,
   }: { widget: ExtendedWidgetGroup; isPossible: boolean } = $props()
   let isSmall = $derived(widget.w == 1 && widget.h == 1)
+  // Half a gap per side; a side on a workspace or canvas edge (every 12 columns, every 6 rows) takes the other half.
+  const pad = (edge: boolean) => (edge ? "var(--gap)" : "calc(var(--gap) / 2)")
+  let padStyle = $derived(
+    `--padL:${pad(widget.x % 12 === 0)};--padR:${pad((widget.x + widget.w) % 12 === 0)};` +
+    `--padT:${pad(widget.y % 6 === 0)};--padB:${pad((widget.y + widget.h) % 6 === 0)};`,
+  )
 </script>
 
 <div
   class="item"
   class:transparent={widget.isMoving && !isPossible}
-  style="--x:{widget.x};--y:{widget.y};--w:{widget.w};--h:{widget.h};--xOffset:{widget
+  style="{padStyle}--x:{widget.x};--y:{widget.y};--w:{widget.w};--h:{widget.h};--xOffset:{widget
     .offset.x}px;--yOffset:{widget.offset.y}px;--xMove:{widget.move
     .x}px;--yMove:{widget.move.y}px;"
 >
@@ -76,7 +82,7 @@
     height: 100%;
   }
   section {
-    padding: var(--padding);
+    padding: var(--inset);
     overflow: auto;
     flex-grow: 1;
   }
@@ -88,7 +94,7 @@
     width: calc(var(--w) * var(--width) + var(--xOffset));
     display: flex;
     flex-direction: column;
-    padding: var(--spacing);
+    padding: var(--padT, calc(var(--gap) / 2)) var(--padR, calc(var(--gap) / 2)) var(--padB, calc(var(--gap) / 2)) var(--padL, calc(var(--gap) / 2));
     container-type: inline-size;
   }
   .corner-grip {
@@ -111,6 +117,10 @@
     .corner-grip {
       display: flex;
     }
+    /* Keep the header's right-hand controls clear of the corner stack. */
+    .content :global(.widget-header) {
+      padding-right: 1.9rem;
+    }
   }
   .content {
     position: relative;
@@ -125,7 +135,7 @@
     border-radius: 0.55rem;
   }
   .content.invalid {
-    background-color: rgba(199, 93, 85, 0.2);
+    background-color: color-mix(in srgb, var(--danger) 20%, transparent);
     border-color: var(--danger);
   }
   .transparent {

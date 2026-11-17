@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { onMount } from "svelte"
+  import { friendlyError } from "$lib/friendly-error"
+  import { getContext, onMount } from "svelte"
   import * as THREE from "three"
   import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
   import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js"
@@ -42,6 +43,8 @@
   })
 
   onMount(() => {
+    // Inside a Presets preview there is no live 3D scene: skip WebGL, polling and the render loop.
+    if (getContext("widget-preview") === true) return
     try {
       const settings = parseAppearance(localStorage.getItem(appearanceKey))
       pointSize = settings.pointSize; brightness = settings.brightness; opacity = settings.opacity
@@ -113,6 +116,14 @@
     updateAppearance()
     const path = new THREE.Line(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: "#d7bd70" }))
     native.add(cloud, path)
+    // Off-screen (other workspace or clipped) views skip rendering; the data still updates.
+    let onScreen = true
+    // The render loop only runs while the widget is on screen, so off-screen widgets cost no frames.
+    const visibility = new IntersectionObserver(([entry]) => {
+      onScreen = entry.isIntersecting
+      if (onScreen && alive && frame === 0) animate()
+    })
+    visibility.observe(host)
     const resize = new ResizeObserver(() => {
       renderer.setSize(host.clientWidth, host.clientHeight)
       camera.aspect = host.clientWidth / Math.max(1, host.clientHeight)
@@ -164,14 +175,14 @@
         meshRevision = snapshot.generated_at; meshAvailable = true
         meshTextured = Boolean(texture); meshTruncated = data.truncated
         updateAppearance()
-      } catch (e) { if (alive) meshError = String(e) }
+      } catch (e) { if (alive) meshError = friendlyError(e) }
       finally { meshBusy = false }
     }
     generateMesh = () => {
       if (generatingMesh) return
       generatingMesh = true; meshError = ""
       void request("/api/zed/mesh").then(() => { if (alive) void refreshMesh() })
-        .catch(e => { if (alive) { meshError = String(e); generatingMesh = false } })
+        .catch(e => { if (alive) { meshError = friendlyError(e); generatingMesh = false } })
     }
     void refreshMesh()
     const meshTimer = setInterval(refreshMesh, 3000)
@@ -185,7 +196,7 @@
       geometry.rotateX(Math.PI / 2)
       body.add(new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: "#909090", roughness: .65, metalness: .15 })))
       modelLoaded = true
-    }).catch(e => { if (alive) modelError = `Cannot load rover model: ${String(e)}` })
+    }).catch(e => { if (alive) modelError = `Cannot load rover model: ${friendlyError(e)}` })
     async function refresh() {
       if (busy || !device?.connected) return
       busy = true
@@ -228,15 +239,20 @@
         path.geometry.dispose()
         path.geometry = new THREE.BufferGeometry().setFromPoints(data.path.map(p => new THREE.Vector3().fromArray(p.translation)))
         error = ""
-      } catch (e) { if (alive) error = String(e) }
+      } catch (e) { if (alive) error = friendlyError(e) }
       finally { busy = false }
     }
     void refresh()
     const timer = setInterval(refresh, 1000)
-    function animate() { if (!alive) return; frame = requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera) }
+    function animate() {
+      frame = 0
+      if (!alive || !onScreen) return
+      controls.update(); renderer.render(scene, camera)
+      frame = requestAnimationFrame(animate)
+    }
     animate()
     return () => {
-      alive = false; clearInterval(timer); clearInterval(meshTimer); cancelAnimationFrame(frame); resize.disconnect(); controls.dispose()
+      alive = false; clearInterval(timer); clearInterval(meshTimer); cancelAnimationFrame(frame); resize.disconnect(); visibility.disconnect(); controls.dispose()
       scene.traverse(o => { if (o instanceof THREE.Mesh || o instanceof THREE.Points || o instanceof THREE.Line) {
         o.geometry.dispose(); const mats = Array.isArray(o.material) ? o.material : [o.material]; mats.forEach(m => m.dispose())
       } })
@@ -247,10 +263,10 @@
   })
 </script>
 
-<section><header><strong>ZED map</strong><button onclick={() => request("/api/zed/reset").catch(e => error = String(e))}>Reset tracking/map</button></header>
+<section><header class="widget-header"><strong>ZED map</strong><button onclick={() => request("/api/zed/reset").catch(e => error = friendlyError(e))}>Reset tracking/map</button></header>
   <DeviceStatus {device} />
   <p>{device?.data.tracking_state ?? "OFF"} · {device?.data.fps ?? 0} FPS · Map {device?.data.mapping_state ?? "OFF"}</p>
-  <p>Camera XYZ: {device?.data.pose?.translation.map(v => v.toFixed(3)).join(", ") ?? "No tracked pose"} m · Z-up</p>
+  <p>Camera XYZ: {device?.data.pose ? `${device.data.pose.translation.map(v => v.toFixed(3)).join(", ")} m` : "No tracked pose"} · Z-up</p>
   {#if device?.data.imu}<p>IMU acceleration: {device.data.imu.acceleration.map(v => v.toFixed(2)).join(", ")} m/s²</p>{/if}
   <div class="mesh-controls">
     <label>View <select value={viewMode} onchange={e => { viewMode = e.currentTarget.value; updateAppearance() }}><option value="points">Live point cloud</option><option value="mesh">Mesh snapshot</option></select></label>
@@ -260,7 +276,7 @@
     <small>{meshAvailable ? (meshTextured ? "Camera-textured mesh snapshot." : "Vertex-colored mesh. Enable ZED mapping save_texture and restart the camera for photographic textures.") : "No mesh snapshot yet. Enable ZED mapping with map_type MESH, then generate a snapshot."} Disarm the drive first; generation may pause tracking.</small>
     {#if meshTruncated}<small>Preview limited to 20,000 original faces; part of the scan is omitted.</small>{/if}
   {/if}
-  {#if meshError}<p role="alert">{meshError}</p>{/if}
+  {#if meshError}<p class="notice error" role="alert">{meshError}</p>{/if}
   <details class="cloud-settings">
     <summary>Point cloud appearance</summary>
     <label class="point-size">Point size <input type="range" min=".005" max=".15" step=".005" value={pointSize} oninput={updatePointSize} /> <span>{(pointSize * 100).toFixed(1)} cm</span></label>
@@ -270,21 +286,23 @@
     {#if colorMode === "height"}<small>Height: violet/blue = low · red = high, relative to the current scan.</small>{/if}
     <button onclick={() => { pointSize = .025; brightness = opacity = 1; colorMode = "rgb"; if (cloudMaterial) cloudMaterial.size = pointSize; updateAppearance() }}>Reset appearance</button>
   </details>
-  {#if storageError}<small role="status">{storageError}</small>{/if}
+  {#if storageError}<p class="notice" role="status">{storageError}</p>{/if}
   <div class="viewport" bind:this={host}></div>
   <small>Axes = camera. Rover model follows the base pose only when the camera mount is configured. No wheel-derived pose.</small>
-  {#if modelError}<p role="alert">{modelError}</p>{:else if !modelLoaded}<small>Loading rover model…</small>{/if}
-  {#if error}<p role="alert">{error}</p>{/if}
+  {#if modelError}<p class="notice error" role="alert">{modelError}</p>{:else if !modelLoaded}<small>Loading rover model…</small>{/if}
+  {#if error}<p class="notice error" role="alert">{error}</p>{/if}
 </section>
 <style>
   .point-size { display: flex; align-items: center; gap: .5rem; font-size: .75rem; }
-  .point-size input { flex: 1; max-width: 160px; min-width: 60px; accent-color: #72c5d5; }
+  .point-size input { flex: 1; max-width: 160px; min-width: 60px; accent-color: var(--accent); }
   .point-size span { font-variant-numeric: tabular-nums; }
   .mesh-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; font-size: .75rem; }
   button:disabled { opacity: .5; cursor: not-allowed; }
   .cloud-settings { border: 1px solid #35404e; border-radius: .3rem; padding: .3rem .5rem; }
   .cloud-settings summary { cursor: pointer; font-size: .75rem; }
   .cloud-settings label { margin: .35rem 0; }
-  select { background: #171b22; color: inherit; border: 1px solid #555; border-radius: .3rem; padding: .2rem; }
-section { padding: .6rem; height: 100%; display: flex; flex-direction: column; gap: .3rem; }header { display: flex; justify-content: space-between; gap: .5rem; }p,small { margin: 0; font-size: .75rem; }.viewport { flex: 1; min-height: 100px; overflow: hidden; }button { background: transparent; color: inherit; border: 1px solid #555; border-radius: .3rem; cursor: pointer; }
+  select { background: var(--bgDark); color: var(--text); border: 1px solid var(--border); border-radius: .35rem; padding: .2rem .4rem; font: inherit; font-size: .8rem; color-scheme: dark; }
+section { padding: 0; height: 100%; display: flex; flex-direction: column; gap: .3rem; }header { display: flex; justify-content: space-between; gap: .5rem; }p,small { margin: 0; font-size: .75rem; }.viewport { flex: 1; min-height: 100px; overflow: hidden; }button { background: var(--bgLight); color: var(--text); border: 1px solid var(--borderStrong); border-radius: .35rem; padding: .25rem .6rem; font: inherit; font-size: .8rem; cursor: pointer; }
+button:hover { border-color: var(--textMuted); }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 </style>

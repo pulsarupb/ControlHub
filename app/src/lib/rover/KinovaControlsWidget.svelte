@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { friendlyError } from "$lib/friendly-error"
   import { onMount, onDestroy } from "svelte"
   import { rover } from "$lib/rover-control.svelte"
   import { hardware, armAction, releaseArm, solveTarget } from "$lib/hardware.svelte"
@@ -74,7 +75,7 @@
   async function stop() {
     releaseArm(); pendingConfirmation = null; hardware.preview = null
     try { await request("/api/arm/stop"); await rover.refreshStatus() }
-    catch (e) { hardware.error = String(e) }
+    catch (e) { hardware.error = friendlyError(e) }
   }
   function useMeasured() {
     if (device?.data.pose) { hardware.target = [...device.data.pose]; hardware.preview = null; expiredTarget = ""; invalidInputs = [] }
@@ -99,7 +100,7 @@
     if (!device?.connected || device.data.armed || !device.data.rear_boundary) return
     hardware.error = ""
     try { await request("/api/arm/action", { action: "install_rear_zone" }, "POST", 20000); await rover.refreshStatus() }
-    catch (e) { hardware.error = String(e); await rover.refreshStatus() }
+    catch (e) { hardware.error = friendlyError(e); await rover.refreshStatus() }
   }
   async function confirmPendingAction() {
     if (!confirmationValid) return
@@ -118,7 +119,7 @@
     try {
       await request("/api/arm/action", { action: "move_cartesian", pose: [...hardware.target] }, "POST", 25000)
       moveMessage = "Cartesian move completed"
-    } catch (e) { hardware.error = String(e); moveMessage = "Cartesian move failed or stopped" }
+    } catch (e) { hardware.error = friendlyError(e); moveMessage = "Cartesian move failed or stopped" }
     finally { moving = false; await rover.refreshStatus() }
   }
 </script>
@@ -171,7 +172,7 @@
       {#each [0, 3] as start}
         <fieldset disabled={moving || solving}><legend>{start === 0 ? "Position · metres" : "Orientation · degrees"}</legend><div class="target-grid">{#each axes.slice(start, start + 3) as label, offset}<label>{label}<input type="number" step={start === 0 ? .01 : 1} aria-invalid={invalidInputs.includes(start + offset)} value={invalidInputs.includes(start + offset) ? "" : hardware.target[start + offset]} oninput={e => editTarget(start + offset, e.currentTarget.valueAsNumber)} /></label>{/each}</div></fieldset>
       {/each}
-      {#if !validTarget}<p class="error" role="alert">Enter a valid number for all six target values.</p>{/if}
+      {#if !validTarget}<p class="notice error" role="alert">Enter a valid number for all six target values.</p>{/if}
       <div class="card preview-card">
         <h4>2. Preview & execute</h4>
         <p class="preview-status" role="status">{solving ? "Solving IK…" : previewReady ? `Preview ready · expires in ${remaining}s` : expiredTarget === targetSignature ? "Preview expired. Solve again before executing." : "Solve to preview the target before moving."}</p>
@@ -205,21 +206,22 @@
 
 <style>
   section { height: 100%; min-height: 0; display: flex; flex-direction: column; color: var(--text); font-size: .85rem; }
-  header { flex: none; padding: .85rem; border-bottom: 1px solid var(--border); background: var(--bgMedium); }
+  header { flex: none; padding: var(--inset); border-bottom: 1px solid var(--border); background: var(--bgMedium); }
   .heading, .section-heading, .gripper, .utilities { display: flex; align-items: center; justify-content: space-between; gap: .6rem; flex-wrap: wrap; }
   .heading { margin-bottom: .25rem; }
+  .heading h3 { margin: 0; font-size: .95rem; font-weight: 600; letter-spacing: .02em; }
   h3 { margin: 0; font-size: 1rem; } h4 { margin: 0; font-size: .85rem; }
   .state { font-size: .7rem; border: 1px solid var(--borderStrong); border-radius: 1rem; padding: .15rem .5rem; color: var(--textMuted); }
   .state.enabled { color: var(--success); border-color: var(--success); }
   .header-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .65rem; }
-  .content { flex: 1; min-height: 0; overflow: auto; padding: .85rem; }
+  .content { flex: 1; min-height: 0; overflow: auto; padding: var(--inset); }
   button { min-height: 2.5rem; padding: .45rem .7rem; border: 1px solid var(--borderStrong); border-radius: .4rem; background: var(--surfaceRaised); color: inherit; font: inherit; font-weight: 600; cursor: pointer; }
   button:hover:not(:disabled) { border-color: var(--primary); background: var(--bgLight); }
   button:disabled { opacity: .4; cursor: not-allowed; }
-  button.stop { background: #9f302d; border-color: #b84d45; color: white; text-transform: uppercase; letter-spacing: .04em; }
-  button.stop:hover { background: #b43a35; border-color: #d06a62; }
+  button.stop { background: var(--stop); border-color: var(--stopHover); color: var(--text); text-transform: uppercase; letter-spacing: .04em; }
+  button.stop:hover { background: var(--stopHover); border-color: var(--stopHover); }
   button.primary { background: var(--primary); color: var(--bgDark); border-color: var(--primary); }
-  button.primary:hover:not(:disabled) { background: #edbd62; }
+  button.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--primary) 85%, white); }
   .segmented { display: flex; gap: .25rem; padding: .25rem; border: 1px solid var(--border); border-radius: .5rem; background: var(--bgDark); margin-bottom: .8rem; }
   .segmented button { flex: 1; border-color: transparent; background: transparent; padding-inline: .4rem; }
   .segmented button.active { background: var(--surfaceRaised); border-color: var(--borderStrong); color: var(--primary); }
@@ -236,6 +238,12 @@
   .jog-buttons { display: flex; gap: .35rem; }
   button.jog { width: 2.8rem; min-height: 2.8rem; font-size: 1.2rem; touch-action: none; user-select: none; }
   button.jog:active:not(:disabled) { background: var(--primary); color: var(--bgDark); }
+  /* Narrow widgets (phone workspaces): smaller jog buttons so both directions stay inside the widget. */
+  @container (max-width: 320px) {
+    .table-heading, .jog-row { grid-template-columns: minmax(1.8rem, auto) minmax(0, 1fr) auto; gap: .35rem; }
+    .jog-buttons { gap: .25rem; }
+    button.jog { width: 2.2rem; min-height: 2.4rem; font-size: 1rem; }
+  }
   .card { padding: .75rem; border: 1px solid var(--border); border-radius: .5rem; margin-top: .8rem; background: var(--bgMedium); }
   .actions { display: flex; gap: .5rem; flex-wrap: wrap; }
   .actions button { flex: 1; }
@@ -248,7 +256,7 @@
   .preview-status { color: var(--primary); }
   .joint-values { font-variant-numeric: tabular-nums; font-size: .75rem; }
   .notice { padding: .75rem; margin: 0 0 .8rem; border: 1px solid var(--borderStrong); border-radius: .5rem; background: var(--surfaceRaised); }
-  .warning { border-color: var(--warning); } .error { color: #ff9a92; }
+  .warning { border-color: var(--warning); } .notice.error { color: var(--textBad); border-color: var(--danger); background: rgba(199, 93, 85, 0.12); }
   .confirmation { margin-top: .8rem; }
   .utilities { border-top: 1px solid var(--border); padding-top: .8rem; margin-top: .8rem; }
   details { font-size: .75rem; } summary { cursor: pointer; color: var(--textMuted); padding: .25rem 0; }

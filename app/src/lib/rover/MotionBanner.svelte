@@ -15,7 +15,10 @@
   const armError = $derived(
     hardware.error && kinova?.enabled && !kinova.data.armed ? hardware.error : "",
   )
-  const uiError = $derived(rover.lastError && !driveStop && !armStop ? rover.lastError : "")
+  // Offline is already shown by the topbar and connection overlay, so only online refusals get a toast.
+  const uiError = $derived(
+    rover.lastError && rover.connectionState === "online" && !driveStop && !armStop ? rover.lastError : "",
+  )
 
   type ActiveNotification = { id: string; text: string }
   const active = new Map<string, ActiveNotification>()

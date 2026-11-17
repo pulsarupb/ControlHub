@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { onMount } from "svelte"
+  import { friendlyError } from "$lib/friendly-error"
+  import { getContext, onMount } from "svelte"
   import * as THREE from "three"
   import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
   import { TransformControls } from "three/examples/jsm/controls/TransformControls.js"
@@ -14,6 +15,8 @@
   $effect(() => { transform?.setMode(rotate ? "rotate" : "translate") })
 
   onMount(() => {
+    // Inside a Presets preview there is no live 3D scene.
+    if (getContext("widget-preview") === true) return
     let alive = true, frame = 0
     const renderer = new THREE.WebGLRenderer({ antialias: true })
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); host.appendChild(renderer.domElement)
@@ -40,6 +43,9 @@
       hardware.target = [...target.position.toArray(), ...[r.x, r.y, r.z].map(THREE.MathUtils.radToDeg)]
       hardware.preview = null; lastTarget = JSON.stringify(hardware.target)
     })
+    // Off-screen (other workspace or clipped) views skip rendering; the arm state still updates.
+    let onScreen = true
+    const visibility = new IntersectionObserver(([entry]) => { onScreen = entry.isIntersecting }); visibility.observe(host)
     const observer = new ResizeObserver(() => {
       renderer.setSize(host.clientWidth, host.clientHeight); camera.aspect = host.clientWidth / Math.max(1, host.clientHeight); camera.updateProjectionMatrix()
     }); observer.observe(host)
@@ -66,22 +72,23 @@
           target.rotation.set(...hardware.target.slice(3).map(THREE.MathUtils.degToRad) as [number, number, number], "XYZ")
           hardware.preview = null; lastTarget = signature
         }
+        if (!onScreen) return
         orbit.update(); renderer.render(scene, camera)
       }
       animate()
-    }).catch(e => { if (alive) error = String(e) })
+    }).catch(e => { if (alive) error = friendlyError(e) })
     function dispose() {
       const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>()
       native.traverse(o => { if (o instanceof THREE.Mesh || o instanceof THREE.Line) { geometries.add(o.geometry); (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => materials.add(m)) } })
       geometries.forEach(g => g.dispose()); materials.forEach(m => m.dispose())
     }
-    return () => { alive = false; cancelAnimationFrame(frame); observer.disconnect(); orbit.dispose(); transform?.dispose(); transform = undefined; dispose(); renderer.dispose(); renderer.domElement.remove() }
+    return () => { alive = false; cancelAnimationFrame(frame); observer.disconnect(); visibility.disconnect(); orbit.dispose(); transform?.dispose(); transform = undefined; dispose(); renderer.dispose(); renderer.domElement.remove() }
   })
 </script>
-<section><header><strong>Kinova 3D / IK target</strong><label><input type="checkbox" bind:checked={rotate} /> Rotate target</label></header>
+<section><header class="widget-header"><strong>Kinova 3D / IK target</strong><label><input type="checkbox" bind:checked={rotate} /> Rotate target</label></header>
   <DeviceStatus device={rover.status?.devices.kinova} />
   <div class="viewport" bind:this={host}></div>
   <small>Red volume = rear no-go area (10 cm behind base, parallel to base YZ plane); gold ghost = IK preview. Controller whole-arm enforcement is not verified.</small>
-  {#if error}<p role="alert">{error}</p>{/if}
+  {#if error}<p class="notice error" role="alert">{error}</p>{/if}
 </section>
-<style>section { height: 100%; padding: .6rem; display: flex; flex-direction: column; gap: .4rem; }header { display: flex; justify-content: space-between; gap: .5rem; }.viewport { flex: 1; min-height: 100px; overflow: hidden; }label, small { font-size: .75rem; }</style>
+<style>section { height: 100%; padding: 0; display: flex; flex-direction: column; gap: .4rem; }header { display: flex; justify-content: space-between; gap: .5rem; }.viewport { flex: 1; min-height: 100px; overflow: hidden; }label, small { font-size: .75rem; }</style>

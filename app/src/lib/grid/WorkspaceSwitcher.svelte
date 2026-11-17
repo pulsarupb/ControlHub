@@ -140,8 +140,10 @@
   <Portal>
     <div class="workspace-switcher" data-workspace-preview-ignore>
       <section aria-label="Workspace switcher">
-        <h2>Workspaces</h2>
-        <p>Hold <kbd>Ctrl</kbd> and use the arrow keys to move</p>
+        <header>
+          <h2>Workspaces</h2>
+          <p>Hold <kbd>Ctrl</kbd> + arrows</p>
+        </header>
         <div class="workspace-grid">
           {#each [0, 1] as row}
             {#each [0, 1, 2] as column}
@@ -151,14 +153,14 @@
                   {#if previews}
                     <img src={previews.images[row * 3 + column]} alt="Preview of workspace {row * 3 + column + 1}" />
                   {:else}
-                    <span class="preview-placeholder">Preview preparing in background</span>
+                    <span class="preview-placeholder" aria-hidden="true"></span>
                   {/if}
                 </div>
                 <div class="tile-caption">
-                  <span class="tile-label">Workspace {row * 3 + column + 1}</span>
+                  <span class="tile-label">{row * 3 + column + 1}</span>
                   <div class="route" aria-label={current ? "Current workspace" : "Arrow keys to reach this workspace"}>
                     {#if current}
-                      <span class="current">You are here</span>
+                      <span class="current">Here</span>
                     {:else}
                       {#each routeTo(column, row) as arrow}
                         <kbd>{arrow}</kbd>
@@ -170,77 +172,128 @@
             {/each}
           {/each}
         </div>
-        <p role="status">Workspace {activeWorkspace.row * 3 + activeWorkspace.column + 1} selected · Release Ctrl to close</p>
+        <p role="status">Workspace {activeWorkspace.row * 3 + activeWorkspace.column + 1} · release Ctrl to close</p>
       </section>
     </div>
   </Portal>
 {/if}
 
 <style>
+  /* Compact floating panel anchored to the bottom edge. Nothing covers the page behind it. */
   .workspace-switcher {
     position: fixed;
-    inset: 0;
+    left: 50%;
+    bottom: 1rem;
     z-index: 1100;
-    display: grid;
-    place-items: center;
-    padding: 1rem;
-    background: rgba(0, 0, 0, 0.78);
+    transform: translateX(-50%);
+    width: min(380px, calc(100vw - 2rem));
     pointer-events: none;
   }
   section {
-    width: min(1400px, 100%);
-    max-height: 100%;
-    overflow: auto;
-    text-align: center;
+    display: grid;
+    gap: 0.5rem;
+    padding: 0.6rem;
+    border: 1px solid var(--borderStrong);
+    border-radius: 0.6rem;
+    background: var(--surfaceRaised);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
     color: var(--text);
   }
-  h2 { margin: 0 0 0.5rem; }
-  p { color: var(--textMuted); font-size: 0.9rem; }
+  header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+  h2 {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  p {
+    margin: 0;
+    color: var(--textMuted);
+    font-size: 0.75rem;
+  }
+  header p {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
   .workspace-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: clamp(0.4rem, 2vw, 1rem);
-    margin: 1.5rem 0;
+    gap: 0.35rem;
   }
   .tile {
     display: flex;
     flex-direction: column;
-    position: relative;
+    min-width: 0;
     overflow: hidden;
-    border: 2px solid var(--borderStrong);
-    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.4rem;
+    background: var(--bgDark);
+  }
+  .tile.active {
+    border-color: var(--primary);
+  }
+  .preview {
+    display: grid;
+    place-items: center;
+    width: 100%;
     background: var(--bgMedium);
   }
-  .tile.active { border-color: var(--primary); background: var(--bgLight); }
-  .preview { width: 100%; background: var(--bgDark); display: grid; place-items: center; }
-  .preview img { display: block; width: 100%; height: 100%; object-fit: contain; }
-  .preview-placeholder { color: var(--textMuted); font-size: 0.8rem; padding: 0.5rem; }
+  .preview img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  /* Neutral slot while the snapshot is captured: no text, so an empty tile does not read as an error. */
+  .preview-placeholder {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 3rem;
+    background: var(--bgLight);
+    opacity: 0.35;
+  }
   .tile-caption {
-    position: absolute;
-    inset: auto 0 0;
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 0.25rem;
-    padding: 0.4rem 0.6rem;
-    background: rgba(0, 0, 0, 0.82);
-    color: var(--text);
+    padding: 0.25rem 0.35rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.7rem;
   }
-  .tile-label { font-size: clamp(0.7rem, 2vw, 1rem); }
-  .route { display: flex; justify-content: center; align-items: center; gap: 0.25rem; min-height: 2rem; }
+  .tile-label {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+  .tile.active .tile-label {
+    color: var(--primary);
+  }
+  .route {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    min-height: 1rem;
+  }
   kbd {
     display: inline-grid;
     place-items: center;
-    min-width: 1.5em;
-    padding: 0.15em 0.3em;
+    min-width: 1.2em;
+    padding: 0 0.2em;
     border: 1px solid var(--borderStrong);
-    border-bottom-width: 3px;
-    border-radius: 0.3rem;
-    background: var(--bgDark);
+    border-radius: 0.25rem;
+    background: var(--bgLight);
     color: var(--text);
     font-family: inherit;
+    font-size: 0.65rem;
   }
-  .route kbd { font-size: clamp(0.9rem, 2.5vw, 1.4rem); }
-  .current { color: var(--primary); font-size: 0.85rem; }
+  .current {
+    color: var(--primary);
+    font-weight: 600;
+  }
 </style>

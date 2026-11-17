@@ -48,7 +48,8 @@ export class Manager {
     selected: 0,
     data: templates.map((template) => this.processTemplate(template)),
   }
-  enableInteractions = false
+  // Reactive: components read it in templates, so they must update when interactions are switched on.
+  enableInteractions = $state(false)
 
   processTemplate(t: Template): ExtendedTemplate {
     return {

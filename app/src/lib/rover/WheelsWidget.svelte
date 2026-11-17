@@ -6,7 +6,7 @@
   const names = ["Left front", "Right front", "Left back", "Right back"]
 </script>
 <section>
-  <h3>Wheels / controllers</h3>
+  <header class="widget-header"><strong>Wheels / controllers</strong></header>
   <DeviceStatus device={drive} />
   <p>{drive?.data.armed ? "Drive enabled" : "Drive stopped"} · {hardware.config?.drive.yaw_control?.enabled ? "ZED yaw feedback · no wheel encoders required" : "Open-loop power, no wheel pose"}</p>
   {#if drive?.stop_reason}<p class="stop-reason">Stopped: {drive.stop_reason.reason}</p>{/if}
@@ -24,4 +24,4 @@
     {/each}</tbody>
   </table>
 </section>
-<style>section { padding: 1rem; overflow: auto; height: 100%; }h3 { margin: 0 0 .5rem; }p { font-size: .8rem; }.stop-reason { color: #f0b46a; }table { width: 100%; font-size: .8rem; border-collapse: collapse; }th, td { text-align: left; padding: .4rem; border-bottom: 1px solid #5555; }</style>
+<style>section { padding: 0; overflow: auto; height: 100%; }p { font-size: .8rem; }.stop-reason { color: var(--textWarn); }table { width: 100%; font-size: .8rem; border-collapse: collapse; }th, td { text-align: left; padding: .35rem .4rem; border-bottom: 1px solid var(--border); }thead th { color: var(--textMuted); font-size: .72rem; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; }tbody th { font-weight: 500; }td { font-variant-numeric: tabular-nums; }</style>

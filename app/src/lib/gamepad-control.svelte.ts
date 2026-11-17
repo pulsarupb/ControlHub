@@ -20,12 +20,21 @@ export function setGamepadMode(mode: "drive" | "arm") {
   hardware.mode = mode
 }
 
+// Only publish readings that changed: an idle pad would otherwise replace the reactive arrays
+// 60 times a second and re-render every widget that reads them.
+function sameList<T>(a: readonly T[], b: readonly T[]): boolean {
+  return a.length === b.length && a.every((v, i) => v === b[i])
+}
+
 function poll() {
   const pad = Array.from(navigator.getGamepads?.() ?? []).find(p => p?.connected)
-  display.gamepadConnected = Boolean(pad)
-  display.gamepadId = pad?.id ?? "No gamepad connected"
-  display.gamepadAxes = Array.from(pad?.axes ?? [0, 0, 0, 0])
-  display.gamepadButtons = Array.from(pad?.buttons ?? [], b => b.pressed)
+  if (display.gamepadConnected !== Boolean(pad)) display.gamepadConnected = Boolean(pad)
+  const id = pad?.id ?? "No gamepad connected"
+  if (display.gamepadId !== id) display.gamepadId = id
+  const axes = Array.from(pad?.axes ?? [0, 0, 0, 0])
+  if (!sameList(display.gamepadAxes, axes)) display.gamepadAxes = axes
+  const buttons = Array.from(pad?.buttons ?? [], b => b.pressed)
+  if (!sameList(display.gamepadButtons, buttons)) display.gamepadButtons = buttons
   const config = hardware.config?.gamepad
   if (!pad || !config || document.hidden || !document.hasFocus()) {
     releaseGamepad()

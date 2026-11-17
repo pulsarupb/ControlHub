@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { friendlyError } from "$lib/friendly-error"
   import { tick as flush } from "svelte"
   import { apiFetch } from "$lib/api-client"
   import { roverConnection } from "$lib/rover-connection.svelte"
@@ -58,7 +59,7 @@
             await flush()
             if (previous) URL.revokeObjectURL(previous)
           }
-          error = e instanceof Error ? e.message : String(e)
+          error = e instanceof Error ? e.message : friendlyError(e)
         }
       } finally {
         if (next) URL.revokeObjectURL(next)
@@ -75,21 +76,21 @@
 </script>
 
 <section>
-  <header><strong>D435 Gripper Camera</strong><label><input type="checkbox" bind:checked={crosshair} /> Crosshair</label></header>
+  <header class="widget-header"><strong>D435 Gripper Camera</strong><label><input type="checkbox" bind:checked={crosshair} /> Crosshair</label></header>
   <div class="image">
     {#if url}<img src={url} alt="RealSense D435 gripper camera" />
-    {:else}<p>{roverConnection.state !== "online" ? "Rover offline" : simulated ? "SIMULATED · no D435 frames" : error || "Waiting for D435 camera"}</p>{/if}
+    {:else}<p>{roverConnection.state !== "online" ? "Rover offline" : simulated ? "SIMULATED · no frames" : error || "Waiting for frames"}</p>{/if}
   </div>
   <footer class:live={Boolean(url)} role="status">{url ? "Live · D435 color" : "Offline · connect D435 to rover"}</footer>
 </section>
 
 <style>
-  section { padding: .7rem; height: 100%; min-height: 0; display: flex; flex-direction: column; gap: .5rem; }
+  section { padding: 0; height: 100%; min-height: 0; display: flex; flex-direction: column; gap: .5rem; }
   header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .5rem; }
   label { display: flex; align-items: center; gap: .3rem; font-size: .8rem; }
-  .image { flex: 1; min-height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #0005; border-radius: .25rem; }
+  .image { flex: 1; min-height: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--bgDark) 60%, transparent); border-radius: .25rem; }
   img { width: 100%; height: 100%; object-fit: contain; min-height: 0; }
   p { padding: .6rem; text-align: center; font-size: .85rem; opacity: .8; }
   footer { font-size: .75rem; opacity: .8; }
-  .live { color: #9d9; }
+  .live { color: var(--textOk); }
 </style>

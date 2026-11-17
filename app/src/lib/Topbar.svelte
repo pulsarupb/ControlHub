@@ -6,7 +6,6 @@
   import Panels from "$lib/Panels.svelte"
   import Button from "$lib/ui/Button.svelte"
   import Overlay from "$lib/ui/Overlay.svelte"
-  import TextInput from "$lib/ui/TextInput.svelte"
   import { global } from "$lib"
   import Navlets from "./navlets/Navlets.svelte"
 
@@ -17,11 +16,12 @@
   import IconRobotRegular from "phosphor-icons-svelte/IconRobotRegular.svelte"
   import IconSlidersHorizontalRegular from "phosphor-icons-svelte/IconSlidersHorizontalRegular.svelte"
   import IconTrashRegular from "phosphor-icons-svelte/IconTrashRegular.svelte"
-  import IconDotsThreeVerticalRegular from "phosphor-icons-svelte/IconDotsThreeVerticalRegular.svelte"
   import IconMonitorArrowUpRegular from "phosphor-icons-svelte/IconMonitorArrowUpRegular.svelte"
   import { getContext } from "svelte"
   import type { Manager } from "./grid/widgets.svelte"
-  import TemplatesChoose from "./grid/TemplatesChoose.svelte"
+  import TemplateMiniature from "./grid/TemplateMiniature.svelte"
+  import TemplateLive from "./grid/TemplateLive.svelte"
+  import PreviewCard from "./ui/PreviewCard.svelte"
   import AllNotifications from "./AllNotifications.svelte"
   import RoverConnectionOverlay from "$lib/rover/RoverConnectionOverlay.svelte"
   import SettingsOverlay from "$lib/SettingsOverlay.svelte"
@@ -33,6 +33,8 @@
   import { androidUpdater, type AndroidUpdateCheck } from "$lib/android-updater"
   import { WebviewWindow } from "@tauri-apps/api/webviewWindow"
   import { onMount, onDestroy } from "svelte"
+  import ConfirmDialog from "$lib/ui/ConfirmDialog.svelte"
+  import { confirmDelete } from "$lib/ui/confirm.svelte"
 
 
 
@@ -276,7 +278,14 @@
         class:online={roverConnection.state === "online"}
         aria-label="Open rover desktop"
         role="button"
+        tabindex="0"
         onclick={openKasmDesktop}
+        onkeydown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            openKasmDesktop()
+          }
+        }}
       >
         <IconMonitorArrowUpRegular />
       </span>
@@ -316,9 +325,7 @@
         {/snippet}
       </Overlay>
 
-      <Overlay
-        triggerStyle="display: flex;justify-content: center;align-items: center;"
-      >
+      <Overlay triggerStyle="display: flex;justify-content: center;align-items: center;">
         {#snippet trigger()}
           <span class="topbar-icon" aria-label="Presets">
             <IconSlidersHorizontalRegular />
@@ -326,134 +333,100 @@
         {/snippet}
         {#snippet overlay({ close }: { close: () => void })}
           <div class="presets-overlay">
-            <h1>Presets</h1>
-            {#each manager.presets.data as preset, index}
-              <div class="preset">
-                <Button
-                  selected={manager.presets.selected === index}
-                  onclick={() => {
-                    manager.change(index)
-                  }}
-                >
-                  {preset.name}
-                </Button>
-                <Overlay>
-                  {#snippet trigger()}
-                    <IconDotsThreeVerticalRegular />
-                  {/snippet}
-                  {#snippet overlay({ close }: { close: () => void })}
-                    <div class="menu">
-                      <TextInput
-                        bind:value={manager.presets.data[index].name}
-                        oninput={() => {
-                          manager.save()
-                        }}
-                      />
-                      <Button
-                        transparent={true}
-                        disabled={manager.presets.data.length === 1}
-                        onclick={() => {
-                          manager.deletePreset(index)
-                          close()
-                        }}
-                      >
-                        <IconTrashRegular />
-                      </Button>
-                      <Button
-                        transparent={true}
-                        onclick={() => {
-                          manager.save()
-                          const temp = manager.unprocessTemplate(
-                            manager.presets.data[index],
-                          )
-                          close()
-                          global.notificationsManager.addAction(
-                            JSON.stringify(temp),
-                            [
-                              {
-                                text: "Copy",
-                                task: () => {
-                                  navigator.clipboard
-                                    .writeText(JSON.stringify(temp))
-                                    .then(() => {
-                                      global.notificationsManager.add(
-                                        "Text copied to clipboard",
-                                      )
-                                    })
-                                    .catch(() => {
-                                      global.notificationsManager.add(
-                                        "Failed to copy to clipboard",
-                                      )
-                                    })
-                                },
-                              },
-                              { text: "Close", task: () => {} },
-                            ],
-                          )
-                        }}
-                      >
-                        <IconCopyRegular />
-                      </Button>
-                    </div>
-                  {/snippet}
-                </Overlay>
+            <header class="presets-head">
+              <h1>Presets</h1>
+              <button class="text-btn" onclick={() => { manager.newPreset(); close() }}>
+                <IconPlusRegular /> New empty
+              </button>
+            </header>
+
+            <ul class="preset-list">
+              {#each manager.presets.data as preset, index}
+                <li class:selected={manager.presets.selected === index}>
+                  <button class="pick" aria-label="Open {preset.name}" aria-pressed={manager.presets.selected === index} onclick={() => manager.change(index)}>
+                    <span class="dot"></span>
+                  </button>
+                  <input
+                    class="name"
+                    aria-label="Preset name"
+                    bind:value={manager.presets.data[index].name}
+                    oninput={() => manager.save()}
+                  />
+                  <button
+                    class="icon"
+                    aria-label="Copy preset JSON"
+                    title="Copy JSON"
+                    onclick={() => {
+                      manager.save()
+                      const temp = manager.unprocessTemplate(manager.presets.data[index])
+                      navigator.clipboard
+                        .writeText(JSON.stringify(temp))
+                        .then(() => global.notificationsManager.add("Text copied to clipboard"))
+                        .catch(() => global.notificationsManager.add("Failed to copy to clipboard"))
+                    }}
+                  >
+                    <IconCopyRegular />
+                  </button>
+                  <button
+                    class="icon danger"
+                    aria-label="Delete preset"
+                    title={manager.presets.data.length === 1 ? "Keep at least one preset" : "Delete preset"}
+                    disabled={manager.presets.data.length === 1}
+                    onclick={() => confirmDelete("Delete preset?", `"${manager.presets.data[index].name}" and everything on it will be removed.`, () => manager.deletePreset(index))}
+                  >
+                    <IconTrashRegular />
+                  </button>
+                </li>
+              {/each}
+            </ul>
+
+            <section>
+              <h2>Add a template</h2>
+              <div class="tpl-grid">
+                {#each global.allTemplates as t}
+                  <PreviewCard lazy name={t.name} detail="{t.widgets.length} groups · {t.navlets.length} navlets" onclick={() => { manager.addTemplate(t); close() }}>
+                    <TemplateLive {t} />
+                  </PreviewCard>
+                {/each}
               </div>
-            {/each}
-            <TemplatesChoose
-              set={(t) => {
-                manager.addTemplate(t)
-                close()
-              }}
-            />
-            <div class="preset-actions">
-              <Overlay
-                triggerStyle="width: 100%;min-width: 0;"
-                onStateChange={(isOpen) => {
-                  if (isOpen) jsonPreset = ""
-                }}
-              >
-                {#snippet trigger()}
-                  <Button style="width: 100%;box-sizing: border-box;">
-                    Import
-                  </Button>
-                {/snippet}
-                {#snippet overlay({ close }: { close: () => void })}
-                  <div class="new-menu">
-                    <TextInput
-                      bind:value={jsonPreset}
-                      placeholder="JSON Preset"
-                    />
-                    <Button
-                      style="width: 100%;box-sizing: border-box;"
-                      onclick={() => {
-                        try {
-                          manager.addTemplate(JSON.parse(jsonPreset))
-                        } catch {
-                          global.notificationsManager.add("Invalid JSON preset")
-                        }
-                        close()
-                      }}
-                    >
-                      Create
-                    </Button>
-                  </div>
-                {/snippet}
-              </Overlay>
-              <Button
-                style="width: 42px;align-self: stretch;padding: 0;display: grid;place-items: center;"
+            </section>
+
+            <section class="import">
+              <h2>Import JSON</h2>
+              <textarea bind:value={jsonPreset} placeholder="Paste a preset JSON"></textarea>
+              <button
+                class="text-btn primary"
+                disabled={jsonPreset.trim() === ""}
                 onclick={() => {
-                  manager.newPreset()
-                  close()
+                  try {
+                    manager.addTemplate(JSON.parse(jsonPreset))
+                    jsonPreset = ""
+                    close()
+                  } catch {
+                    global.notificationsManager.add("Invalid JSON preset")
+                  }
                 }}
               >
-                <IconPlusRegular />
-              </Button>
-            </div>
+                Import
+              </button>
+            </section>
           </div>
         {/snippet}
       </Overlay>
 
-      <span class="topbar-icon" aria-label="Settings" role="button" onclick={() => (showSettings = true)}>
+      <span
+        class="topbar-icon"
+        aria-label="Settings"
+        role="button"
+        tabindex="0"
+        onclick={() => (showSettings = true)}
+        onkeydown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            showSettings = true
+          }
+        }}
+      >
         <IconGearSixRegular />
       </span>
     </div>
@@ -461,6 +434,7 @@
 </nav>
 
 <SettingsOverlay show={showSettings} onclose={() => (showSettings = false)} />
+<ConfirmDialog />
 
 <style>
   h1 {
@@ -472,61 +446,139 @@
     text-decoration: none;
   }
   .presets-overlay {
-    min-width: 320px;
-    max-width: min(520px, calc(100vw - 32px));
-    max-height: 420px;
+    width: min(760px, calc(100vw - 32px));
+    max-height: min(84vh, 780px);
     overflow-y: auto;
-    overflow-x: hidden;
-    display: flex;
-    flex-direction: column;
-    padding: calc(var(--padding) / 2);
-    gap: calc(var(--padding) / 2);
+    padding: var(--inset);
+    display: grid;
+    gap: 1rem;
+    font-size: 0.85rem;
   }
-  .preset,
-  .menu,
-  .preset-actions {
+  .presets-head {
     display: flex;
     align-items: center;
-    gap: calc(var(--padding) / 2);
-    min-width: 0;
+    justify-content: space-between;
+    gap: 0.5rem;
   }
-  .preset-actions {
+  .presets-overlay h1 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+  .presets-overlay h2 {
+    margin: 0 0 0.4rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--textSubtle);
+  }
+  .text-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    height: 1.7rem;
+    padding: 0 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: 0.4rem;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+  .text-btn:hover { background: var(--bgLight); }
+  .text-btn.primary { border-color: var(--borderStrong); background: var(--bgLight); }
+  .text-btn:disabled { opacity: 0.4; cursor: default; }
+  .preset-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.3rem;
+  }
+  .preset-list li {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.3rem 0.2rem 0.2rem;
+    border: 1px solid var(--border);
+    border-radius: 0.45rem;
+    background: var(--bgDark);
+  }
+  .preset-list li.selected { border-color: var(--primary); }
+  .pick {
+    all: unset;
+    box-sizing: border-box;
+    flex: none;
+    width: 1.6rem;
+    height: 1.6rem;
+    display: grid;
+    place-items: center;
+    border-radius: 0.35rem;
+    cursor: pointer;
+  }
+  .pick:hover { background: var(--bgLight); }
+  .pick .dot {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    border: 1.5px solid var(--borderStrong);
+  }
+  li.selected .pick .dot { background: var(--primary); border-color: var(--primary); }
+  .name {
+    flex: 1;
+    min-width: 0;
+    padding: 0.25rem 0.4rem;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 0.35rem;
+    color: var(--text);
+    font: inherit;
+  }
+  .name:hover { border-color: var(--border); }
+  .name:focus { outline: none; border-color: var(--primary); }
+  .icon {
+    all: unset;
+    box-sizing: border-box;
+    flex: none;
+    width: 1.6rem;
+    height: 1.6rem;
+    display: grid;
+    place-items: center;
+    border-radius: 0.35rem;
+    color: var(--textSubtle);
+    cursor: pointer;
+  }
+  .icon:hover { background: var(--bgLight); color: var(--text); }
+  .icon.danger:hover { color: var(--danger); }
+  .icon:disabled { opacity: 0.35; cursor: default; background: none; color: var(--textSubtle); }
+  .tpl-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+    gap: 0.75rem;
+  }
+  .import textarea {
     width: 100%;
-    align-items: stretch;
+    box-sizing: border-box;
+    min-height: 4.5rem;
+    resize: vertical;
+    padding: 0.45rem 0.55rem;
+    background: var(--bgDark);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 0.4rem;
+    font: inherit;
+    font-family: ui-monospace, monospace;
+    font-size: 0.8rem;
   }
-  .preset-actions > :global(.overlay-root) {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-  .preset > :global(button:first-child) {
-    flex: 1 1 auto;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .menu,
-  .new-menu,
+  .import .text-btn { margin-top: 0.4rem; }
   .bell-menu {
     padding: calc(var(--padding) / 2);
-  }
-  .new-menu,
-  .bell-menu {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: calc(var(--padding) / 2);
-  }
-  .new-menu {
-    width: min(360px, calc(100vw - 32px));
-    overflow-x: hidden;
-    align-items: stretch;
-    box-sizing: border-box;
-  }
-  .new-menu :global(input) {
-    width: 100%;
-    box-sizing: border-box;
-    min-width: 0;
   }
   .bell-menu {
     min-width: 300px;
@@ -541,6 +593,8 @@
   }
   .bell-header h1 {
     margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
   }
   .bell-header :global(button) {
     padding: 0.25em 0.6em;
@@ -551,7 +605,7 @@
     border-radius: 0.4rem;
     padding: 0.38rem 0.75rem;
     background: color-mix(in srgb, var(--danger) 12%, transparent);
-    color: #e7b3ae;
+    color: var(--textBad);
     font-size: 0.8rem;
     cursor: pointer;
     font-family: inherit;
@@ -569,7 +623,7 @@
     white-space: nowrap;
     border: 1px solid color-mix(in srgb, var(--success) 60%, transparent);
     background: color-mix(in srgb, var(--success) 12%, transparent);
-    color: #bfd7b7;
+    color: var(--textOk);
   }
   .update-btn:hover:not(:disabled) {
     background: color-mix(in srgb, var(--success) 18%, transparent);
@@ -581,7 +635,7 @@
   .update-btn.error {
     border-color: color-mix(in srgb, var(--danger) 60%, transparent);
     background: color-mix(in srgb, var(--danger) 12%, transparent);
-    color: #e7b3ae;
+    color: var(--textBad);
   }
   .update-btn.error:hover {
     background: color-mix(in srgb, var(--danger) 18%, transparent);
@@ -604,7 +658,7 @@
     padding: 0 4px;
     border-radius: 999px;
     background: var(--danger);
-    color: #fff;
+    color: var(--text);
     font-size: 0.6rem;
     font-weight: 700;
     line-height: 1;
@@ -616,7 +670,7 @@
     color: var(--text);
   }
   .topbar-icon.online {
-    color: #cfe0c8;
+    color: var(--textOk);
   }
   nav {
     background-color: var(--bgMedium);
@@ -624,7 +678,7 @@
     align-items: stretch;
     border: 1px solid var(--border);
     border-radius: 0.55rem;
-    margin: 0.5rem;
+    margin: var(--gutter);
     margin-bottom: 0;
     gap: var(--padding);
     max-width: 100%;
@@ -644,6 +698,42 @@
     align-items: stretch;
     margin-left: auto;
     pointer-events: auto;
+  }
+  /* Wrapping is driven by content, not a breakpoint: the icon row moves to a second line only
+     when the logo, status and navlets no longer fit on one. */
+  nav {
+    flex-wrap: wrap;
+    row-gap: 0;
+  }
+  /* Shares the row with the icons: it takes the space left over and scrolls its navlets inside it. */
+  .drag-area {
+    flex: 1 1 0;
+    min-width: 0;
+    flex-wrap: wrap;
+    row-gap: 0.4rem;
+  }
+  .right-section {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+  .right-section:only-child,
+  .right-section:not(:first-child) {
+    margin-left: auto;
+  }
+  /* Phone: the logo and the icons share the first row; the navlets wrap to a second row beneath them. */
+  @media (max-width: 520px) {
+    .drag-area {
+      padding: 0.25rem var(--padding);
+      flex: 0 1 auto;
+      gap: 0.5rem;
+    }
+    .right-section {
+      margin-left: auto;
+    }
+    .right-actions {
+      gap: 0.1rem;
+      padding: 0 0.25rem;
+    }
   }
   .right-actions {
     display: flex;

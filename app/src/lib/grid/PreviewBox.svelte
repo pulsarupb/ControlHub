@@ -25,7 +25,7 @@
     width: var(--preview-width);
     height: var(--preview-height);
     overflow: hidden;
-    border: 1px solid #ccc;
+    border: 1px solid var(--border);
     border-radius: 8px;
     pointer-events: none;
     position: relative;

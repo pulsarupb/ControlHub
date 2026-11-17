@@ -1,11 +1,9 @@
 <script lang="ts">
-  import IconDotsThreeVerticalRegular from "phosphor-icons-svelte/IconDotsThreeVerticalRegular.svelte"
-  import IconPlusRegular from "phosphor-icons-svelte/IconPlusRegular.svelte"
-  import IconTrashRegular from "phosphor-icons-svelte/IconTrashRegular.svelte"
-  import Button from "$lib/ui/Button.svelte"
-  import Overlay from "$lib/ui/Overlay.svelte"
+  import IconXRegular from "phosphor-icons-svelte/IconXRegular.svelte"
   import NavletContent from "$lib/navlets/NavletContent.svelte"
   import NavletsChoose from "./NavletsChoose.svelte"
+  import NavletPicker from "./NavletPicker.svelte"
+  import { confirmDelete } from "$lib/ui/confirm.svelte"
   import { setContext } from "svelte"
   import type { Manager } from "$lib/grid/widgets.svelte"
 
@@ -19,73 +17,96 @@
 </script>
 
 <div class="main">
-  {#each manager.navlets as navlet}
+  {#each manager.navlets as navlet, index}
     {#if manager.isValidNavlet(navlet.navletID)}
       <div class="navlet">
         <NavletContent widgetID={navlet.navletID} />
+        {#if manager.enableInteractions}
+          <button class="remove" aria-label="Remove navlet" title="Remove navlet" onclick={() => confirmDelete("Remove navlet?", "This removes the navlet from the bar.", () => manager.removeNavlet(index))}>
+            <IconXRegular />
+          </button>
+        {/if}
+      </div>
+    {:else}
+      <!-- Empty slot: pick from the same preview list as the + button. -->
+      <div class="navlet slot">
+        <NavletsChoose set={(wID) => { navlet.navletID = wID; manager.save() }} />
+        <button class="remove" aria-label="Remove empty slot" title="Remove empty slot" onclick={() => manager.removeNavlet(index)}>
+          <IconXRegular />
+        </button>
       </div>
     {/if}
   {/each}
 
-  <Overlay triggerStyle={"margin-top: 6px;"}>
-    {#snippet trigger()}
-      <div class="options">
-        <IconDotsThreeVerticalRegular />
-      </div>
-    {/snippet}
-    {#snippet overlay({ close }: { close: () => void })}
-      <div class="menu">
-        {#each manager.navlets as navlet, index}
-          {#if manager.isValidNavlet(navlet.navletID)}
-            <Button>{navlet.navletID}</Button>
-
-            <Button
-              transparent={true}
-              style="width: 36px;height: 36px;padding: 0;display: grid;place-items: center;"
-              onclick={() => manager.removeNavlet(index)}
-            >
-              <span class="delete-icon"><IconTrashRegular /></span>
-            </Button>
-          {:else}
-            <NavletsChoose
-              set={(wID) => {
-                navlet.navletID = wID
-              }}
-            />
-          {/if}
-        {/each}
-
-        <Button
-          style="grid-column-start: span 2;"
-          onclick={() => {
-            manager.addNavlet()
-          }}
-        >
-          <IconPlusRegular />
-        </Button>
-      </div>
-    {/snippet}
-  </Overlay>
+  {#if manager.enableInteractions}
+    <NavletPicker onpick={(id) => { manager.navlets.push({ navletID: id }); manager.save() }} />
+  {/if}
 </div>
 
 <style>
+  /* Wraps onto more rows on phones instead of scrolling sideways. */
   .main {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: var(--padding);
-    height: 100%;
-    flex-grow: 1;
+    gap: 0.4rem 0.6rem;
+    min-width: 0;
+    min-height: 36px;
   }
-  .menu {
-    display: grid;
-    gap: calc(var(--padding) / 2);
-    padding: calc(var(--padding) / 2);
-    grid-template-columns: minmax(120px, auto) 36px;
+  /* Wide screens (phone landscape included): the navlets stay on one row that scrolls inside the bar,
+     so a bar with many navlets never grows taller than the top bar. Phones keep the wrapping row below. */
+  @media (min-width: 521px) {
+    .main {
+      flex: 1 1 0;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+      padding: 0.5rem 0.25rem 0;
+      margin: -0.5rem -0.25rem 0;
+    }
+    .main::-webkit-scrollbar { display: none; }
+    .navlet { flex: none; }
   }
-  .delete-icon {
-    width: 18px;
-    height: 22px;
-    display: grid;
+  .navlet {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+  .remove {
+    all: unset;
+    box-sizing: border-box;
+    position: absolute;
+    top: -0.45rem;
+    right: -0.45rem;
+    display: none;
     place-items: center;
+    width: 1.1rem;
+    height: 1.1rem;
+    border-radius: 999px;
+    background: var(--bgLight);
+    border: 1px solid var(--borderStrong);
+    color: var(--textMuted);
+    font-size: 0.6rem;
+    cursor: pointer;
+  }
+  .navlet:hover .remove,
+  .navlet:focus-within .remove,
+  .slot .remove { display: grid; }
+  .remove:hover { color: var(--danger); border-color: var(--danger); }
+  .remove:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  /* Touch screens have no hover: keep the remove control visible and larger. */
+  /* Sits inline after the navlet instead of hanging over its corner, so it never covers the chip. */
+  @media (pointer: coarse) {
+    .remove {
+      position: static;
+      flex: none;
+      display: grid;
+      margin-left: 0.25rem;
+      width: 1.4rem;
+      height: 1.4rem;
+      font-size: 0.7rem;
+    }
   }
 </style>

@@ -251,6 +251,8 @@
 <style>
   .rover-connect {
     width: min(420px, calc(100vw - 32px));
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
     padding: 1rem;
     display: flex;
     flex-direction: column;
@@ -263,18 +265,12 @@
     justify-content: space-between;
     gap: 0.75rem;
   }
-  .eyebrow,
   h1 {
     margin: 0;
   }
-  .eyebrow {
-    color: var(--accent);
-    font-size: 0.75rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
   h1 {
-    font-size: 1.35rem;
+    font-size: 1.1rem;
+    font-weight: 600;
   }
   label {
     display: flex;
@@ -290,7 +286,7 @@
     border-radius: 0.4rem;
     padding: 0.35rem 0.7rem;
     background: color-mix(in srgb, var(--warning) 10%, transparent);
-    color: #e5cf9e;
+    color: var(--textWarn);
     white-space: nowrap;
     font-size: 0.75rem;
     font-weight: 600;
@@ -299,7 +295,7 @@
   .status.online {
     border-color: color-mix(in srgb, var(--success) 55%, transparent);
     background: color-mix(in srgb, var(--success) 10%, transparent);
-    color: #cfe0c8;
+    color: var(--textOk);
   }
   .tabs {
     display: flex;
@@ -377,13 +373,13 @@
     font-weight: 700;
     letter-spacing: 0.05em;
     background: color-mix(in srgb, var(--warning) 25%, transparent);
-    color: #e5cf9e;
+    color: var(--textWarn);
     border: 1px solid color-mix(in srgb, var(--warning) 50%, transparent);
     vertical-align: middle;
   }
   .mode-badge.real {
     background: color-mix(in srgb, var(--success) 20%, transparent);
-    color: #bfd7b7;
+    color: var(--textOk);
     border-color: color-mix(in srgb, var(--success) 40%, transparent);
   }
   .power {
@@ -406,7 +402,7 @@
     font-weight: 700;
     letter-spacing: 0.05em;
     background: color-mix(in srgb, var(--warning) 25%, transparent);
-    color: #e5cf9e;
+    color: var(--textWarn);
     border: 1px solid color-mix(in srgb, var(--warning) 50%, transparent);
   }
   .power-hint,
@@ -421,13 +417,13 @@
     color: var(--textMuted);
   }
   .power-warning {
-    color: #e5cf9e;
+    color: var(--textWarn);
   }
   .power-status.success {
-    color: #cfe0c8;
+    color: var(--textOk);
   }
   .power-status.error {
-    color: #e7b3ae;
+    color: var(--textBad);
   }
   .power-actions {
     display: flex;
@@ -458,7 +454,7 @@
   .power-button.danger {
     border-color: color-mix(in srgb, var(--danger) 60%, transparent);
     background: color-mix(in srgb, var(--danger) 14%, transparent);
-    color: #e7b3ae;
+    color: var(--textBad);
   }
   .power-button.danger:hover:not(:disabled) {
     background: color-mix(in srgb, var(--danger) 22%, transparent);

@@ -9,12 +9,132 @@
   --textMuted: #a6adb5;
   --textSubtle: #737b84;
   --padding: 1rem;
+  /* Outer gutter shared by the topbar and the widget canvas, so their edges align. */
+  /* One visible gap, used everywhere: between widgets, from widgets to the canvas edge,
+     and from the topbar to the screen edge. Each widget pads itself by half the gap per side;
+     a side on a workspace or canvas edge takes the other half, so every gap measures the same. */
+  --gap: 0.25rem;
+  --gutter: var(--gap);
+  /* One inset for every widget: title bar and body share it. */
+  --inset: 0.75rem;
 
   --primary: #d8a84e;
   --accent: #7aa7c7;
   --success: #7aa66a;
   --warning: #d8a84e;
   --danger: #c75d55;
+  /* Status text and the emergency-stop surface, shared by every widget and overlay. */
+  --textOk: #bfd7b7;
+  --textWarn: #e5cf9e;
+  --textBad: #e7b3ae;
+  --stop: #9f302d;
+  --stopHover: #b43a35;
+}
+
+/* Colour themes: only the base palette changes. Status colours and layout stay fixed. */
+[data-theme="graphite"] {
+  --bgDark: #101214;
+  --bgMedium: #191c1f;
+  --bgLight: #2a2f34;
+  --surfaceRaised: #202428;
+  --border: #343a40;
+  --borderStrong: #4b535b;
+  --text: #f2f4f6;
+  --textMuted: #a6adb5;
+  --textSubtle: #737b84;
+  --primary: #d8a84e;
+  --accent: #7aa7c7;
+}
+[data-theme="midnight"] {
+  --bgDark: #0b1020;
+  --bgMedium: #111a2e;
+  --bgLight: #1b2740;
+  --surfaceRaised: #17213a;
+  --border: #2a3658;
+  --borderStrong: #3d4c75;
+  --text: #e9eefb;
+  --textMuted: #9aa7c4;
+  --textSubtle: #6b7898;
+  --primary: #7aa2ff;
+  --accent: #8fd3ff;
+}
+[data-theme="forest"] {
+  --bgDark: #0d1410;
+  --bgMedium: #132019;
+  --bgLight: #1d2d24;
+  --surfaceRaised: #182820;
+  --border: #2b3d33;
+  --borderStrong: #3f5a4b;
+  --text: #eef5ef;
+  --textMuted: #a3b8a9;
+  --textSubtle: #6f8677;
+  --primary: #c9a24a;
+  --accent: #7fc8a0;
+}
+[data-theme="oxblood"] {
+  --bgDark: #140c0d;
+  --bgMedium: #1e1214;
+  --bgLight: #2b1a1d;
+  --surfaceRaised: #241619;
+  --border: #3d2428;
+  --borderStrong: #5a3a40;
+  --text: #f6ecec;
+  --textMuted: #b5a0a2;
+  --textSubtle: #7f6a6d;
+  --primary: #e0a25a;
+  --accent: #d98a86;
+}
+[data-theme="violet"] {
+  --bgDark: #0f0d16;
+  --bgMedium: #171424;
+  --bgLight: #241e36;
+  --surfaceRaised: #1e1a2d;
+  --border: #362c4f;
+  --borderStrong: #51437a;
+  --text: #f1edf9;
+  --textMuted: #aba0c4;
+  --textSubtle: #7a6f96;
+  --primary: #b89cff;
+  --accent: #8fb8e8;
+}
+[data-theme="ocean"] {
+  --bgDark: #0a1214;
+  --bgMedium: #10191c;
+  --bgLight: #1a2a2f;
+  --surfaceRaised: #15242a;
+  --border: #29404a;
+  --borderStrong: #3f5f6b;
+  --text: #e8f4f5;
+  --textMuted: #9cb8bd;
+  --textSubtle: #6a8a90;
+  --primary: #4fc3b8;
+  --accent: #8ec5e0;
+}
+[data-theme="copper"] {
+  --bgDark: #120e0b;
+  --bgMedium: #1b1512;
+  --bgLight: #2a201b;
+  --surfaceRaised: #221a16;
+  --border: #3b2d26;
+  --borderStrong: #58443a;
+  --text: #f5ede6;
+  --textMuted: #b9a596;
+  --textSubtle: #837365;
+  --primary: #d88a4a;
+  --accent: #8fb5c9;
+}
+[data-theme="contrast"] {
+  --bgDark: #000000;
+  --bgMedium: #0c0c0c;
+  --bgLight: #1a1a1a;
+  --surfaceRaised: #141414;
+  --border: #444444;
+  --borderStrong: #777777;
+  --text: #ffffff;
+  --textMuted: #cccccc;
+  --textSubtle: #999999;
+  --primary: #ffd23f;
+  --accent: #5cc8ff;
 }
 
 body,
@@ -89,4 +209,71 @@ body {
 a {
   color: currentColor;
   display: inline-block;
+}
+
+/* Native form controls follow the theme instead of the browser default. */
+select {
+  color: var(--text);
+  background: var(--bgDark);
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+  padding: 0.2rem 0.4rem;
+  font: inherit;
+  font-size: 0.85rem;
+  color-scheme: dark;
+}
+select:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* One notice style for every widget message: neutral status, warning, and error (alerts). */
+.notice {
+  margin: 0;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+  background: var(--bgDark);
+  color: var(--textMuted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+.notice.warning {
+  border-color: var(--warning);
+  color: var(--textWarn);
+}
+.notice.error {
+  border-color: var(--danger);
+  color: var(--textBad);
+  background: color-mix(in srgb, var(--danger) 12%, var(--bgDark));
+}
+
+/* Inline status text that reports a fault (for example a device error beside its state). */
+.status-error {
+  color: var(--textBad);
+}
+
+/* One widget header for every widget: title on the left, status or controls on the right. */
+.widget-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 1.75rem;
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+}
+.widget-header > strong {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.widget-header > strong small {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--textMuted);
+}
+.widget-header input[type="checkbox"] {
+  width: 0.95rem;
+  height: 0.95rem;
+  margin: 0 0.3rem 0 0;
+  accent-color: var(--primary);
+  vertical-align: middle;
 }

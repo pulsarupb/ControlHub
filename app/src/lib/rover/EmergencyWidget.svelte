@@ -21,9 +21,9 @@
   }
   .estop {
     min-height: clamp(9rem, 22vh, 14rem);
-    border: 1px solid #a6433d;
+    border: 1px solid var(--stopHover);
     border-radius: 0.55rem;
-    background: #9f302d;
+    background: var(--stop);
     color: white;
     cursor: pointer;
     font-family: inherit;
@@ -31,7 +31,7 @@
     box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.24);
   }
   .estop:hover {
-    background: #b43a35;
+    background: var(--stopHover);
   }
   .estop strong {
     display: block;
@@ -53,7 +53,7 @@
   }
   .reason {
     margin: 0;
-    color: #f0b46a;
+    color: var(--textWarn);
     font-size: 0.75rem;
     overflow-wrap: anywhere;
   }

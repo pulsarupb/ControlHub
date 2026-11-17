@@ -57,6 +57,9 @@
       role="slider"
       tabindex="0"
       aria-label="Drive joystick: up and down throttle, left and right steering"
+      aria-valuemin={-1}
+      aria-valuemax={1}
+      aria-valuenow={rover.throttle}
       aria-valuetext={`Throttle ${rover.throttle.toFixed(2)}, steering ${rover.steering.toFixed(2)}`}
       onpointerdown={handleDown}
       onpointermove={handleMove}
@@ -83,7 +86,8 @@
     display: grid;
     grid-template-rows: auto 1fr auto;
     gap: 0.5rem;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
   .readout {
     color: var(--accent);

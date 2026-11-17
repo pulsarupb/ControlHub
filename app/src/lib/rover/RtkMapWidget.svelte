@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { friendlyError } from "$lib/friendly-error"
   import { onMount, untrack } from "svelte"
   import { base } from "$app/paths"
   import { rover } from "$lib/rover-control.svelte"
@@ -87,7 +88,7 @@
         }).sort((a, b) => order.indexOf(a.feature.kind) - order.indexOf(b.feature.kind))
         map = data
       })
-      .catch(e => { if (!controller.signal.aborted) error = String(e) })
+      .catch(e => { if (!controller.signal.aborted) error = friendlyError(e) })
     const observer = new ResizeObserver(() => { width = host.clientWidth; height = host.clientHeight })
     observer.observe(host)
     const timer = setInterval(() => { now = Date.now() / 1000 }, 500)
@@ -142,7 +143,8 @@
 </script>
 
 <section>
-  <header><strong>RTK Map <small>· Politehnica, Bucharest</small></strong><DeviceStatus {device} /></header>
+  <header class="widget-header"><strong>RTK Map <small>· Politehnica, Bucharest</small></strong></header>
+  <DeviceStatus {device} />
   <div class="toolbar">
     <button class:active={follow} onclick={() => { follow = !follow }}>Follow rover</button>
     <button onclick={recenter} disabled={!position}>Recenter</button>
@@ -167,9 +169,9 @@
     </svg>
     <span class="north">N ↑</span>
     <span class="scale"><span></span>{scaleMeters < 10 ? scaleMeters.toFixed(1) : Math.round(scaleMeters)} m</span>
-    {#if error}<p class="message warning" role="alert">Map unavailable: {error}</p>
-    {:else if !map}<p class="message">Loading bundled offline map…</p>
-    {:else if outside}<p class="message warning">Rover is outside the bundled map. Use Campus to return.</p>
+    {#if error}<p class="notice warning message" role="alert">Map unavailable: {error}</p>
+    {:else if !map}<p class="notice message">Loading bundled offline map…</p>
+    {:else if outside}<p class="notice warning message">Rover is outside the bundled map. Use Campus to return.</p>
     {:else if !position}<p class="message">Waiting for a valid RTK position · map available offline</p>{/if}
     <a class="attribution" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors · ODbL</a>
   </div>
@@ -181,7 +183,7 @@
 </section>
 
 <style>
-  section { padding: .6rem; height: 100%; min-height: 0; box-sizing: border-box; display: flex; flex-direction: column; gap: .4rem; }
+  section { padding: 0; height: 100%; min-height: 0; box-sizing: border-box; display: flex; flex-direction: column; gap: .4rem; }
   header, .toolbar, footer { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; }
   header { justify-content: space-between; } small { font-size: .7rem; font-weight: normal; opacity: .7; }
   button { background: #202b38; color: inherit; border: 1px solid #465668; border-radius: .35rem; padding: .25rem .5rem; cursor: pointer; font-size: .75rem; }
@@ -191,6 +193,6 @@
   .north, .scale, .attribution { position: absolute; background: #17212de6; border-radius: .2rem; padding: .15rem .3rem; color: #dce7ee; font-size: .65rem; }
   .north { top: .5rem; right: .5rem; } .scale { left: .5rem; bottom: 1.8rem; text-align: center; }
   .scale span { display: block; width: 100px; height: 5px; border: 1px solid #dce7ee; border-top: 0; margin-bottom: .15rem; }
-  .attribution { right: 0; bottom: 0; cursor: pointer; } .message { position: absolute; left: .5rem; top: .5rem; right: 3rem; width: fit-content; margin: 0; padding: .4rem .6rem; background: #17212de6; color: #dce7ee; font-size: .75rem; border-radius: .3rem; pointer-events: none; }
-  .warning { color: #ffd58c; } footer { justify-content: space-between; font-size: .7rem; font-variant-numeric: tabular-nums; }
+  .attribution { right: 0; bottom: 0; cursor: pointer; } .message { position: absolute; left: .5rem; top: .5rem; right: 3rem; width: fit-content; pointer-events: none; }
+  footer { justify-content: space-between; font-size: .7rem; font-variant-numeric: tabular-nums; }
 </style>

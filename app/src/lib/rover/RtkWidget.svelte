@@ -7,7 +7,8 @@
   const names = ["No Fix", "GPS", "DGPS", "PPS", "RTK Fixed", "RTK Float", "Dead reckoning", "Manual", "Simulation"]
 </script>
 <section>
-  <h3>RTK position</h3><DeviceStatus {device} />
+  <header class="widget-header"><strong>RTK position</strong></header>
+  <DeviceStatus {device} />
   <p class:stale={age !== null && age > 3}>{names[fix?.quality ?? 0]} · {age === null ? "No fix received" : `${age.toFixed(1)} s old`}</p>
   <dl><dt>Latitude</dt><dd>{fix?.latitude?.toFixed(8) ?? "-"}°</dd><dt>Longitude</dt><dd>{fix?.longitude?.toFixed(8) ?? "-"}°</dd>
     <dt>Altitude MSL</dt><dd>{fix?.altitude_msl?.toFixed(2) ?? "-"} m</dd><dt>Satellites / HDOP</dt><dd>{fix?.satellites ?? "-"} / {fix?.hdop ?? "-"}</dd>
@@ -17,4 +18,4 @@
   </dl>
   {#if device?.data.ntrip_error}<p class="stale">{device.data.ntrip_error}</p>{/if}
 </section>
-<style>section { padding: 1rem; height: 100%; overflow: auto; }h3 { margin: 0 0 .5rem; }dl { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; font-size: .85rem; }dd { margin: 0; font-variant-numeric: tabular-nums; }.stale { color: #f99; }</style>
+<style>section { padding: 0; height: 100%; overflow: auto; }dl { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; font-size: .85rem; }dd { margin: 0; font-variant-numeric: tabular-nums; }.stale { color: var(--textBad); }</style>

@@ -6,11 +6,16 @@
 
   let date = $state(Date.now())
 
+  // The clock only runs while a toast is inside its 3 s life, so an idle app does no work here.
+  const TOAST_LIFE_MS = 3000
   $effect(() => {
+    const newest = Math.max(0, ...global.notifications.map((it) => it.timestamp))
+    if (Date.now() - newest > TOAST_LIFE_MS) return
+    date = Date.now()
     const interval = setInterval(() => {
       date = Date.now()
+      if (date - newest > TOAST_LIFE_MS) clearInterval(interval)
     }, 250)
-
     return () => {
       clearInterval(interval)
     }
@@ -64,19 +69,30 @@
 </div>
 
 <style>
+  /* Pinned to the bottom-right so the newest message sits in the corner and the widget headers
+     at the top stay clear. Phones and short landscape screens get a full-width strip at the bottom. */
   .toasts {
     position: absolute;
-    top: var(--padding);
-    left: 50%;
-    transform: translateX(-50%);
+    right: 0.75rem;
+    bottom: 0.75rem;
     z-index: 100;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 0.25rem;
-    width: min(440px, calc(100vw - 32px));
-    text-align: center;
+    align-items: stretch;
+    gap: 0.35rem;
+    width: min(340px, calc(100vw - 24px));
+    max-height: 45%;
+    overflow: hidden;
+    text-align: left;
     pointer-events: none;
+  }
+  @media (max-width: 520px) {
+    .toasts {
+      left: 0.75rem;
+      right: 0.75rem;
+      width: auto;
+      max-height: 40%;
+    }
   }
   section {
     display: contents;

@@ -50,7 +50,7 @@
   .backdrop {
     position: fixed;
     inset: 0;
-    z-index: 1000;
+    z-index: 1100;
     background: rgba(0, 0, 0, 0.55);
   }
   .modal {
@@ -58,7 +58,7 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    z-index: 1001;
+    z-index: 1101;
     background: var(--bgMedium);
     border: 1px solid var(--border);
     border-radius: 0.75rem;

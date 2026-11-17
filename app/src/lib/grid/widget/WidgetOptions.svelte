@@ -1,90 +1,63 @@
 <script lang="ts">
-  import IconDotsThreeVerticalRegular from "phosphor-icons-svelte/IconDotsThreeVerticalRegular.svelte"
-  import Button from "$lib/ui/Button.svelte"
-  import Overlay from "$lib/ui/Overlay.svelte"
-  import { type ExtendedWidgetGroup } from "../widgets.svelte"
-  import { getContext, tick } from "svelte"
-  import type { Manager } from "../widgets.svelte"
+  import IconTrashRegular from "phosphor-icons-svelte/IconTrashRegular.svelte"
+  import IconXRegular from "phosphor-icons-svelte/IconXRegular.svelte"
+  import { getContext } from "svelte"
+  import { confirmDelete } from "$lib/ui/confirm.svelte"
+  import type { ExtendedWidgetGroup, Manager } from "../widgets.svelte"
   const manager = getContext("manager") as Manager
 
   let { widget = $bindable() }: { widget: ExtendedWidgetGroup } = $props()
+
+  let hasSelected = $derived(widget.selected >= 0 && widget.widgets.length > 0)
+
+  // Removing the selected widget empties its tab; the tab itself is removed only when it is not the last one.
+  function removeSelected() {
+    if (!hasSelected) return
+    if (widget.widgets.length === 1) {
+      widget.widgets[0] = { isMoving: false, widgetID: "" }
+      return
+    }
+    widget.widgets.splice(widget.selected, 1)
+    if (widget.selected >= widget.widgets.length) widget.selected = widget.widgets.length - 1
+  }
 </script>
 
-<Overlay>
-  {#snippet trigger()}
-    <button class="icon"><IconDotsThreeVerticalRegular /></button>
-  {/snippet}
-  {#snippet overlay({ close }: { close: () => void })}
-    <div
-      style="display: flex;flex-direction: column; gap: var(--padding);padding: var(--padding);"
-    >
-      <Button
-        onclick={() => {
-          manager.removeWidget(widget.id)
-          close()
-        }}>Remove Group</Button
-      >
-      <Button
-        onclick={() => {
-          if (widget.selected >= 0 && widget.widgets.length > 0) {
-            widget.widgets.splice(widget.selected, 1)
-            if (widget.selected >= widget.widgets.length) {
-              widget.selected = widget.widgets.length - 1
-            }
-          }
-          close()
-        }}
-        disabled={widget.selected < 0 || widget.widgets.length <= 0}
-        >Remove Widget</Button
-      >
-      <Button
-        onclick={() => {
-          if (widget.selected >= 0 && widget.widgets.length > 0) {
-            widget.widgets[widget.selected] = {
-              isMoving: false,
-              widgetID: "",
-            }
-          }
-          close()
-        }}
-        disabled={widget.selected < 0 || widget.widgets.length <= 0}
-        >Clear Widget</Button
-      >
-      <Button
-        onclick={async () => {
-          widget.widgets.push({
-            isMoving: false,
-            widgetID: "",
-          })
-
-          widget.selected = widget.widgets.length - 1
-
-          await tick()
-
-          const tab = document.querySelector(
-            `[data-widget="${widget.id}"][data-index="${widget.selected}"]`
-          ) as HTMLElement
-
-          const tabs = tab.closest<HTMLElement>(".tabs")
-          if (tabs) {
-            const tabRect = tab.getBoundingClientRect()
-            const tabsRect = tabs.getBoundingClientRect()
-            const left = tabs.scrollLeft + tabRect.left - tabsRect.left - (tabs.clientWidth - tabRect.width) / 2
-            tabs.scrollTo({ left: Math.max(0, left), behavior: "smooth" })
-          }
-
-          close()
-        }}>Insert Widget</Button
-      >
-    </div>
-  {/snippet}
-</Overlay>
+<div class="options">
+  <button
+    class="icon-btn"
+    aria-label="Remove this widget"
+    title="Remove this widget"
+    disabled={!hasSelected}
+    onclick={() => confirmDelete("Remove widget?", "This removes the widget from its group.", removeSelected)}
+  >
+    <IconXRegular />
+  </button>
+  <button
+    class="icon-btn danger"
+    aria-label="Delete group"
+    title="Delete group"
+    onclick={() => confirmDelete("Delete group?", `This deletes the group and its ${widget.widgets.length} widget${widget.widgets.length === 1 ? "" : "s"}.`, () => manager.removeWidget(widget.id))}
+  >
+    <IconTrashRegular />
+  </button>
+</div>
 
 <style>
-  .icon {
-    all: unset;
+  .options { display: flex; align-items: center; gap: 2px; }
+  .icon-btn {
+    display: grid;
+    place-items: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0.35rem;
+    background: transparent;
+    color: var(--textMuted);
     cursor: pointer;
-    width: fit-content;
-    display: flex;
   }
+  .icon-btn:hover:not(:disabled),
+  .icon-btn:focus-visible { background: var(--bgLight); color: var(--text); }
+  .icon-btn.danger:hover:not(:disabled) { color: var(--danger); }
+  .icon-btn:disabled { opacity: 0.35; cursor: default; }
 </style>

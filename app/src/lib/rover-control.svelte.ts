@@ -79,7 +79,8 @@ function createRoverControl(): RoverControl {
   function markOffline(error?: unknown): void {
     zeroControls();
     state.connectionState = "offline";
-    state.lastError = error instanceof Error ? error.message : "Rover API request failed";
+    // A failed fetch is a network-level failure: say what it means instead of the browser's wording.
+    state.lastError = error instanceof TypeError ? "Rover unreachable" : error instanceof Error ? error.message : "Rover API request failed";
     roverConnection.setState("offline", state.lastError);
   }
 

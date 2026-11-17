@@ -1,3 +1,4 @@
+import { friendlyError } from "$lib/friendly-error"
 import { getConfig, request, type FullConfig } from "$lib/config-api"
 import type { Preview } from "$lib/hardware-types"
 
@@ -11,14 +12,14 @@ export const hardware = $state({
 })
 
 export async function loadHardwareConfig() {
-  try { hardware.config = await getConfig(); hardware.error = "" } catch (e) { hardware.error = String(e) }
+  try { hardware.config = await getConfig(); hardware.error = "" } catch (e) { hardware.error = friendlyError(e) }
 }
 
 export async function armAction(action: Record<string, unknown>, timeoutMs = 5000) {
   try {
     hardware.error = ""
     return await request<Preview>("/api/arm/action", action, "POST", timeoutMs)
-  } catch (e) { hardware.error = String(e); return null }
+  } catch (e) { hardware.error = friendlyError(e); return null }
 }
 
 export function releaseArm() {
@@ -33,7 +34,7 @@ export async function armTick() {
   try {
     await request("/api/heartbeat", undefined, "POST", 1000)
     if (hardware.jog) await request("/api/arm/jog", hardware.jog, "POST", 1000)
-  } catch (e) { hardware.error = String(e); hardware.jog = null }
+  } catch (e) { hardware.error = friendlyError(e); hardware.jog = null }
   finally { pending = false }
 }
 

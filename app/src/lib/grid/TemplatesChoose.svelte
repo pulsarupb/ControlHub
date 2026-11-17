@@ -1,7 +1,8 @@
 <script lang="ts">
   import Button from "$lib/ui/Button.svelte"
   import Overlay from "$lib/ui/Overlay.svelte"
-  import CanvasRender from "./CanvasRender.svelte"
+  import PreviewCard from "$lib/ui/PreviewCard.svelte"
+  import TemplateMiniature from "./TemplateMiniature.svelte"
   import type { Template } from "$lib/types"
   import { global } from "$lib"
 
@@ -13,45 +14,31 @@
     <Button style="width: 100%;box-sizing: border-box;">Templates</Button>
   {/snippet}
   {#snippet overlay({ close }: { close: () => void })}
-    <div class="possibilities">
+    <div class="templates">
       {#each global.allTemplates as t}
-        <button
-          class="choose"
+        <PreviewCard
+          name={t.name}
+          detail="{t.widgets.length} groups · {t.navlets.length} navlets"
           onclick={() => {
             close()
             set(t)
           }}
         >
-          <p>Local</p>
-          <h4>{t.name}</h4>
-          <CanvasRender {t} />
-        </button>
+          <TemplateMiniature {t} />
+        </PreviewCard>
       {/each}
     </div>
   {/snippet}
 </Overlay>
 
 <style>
-  h4,
-  p {
-    margin: 0;
-    text-align: center;
-  }
-  h4 {
-    margin-bottom: var(--padding);
-  }
-  .possibilities {
-    width: min(750px, calc(100vw - 32px));
+  .templates {
+    width: min(640px, calc(100vw - 32px));
+    max-height: min(72vh, 620px);
+    overflow-y: auto;
+    padding: 0.5rem;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, auto));
-    gap: 1rem;
-    padding: var(--padding);
-  }
-  button.choose {
-    all: unset;
-    cursor: pointer;
-    background-color: var(--bgLight);
-    padding: 0.5em;
-    border-radius: 0.8rem;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.6rem;
   }
 </style>

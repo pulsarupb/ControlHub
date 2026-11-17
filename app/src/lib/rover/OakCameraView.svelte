@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { friendlyError } from "$lib/friendly-error"
   import { apiFetch } from "$lib/api-client"
   import { roverConnection } from "$lib/rover-connection.svelte"
   import type { OakCamera } from "$lib/hardware-types"
@@ -41,7 +42,7 @@
       } catch (e) {
         if (alive) {
           if (currentUrl) URL.revokeObjectURL(currentUrl)
-          currentUrl = ""; url = ""; error = String(e)
+          currentUrl = ""; url = ""; error = friendlyError(e)
         }
       } finally { clearTimeout(timeout); busy = false }
     }
@@ -55,7 +56,7 @@
 </script>
 
 <article>
-  <header><strong>{name}</strong>
+  <header class="widget-header"><strong>{name}</strong>
     <select aria-label={`${name} video source`} bind:value={kind}>
       <option value="color">Color</option><option value="depth">Depth / disparity</option>
     </select>
@@ -63,24 +64,23 @@
   <div class="identity" title={mxid}>{mxid || "No device assigned"}</div>
   <div class="image">
     {#if url && connected}<img src={url} alt={`${name} ${kind} view`} />
-    {:else}<p>{!enabled ? "Disabled · enable OAK-D in Settings" : simulated ? "SIMULATED · no camera frames" : camera?.error || "Waiting for camera"}</p>{/if}
+    {:else}<p>{roverConnection.state !== "online" ? "Rover offline" : !enabled ? "Disabled · enable in Settings" : simulated ? "SIMULATED · no frames" : camera?.error || "Waiting for frames"}</p>{/if}
   </div>
   <footer><span class:online={connected}>{connected ? "Live" : "Offline"}</span>
     <span>Min {distance(camera?.min_mm)} · Avg {distance(camera?.avg_mm)} · Max {distance(camera?.max_mm)}</span>
   </footer>
-  {#if error}<p class="error" role="status">{error}</p>{/if}
+  {#if error}<p class="notice error" role="alert">{error}</p>{/if}
 </article>
 
 <style>
-  article { display: flex; flex-direction: column; min-width: 0; min-height: 180px; gap: .4rem; padding: .6rem; border: 1px solid #7774; border-radius: .4rem; background: #0002; }
+  article { display: flex; flex-direction: column; min-width: 0; min-height: 180px; gap: .4rem; padding: .6rem; border: 1px solid var(--border); border-radius: .4rem; background: color-mix(in srgb, var(--bgDark) 35%, transparent); }
   header, footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .4rem; }
   strong { font-size: .9rem; }
-  select { max-width: 100%; color: inherit; background: #222; border: 1px solid #666; border-radius: .25rem; padding: .25rem; }
+  select { max-width: 100%; color: var(--text); background: var(--bgDark); border: 1px solid var(--borderStrong); border-radius: .25rem; padding: .25rem; }
   .identity { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; font-size: .7rem; opacity: .65; }
-  .image { flex: 1; min-height: 100px; display: flex; align-items: center; justify-content: center; background: #0005; border-radius: .25rem; overflow: hidden; }
+  .image { flex: 1; min-height: 100px; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--bgDark) 60%, transparent); border-radius: .25rem; overflow: hidden; }
   img { display: block; width: 100%; height: 100%; max-height: 100%; object-fit: contain; min-height: 0; }
   p { margin: .4rem; font-size: .8rem; text-align: center; opacity: .8; }
   footer { font-size: .7rem; opacity: .8; }
-  .online { color: #9d9; }
-  .error { color: #f99; }
+  .online { color: var(--textOk); }
 </style>

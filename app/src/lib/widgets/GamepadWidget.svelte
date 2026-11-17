@@ -371,10 +371,18 @@
   onpointerleave={onPointerUp}
 >
   <div class="mode-controls">
-    <label>Gamepad target <select value={hardware.mode} onchange={e => setGamepadMode(e.currentTarget.value as "drive" | "arm")}><option value="drive">Drive</option><option value="arm">Arm</option></select></label>
-    <small>Y/△: switch · LB/L1: hold to jog · B/○: global Stop. Release LB after switching. Bindings in Settings.</small>
-    {#if hardware.config}<small>Current button indices: switch {hardware.config.gamepad.toggle_button}, hold {hardware.config.gamepad.deadman_button}, stop {hardware.config.gamepad.stop_button}. Labels below describe defaults.</small>{/if}
-    <small>{hardware.mode === "drive" ? "Left Y: drive · Right X: steering. Virtual sticks below are drive-only." : "Left stick: base XY · Right Y: Z · Right X: yaw · D-pad: pitch/roll · Triggers: gripper."}</small>
+    <header class="widget-header">
+      <strong>Gamepad</strong>
+      <label class="target">Target <select value={hardware.mode} onchange={e => setGamepadMode(e.currentTarget.value as "drive" | "arm")}><option value="drive">Drive</option><option value="arm">Arm</option></select></label>
+    </header>
+    <small>{hardware.mode === "drive" ? "Left Y drives · Right X steers." : "Left stick moves the base · Right Y Z · Right X yaw · D-pad pitch/roll · triggers gripper."}</small>
+    <small>Y/△ switches · hold LB/L1 to jog · B/○ stops. Bindings in Settings.</small>
+    {#if hardware.config}
+      <details>
+        <summary>Button mapping</summary>
+        <small>Switch {hardware.config.gamepad.toggle_button}, hold {hardware.config.gamepad.deadman_button}, stop {hardware.config.gamepad.stop_button}. Labels below describe defaults.</small>
+      </details>
+    {/if}
   </div>
   <div class="gamepad-shell" bind:this={gamepadEl} aria-label="Xbox controller state">
     {@html GAMEPAD_SVG}

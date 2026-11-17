@@ -61,7 +61,6 @@ class NotificationsManager {
 
 export class GlobalState {
   notificationsManager = new NotificationsManager()
-  templatePreviews: Record<string, string> = $state({})
   isPrepared = $state(true)
   isConnected = $state(true)
 
