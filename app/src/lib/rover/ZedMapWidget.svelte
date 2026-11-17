@@ -297,7 +297,6 @@
   .point-size input { flex: 1; max-width: 160px; min-width: 60px; accent-color: var(--accent); }
   .point-size span { font-variant-numeric: tabular-nums; }
   .mesh-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; font-size: .75rem; }
-  button:disabled { opacity: .5; cursor: not-allowed; }
   .cloud-settings { border: 1px solid #35404e; border-radius: .3rem; padding: .3rem .5rem; }
   .cloud-settings summary { cursor: pointer; font-size: .75rem; }
   .cloud-settings label { margin: .35rem 0; }

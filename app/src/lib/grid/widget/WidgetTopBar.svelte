@@ -387,7 +387,7 @@
             const element = e.currentTarget as HTMLElement
 
             scrollTabWithinGroup(element)
-          }}>{getWidgetName(w.widgetID)}</button
+          }}><span class="label">{getWidgetName(w.widgetID)}</span></button
         >
         {#if index === widget.selected && !w.isMoving}
           <button class="tab-close" aria-label="Remove this widget" title="Remove this widget" onclick={() => confirmDelete("Remove widget?", "This removes the widget from its group.", () => removeTab(index))}>
@@ -476,8 +476,10 @@
   .tab:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
   /* A tab is a pill: name on the left, and on the selected tab its own remove button. */
+  /* Tab pills shrink and ellipsize so the add (+) and expand controls keep their room in a short header. */
   .tab-wrap {
-    flex: none;
+    flex: 0 1 auto;
+    min-width: 0;
     display: flex;
     align-items: center;
     height: var(--ctl);
@@ -495,6 +497,9 @@
     display: inline-flex;
     align-items: center;
     padding: 0 0.55rem;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     font-size: 0.85rem;
     color: var(--textMuted);
     text-wrap: nowrap;
@@ -502,6 +507,12 @@
     user-select: none;
     -webkit-user-select: none;
     touch-action: none;
+  }
+  /* The name shrinks with an ellipsis; the pill itself never clips mid-word. */
+  .tab .label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .tab:hover { color: var(--text); }
   .tab.selected { color: var(--text); }

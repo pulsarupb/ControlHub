@@ -17,7 +17,7 @@ import KinovaControlsWidget from "$lib/rover/KinovaControlsWidget.svelte"
 import StatusNavlet from "$lib/rover/StatusNavlet.svelte"
 import WorkspacesNavlet from "$lib/navlets/WorkspacesNavlet.svelte"
 export const components: DashboardComponent[] = [
-  { id: "emergency", name: "Emergency Controls", type: "widget", component: EmergencyWidget, minW: 3, minH: 3 },
+  { id: "emergency", name: "E-stop", type: "widget", component: EmergencyWidget, minW: 3, minH: 3 },
   { id: "joystick", name: "Joystick (Bars)", type: "widget", component: JoystickWidget, minW: 4, minH: 4 },
   { id: "joystick-throttle", name: "Throttle Bar", type: "widget", component: ThrottleBarWidget, minW: 2, minH: 4 },
   { id: "joystick-steer", name: "Steering Bar", type: "widget", component: SteeringBarWidget, minW: 4, minH: 2 },

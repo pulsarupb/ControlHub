@@ -74,8 +74,8 @@
   </div>
 
   <div class="labels">
-    <span>Throttle: up / down</span>
-    <span>Steer: left / right</span>
+    <span aria-hidden="true">Throttle ↑↓</span>
+    <span aria-hidden="true">Steer ←→</span>
   </div>
 </div>
 
@@ -157,6 +157,8 @@
   }
   .labels span {
     flex: 1;
+    min-width: 0;
     text-align: center;
+    white-space: nowrap;
   }
 </style>

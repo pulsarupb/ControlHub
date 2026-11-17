@@ -42,8 +42,4 @@
   button.transparent {
     background: transparent;
   }
-  button:disabled {
-    cursor: not-allowed;
-    opacity: 0.45;
-  }
 </style>

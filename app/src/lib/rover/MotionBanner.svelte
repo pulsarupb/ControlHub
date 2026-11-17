@@ -1,9 +1,9 @@
 <script lang="ts">
   import { untrack } from "svelte"
   import { rover } from "$lib/rover-control.svelte"
-  import { hardware, armAction } from "$lib/hardware.svelte"
   import { global } from "$lib"
 
+  // Arm messages stay inline in the Kinova widget (no toast), so they never cover other widgets.
   const drive = $derived(rover.status?.devices.drive)
   const kinova = $derived(rover.status?.devices.kinova)
   const driveStop = $derived(
@@ -11,9 +11,6 @@
   )
   const armStop = $derived(
     kinova?.enabled && !kinova.data.armed ? (kinova.stop_reason?.reason ?? "") : "",
-  )
-  const armError = $derived(
-    hardware.error && kinova?.enabled && !kinova.data.armed ? hardware.error : "",
   )
   // Offline is already shown by the topbar and connection overlay, so only online refusals get a toast.
   const uiError = $derived(
@@ -48,16 +45,9 @@
     active.delete(key)
   }
 
-  async function enableArm() {
-    await armAction({ action: "enable" })
-    await rover.refreshStatus()
-  }
-
   $effect(() => {
     const entries = [
       { key: "drive-stop", text: driveStop ? `Drive stopped: ${driveStop}` : "" },
-      { key: "arm-stop", text: armStop ? `Arm stopped: ${armStop}` : "" },
-      { key: "arm-error", text: armError ? `Arm error: ${armError}` : "" },
       { key: "rover-error", text: uiError ? `Rover error: ${uiError}` : "" },
     ]
 
@@ -71,9 +61,7 @@
         const actions =
           entry.key === "drive-stop"
             ? [{ text: "Enable Drive", task: () => void rover.resetRover() }]
-            : entry.key === "arm-stop"
-              ? [{ text: "Enable arm", task: () => void enableArm() }]
-              : []
+            : []
 
         notify(entry.key, entry.text, actions)
       }

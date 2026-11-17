@@ -59,5 +59,4 @@
   .icon-btn:hover:not(:disabled),
   .icon-btn:focus-visible { background: var(--bgLight); color: var(--text); }
   .icon-btn.danger:hover:not(:disabled) { color: var(--danger); }
-  .icon-btn:disabled { opacity: 0.35; cursor: default; }
 </style>

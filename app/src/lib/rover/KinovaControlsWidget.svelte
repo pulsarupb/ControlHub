@@ -217,7 +217,6 @@
   .content { flex: 1; min-height: 0; overflow: auto; padding: var(--inset); }
   button { min-height: 2.5rem; padding: .45rem .7rem; border: 1px solid var(--borderStrong); border-radius: .4rem; background: var(--surfaceRaised); color: inherit; font: inherit; font-weight: 600; cursor: pointer; }
   button:hover:not(:disabled) { border-color: var(--primary); background: var(--bgLight); }
-  button:disabled { opacity: .4; cursor: not-allowed; }
   button.stop { background: var(--stop); border-color: var(--stopHover); color: var(--text); text-transform: uppercase; letter-spacing: .04em; }
   button.stop:hover { background: var(--stopHover); border-color: var(--stopHover); }
   button.primary { background: var(--primary); color: var(--bgDark); border-color: var(--primary); }

@@ -489,7 +489,6 @@
   }
   .text-btn:hover { background: var(--bgLight); }
   .text-btn.primary { border-color: var(--borderStrong); background: var(--bgLight); }
-  .text-btn:disabled { opacity: 0.4; cursor: default; }
   .preset-list {
     list-style: none;
     margin: 0;
@@ -552,7 +551,7 @@
   }
   .icon:hover { background: var(--bgLight); color: var(--text); }
   .icon.danger:hover { color: var(--danger); }
-  .icon:disabled { opacity: 0.35; cursor: default; background: none; color: var(--textSubtle); }
+  .icon:disabled { background: none; color: var(--textSubtle); }
   .tpl-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));

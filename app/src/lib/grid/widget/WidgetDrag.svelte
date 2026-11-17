@@ -13,11 +13,20 @@
   let startY = $state(0)
 
   let pointerId: number | null = null
+  // Pointer moves can arrive faster than frames: recompute the layout at most once per frame.
+  let frame: number | null = null
+
+  function scheduleMove() {
+    if (frame !== null) return
+    frame = requestAnimationFrame(() => {
+      frame = null
+      manager.updateMove(widget.id)
+    })
+  }
 
   function startDrag(e: PointerEvent) {
     if (!manager.enableInteractions) return
     if (isPossible) return
-    console.log("Start drag")
 
     widget.isMoving = true
     pointerId = e.pointerId
@@ -37,17 +46,16 @@
 
   function onDrag(e: PointerEvent) {
     if (!manager.enableInteractions || e.pointerId !== pointerId) return
-    console.log("update drag")
     widget.move = {
       x: e.clientX - startX,
       y: e.clientY - startY,
     }
-    manager.updateMove(widget.id)
+    scheduleMove()
   }
 
   function stopDrag(e: PointerEvent) {
     if (!manager.enableInteractions || e.pointerId !== pointerId) return
-    console.log("Stop drag")
+    if (frame !== null) { cancelAnimationFrame(frame); frame = null }
     widget.isMoving = false
     window.removeEventListener("pointermove", onDrag)
     window.removeEventListener("pointerup", stopDrag)

@@ -180,6 +180,12 @@ body.no-select * {
   outline-offset: 3px;
 }
 
+/* One disabled look for every control: faded, not clickable. Components do not restyle it. */
+:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 body {
   background: var(--bgDark);
   padding: 0;

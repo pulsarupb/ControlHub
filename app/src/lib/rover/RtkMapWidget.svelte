@@ -187,8 +187,7 @@
   header, .toolbar, footer { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem; }
   header { justify-content: space-between; } small { font-size: .7rem; font-weight: normal; opacity: .7; }
   button { background: #202b38; color: inherit; border: 1px solid #465668; border-radius: .35rem; padding: .25rem .5rem; cursor: pointer; font-size: .75rem; }
-  button.active { border-color: #4de0ab; color: #4de0ab; } button:disabled { opacity: .4; cursor: default; }
-  .viewport { flex: 1; min-height: 140px; position: relative; overflow: hidden; background: #1b2530; border-radius: .5rem; cursor: grab; touch-action: none; }
+  button.active { border-color: #4de0ab; color: #4de0ab; }  .viewport { flex: 1; min-height: 140px; position: relative; overflow: hidden; background: #1b2530; border-radius: .5rem; cursor: grab; touch-action: none; }
   .viewport:active { cursor: grabbing; } canvas, svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
   .north, .scale, .attribution { position: absolute; background: #17212de6; border-radius: .2rem; padding: .15rem .3rem; color: #dce7ee; font-size: .65rem; }
   .north { top: .5rem; right: .5rem; } .scale { left: .5rem; bottom: 1.8rem; text-align: center; }

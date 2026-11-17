@@ -19,8 +19,9 @@
     gap: 0.65rem;
     align-content: start;
   }
+  /* Sized from the viewport height so the STOP button and its label fit short phone-landscape cells. */
   .estop {
-    min-height: clamp(9rem, 22vh, 14rem);
+    min-height: clamp(4.5rem, 40vh, 14rem);
     border: 1px solid var(--stopHover);
     border-radius: 0.55rem;
     background: var(--stop);
@@ -37,7 +38,7 @@
     display: block;
   }
   .estop strong {
-    font-size: clamp(2.8rem, 7vw, 5.5rem);
+    font-size: clamp(1.8rem, 9vh, 5.5rem);
     line-height: 0.95;
   }
   .reset {

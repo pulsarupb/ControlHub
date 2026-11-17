@@ -14,12 +14,21 @@
   } = $props()
 
   setContext("manager", manager)
+
+  // Touch screens have no hover: tapping a navlet reveals its remove control, and tapping anywhere else hides it.
+  let revealed: number | null = $state(null)
+  function updateReveal(e: PointerEvent) {
+    const navlet = (e.target as Element | null)?.closest?.("[data-navlet]")
+    revealed = navlet ? Number((navlet as HTMLElement).dataset.navlet) : null
+  }
 </script>
+
+<svelte:window onpointerdown={updateReveal} />
 
 <div class="main">
   {#each manager.navlets as navlet, index}
     {#if manager.isValidNavlet(navlet.navletID)}
-      <div class="navlet">
+      <div class="navlet" data-navlet={index} class:revealed={revealed === index}>
         <NavletContent widgetID={navlet.navletID} />
         {#if manager.enableInteractions}
           <button class="remove" aria-label="Remove navlet" title="Remove navlet" onclick={() => confirmDelete("Remove navlet?", "This removes the navlet from the bar.", () => manager.removeNavlet(index))}>
@@ -91,22 +100,24 @@
     font-size: 0.6rem;
     cursor: pointer;
   }
-  .navlet:hover .remove,
-  .navlet:focus-within .remove,
+  /* Hover reveals the remove control only where a pointer can hover. Empty slots always show theirs. */
+  @media (hover: hover) {
+    .navlet:hover .remove,
+    .navlet:focus-within .remove { display: grid; }
+  }
   .slot .remove { display: grid; }
   .remove:hover { color: var(--danger); border-color: var(--danger); }
   .remove:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-  /* Touch screens have no hover: keep the remove control visible and larger. */
-  /* Sits inline after the navlet instead of hanging over its corner, so it never covers the chip. */
+  /* Touch screens: the remove control sits inline after the navlet, larger, and appears only after the navlet is tapped. */
   @media (pointer: coarse) {
     .remove {
       position: static;
       flex: none;
-      display: grid;
       margin-left: 0.25rem;
       width: 1.4rem;
       height: 1.4rem;
       font-size: 0.7rem;
     }
+    .navlet.revealed .remove { display: grid; }
   }
 </style>

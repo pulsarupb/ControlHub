@@ -12,6 +12,16 @@
   let startY = $state(0)
 
   let pointerId: number | null = null
+  // Pointer moves can arrive faster than frames: recompute the layout at most once per frame.
+  let frame: number | null = null
+
+  function scheduleResize() {
+    if (frame !== null) return
+    frame = requestAnimationFrame(() => {
+      frame = null
+      manager.updateResize(widget.id)
+    })
+  }
 
   function startResize(e: PointerEvent) {
     if (!manager.enableInteractions) return
@@ -39,12 +49,12 @@
       x: e.clientX - startX,
       y: startY - e.clientY,
     }
-
-    manager.updateResize(widget.id)
+    scheduleResize()
   }
 
   function stopResize(e: PointerEvent) {
     if (!manager.enableInteractions || e.pointerId !== pointerId) return
+    if (frame !== null) { cancelAnimationFrame(frame); frame = null }
     widget.isMoving = false
     window.removeEventListener("pointermove", onResize)
     window.removeEventListener("pointerup", stopResize)
