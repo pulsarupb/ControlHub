@@ -9,11 +9,6 @@
     isMouse = false,
   }: { x: number; y: number; isMouse?: boolean } = $props()
 
-  function handlePointerMove() {
-    if (manager.placeStart == null) return
-    manager.updatePlace(x, y)
-  }
-
   function handlePointerLeave() {
     cleanup()
     manager.resetPlace()
@@ -51,11 +46,11 @@
     }}
     onpointerup={(e) => {
       if (e.button != 0 || !e.isPrimary) return
-      manager.endPlace(x, y)
+      // Touch release is captured by this button, so use the cell the canvas tracked, not this button's cell.
+      manager.endPlace(manager.placeEnd?.x ?? x, manager.placeEnd?.y ?? y)
       cleanup()
     }}
     onpointercancel={handlePointerLeave}
-    onpointermove={handlePointerMove}
     style="--x:{x};--y:{y};">+</button
   >
 {:else}

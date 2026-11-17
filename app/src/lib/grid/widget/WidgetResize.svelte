@@ -18,6 +18,8 @@
     if (isPossible) return
     widget.isMoving = true
     pointerId = e.pointerId
+    // Keep receiving moves if the finger drifts off the small handle.
+    ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
     widget.offset = {
       x: 0,
       y: 0,
@@ -79,5 +81,14 @@
 
   .resize:hover {
     color: var(--text);
+  }
+  /* Bigger touch target without changing the layout: the negative margin cancels the extra size. */
+  @media (pointer: coarse) {
+    .resize {
+      box-sizing: border-box;
+      width: 2.75rem;
+      height: 2.75rem;
+      margin: -0.25rem;
+    }
   }
 </style>

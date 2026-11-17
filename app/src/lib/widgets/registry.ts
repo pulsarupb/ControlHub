@@ -2,6 +2,9 @@ import type { DashboardComponent, Template } from "$lib/types"
 import EmergencyWidget from "$lib/rover/EmergencyWidget.svelte"
 import GamepadWidget from "$lib/widgets/GamepadWidget.svelte"
 import JoystickWidget from "$lib/rover/JoystickWidget.svelte"
+import ThrottleBarWidget from "$lib/rover/ThrottleBarWidget.svelte"
+import SteeringBarWidget from "$lib/rover/SteeringBarWidget.svelte"
+import JoystickSingleWidget from "$lib/rover/JoystickSingleWidget.svelte"
 import ZedMapWidget from "$lib/rover/ZedMapWidget.svelte"
 import WheelsWidget from "$lib/rover/WheelsWidget.svelte"
 import RtkWidget from "$lib/rover/RtkWidget.svelte"
@@ -15,7 +18,10 @@ import StatusNavlet from "$lib/rover/StatusNavlet.svelte"
 import WorkspacesNavlet from "$lib/navlets/WorkspacesNavlet.svelte"
 export const components: DashboardComponent[] = [
   { id: "emergency", name: "Emergency Controls", type: "widget", component: EmergencyWidget, minW: 3, minH: 3 },
-  { id: "joystick", name: "Joystick", type: "widget", component: JoystickWidget, minW: 4, minH: 4 },
+  { id: "joystick", name: "Joystick (Bars)", type: "widget", component: JoystickWidget, minW: 4, minH: 4 },
+  { id: "joystick-throttle", name: "Throttle Bar", type: "widget", component: ThrottleBarWidget, minW: 2, minH: 4 },
+  { id: "joystick-steer", name: "Steering Bar", type: "widget", component: SteeringBarWidget, minW: 4, minH: 2 },
+  { id: "joystick-single", name: "Joystick (Single)", type: "widget", component: JoystickSingleWidget, minW: 4, minH: 4 },
   { id: "minimap", name: "ZED Map / Pose", type: "widget", component: ZedMapWidget, minW: 6, minH: 5 },
   { id: "motors", name: "Wheel / Controller Status", type: "widget", component: WheelsWidget, minW: 6, minH: 4 },
   { id: "rtk", name: "RTK Position", type: "widget", component: RtkWidget, minW: 5, minH: 4 },

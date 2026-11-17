@@ -1,7 +1,7 @@
 import { ZERO_JOYSTICK } from "$lib/constants";
 import { apiFetch } from "$lib/api-client";
 import { clamp } from "$lib/math";
-import type { ConnectionState, JoystickPosition, RoverControl, RoverStatus } from "$lib/rover-types";
+import type { ConnectionState, DriveAxis, JoystickPosition, RoverControl, RoverStatus } from "$lib/rover-types";
 import { roverConnection } from "$lib/rover-connection.svelte";
 import { hardware, releaseArm } from "$lib/hardware.svelte";
 
@@ -12,10 +12,15 @@ type RoverState = {
   joystickActive: boolean;
   mouseJoystickActive: boolean;
   joystick: JoystickPosition;
+  // Which axes a pointer drag currently owns. Lets independent widgets drive one
+  // axis each without one widget's release zeroing the other axis.
+  dragAxes: Record<DriveAxis, boolean>;
   pendingRequest: boolean;
   connectionState: ConnectionState;
   lastError: string;
 };
+
+const NO_DRAG: Record<DriveAxis, boolean> = { throttle: false, steering: false };
 
 class ApiError extends Error {
   constructor(
@@ -35,6 +40,7 @@ function createRoverControl(): RoverControl {
     joystickActive: false,
     mouseJoystickActive: false,
     joystick: { ...ZERO_JOYSTICK },
+    dragAxes: { ...NO_DRAG },
     pendingRequest: false,
     connectionState: "connecting",
     lastError: "",
@@ -115,6 +121,7 @@ function createRoverControl(): RoverControl {
     state.steering = 0;
     state.joystick = { ...ZERO_JOYSTICK };
     state.joystickActive = false;
+    state.dragAxes = { ...NO_DRAG };
   }
 
   async function stopRover(reason = "operator stop"): Promise<void> {
@@ -167,6 +174,29 @@ function createRoverControl(): RoverControl {
     zeroControls();
   }
 
+  // Start a pointer drag that owns the given axes. Returns false when driving is refused.
+  function beginDrag(axes: DriveAxis[]): boolean {
+    if (!startJoystick()) return false;
+
+    for (const axis of axes) state.dragAxes[axis] = true;
+    state.mouseJoystickActive = true;
+    return true;
+  }
+
+  // End a drag: zero only the axes it owned. The joystick goes idle once no drag owns an axis.
+  function endDrag(axes: DriveAxis[]): void {
+    for (const axis of axes) {
+      state.dragAxes[axis] = false;
+      if (axis === "throttle") state.throttle = 0;
+      else state.steering = 0;
+    }
+
+    if (!state.dragAxes.throttle && !state.dragAxes.steering) {
+      state.mouseJoystickActive = false;
+      state.joystickActive = false;
+    }
+  }
+
   return {
     get status() {
       return state.status;
@@ -206,6 +236,8 @@ function createRoverControl(): RoverControl {
     setThrottle,
     setSteering,
     releaseJoystick,
+    beginDrag,
+    endDrag,
   };
 }
 

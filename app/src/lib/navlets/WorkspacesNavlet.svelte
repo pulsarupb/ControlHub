@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { activeWorkspace, goToWorkspace, moveWorkspace } from "$lib/grid/workspace.svelte"
+  import { activeWorkspace, goToWorkspace, swipeToWorkspace } from "$lib/grid/workspace.svelte"
 
   let swipeStart: { pointerId: number; x: number; y: number } | null = null
   let suppressClick = false
@@ -28,16 +28,7 @@
     swipeStart = null
     if (!start || event.pointerId !== start.pointerId) return
 
-    const dx = event.clientX - start.x
-    const dy = event.clientY - start.y
-    if (Math.max(Math.abs(dx), Math.abs(dy)) < 16) return
-
-    suppressClick = true
-    if (Math.abs(dx) >= Math.abs(dy)) {
-      moveWorkspace(dx < 0 ? "right" : "left")
-    } else {
-      moveWorkspace(dy < 0 ? "down" : "up")
-    }
+    suppressClick = swipeToWorkspace(event.clientX - start.x, event.clientY - start.y)
   }
 
   function handleWorkspaceClick(column: number, row: number) {
