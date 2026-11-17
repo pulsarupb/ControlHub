@@ -61,3 +61,11 @@ export function moveWorkspace(direction: WorkspaceDirection) {
   const row = activeWorkspace.row + (direction === "up" ? -1 : direction === "down" ? 1 : 0)
   goToWorkspace(column, row)
 }
+
+// Turns a pointer drag into a workspace move. Returns true when it moved.
+export function swipeToWorkspace(dx: number, dy: number, threshold = 16): boolean {
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < threshold) return false
+  if (Math.abs(dx) >= Math.abs(dy)) moveWorkspace(dx < 0 ? "right" : "left")
+  else moveWorkspace(dy < 0 ? "down" : "up")
+  return true
+}

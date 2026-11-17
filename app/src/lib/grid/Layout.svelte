@@ -8,7 +8,7 @@
   import { setContext } from "svelte"
   import type { Manager } from "./widgets.svelte"
 import TemplatesChoose from "./TemplatesChoose.svelte"
-  import { bindWorkspaceViewport, moveWorkspace } from "./workspace.svelte"
+  import { bindWorkspaceViewport, moveWorkspace, swipeToWorkspace } from "./workspace.svelte"
 
   let {
     manager = $bindable(),
@@ -28,18 +28,26 @@ import TemplatesChoose from "./TemplatesChoose.svelte"
     isInsideWidget: boolean
   } | null>(null)
 
+  // Background swipe on touch: starts only when the finger goes down on empty canvas.
+  let swipeStart: { id: number; x: number; y: number } | null = null
+
+  function cellAt(clientX: number, clientY: number) {
+    const rect = section.getBoundingClientRect()
+    const x = Math.floor((clientX - rect.left) / manager.WIDTH)
+    const y = Math.floor((clientY - rect.top) / manager.HEIGHT)
+    return {
+      x: Math.min(Math.max(x, 0), manager.MAX_GRID_WIDTH - 1),
+      y: Math.min(Math.max(y, 0), manager.MAX_GRID_HEIGHT - 1),
+    }
+  }
+
   function onPointerMove(e: PointerEvent) {
     if (!manager.enableInteractions) return
     if (!section) return
-    const rect = section.getBoundingClientRect()
-    const mouseX = e.clientX - rect.left
-    const mouseY = e.clientY - rect.top
+    const { x: clampedX, y: clampedY } = cellAt(e.clientX, e.clientY)
 
-    const x = Math.floor(mouseX / manager.WIDTH)
-    const y = Math.floor(mouseY / manager.HEIGHT)
-
-    const clampedX = Math.min(Math.max(x, 0), manager.MAX_GRID_WIDTH - 1)
-    const clampedY = Math.min(Math.max(y, 0), manager.MAX_GRID_HEIGHT - 1)
+    // Canvas-level so the rectangle keeps growing while a touch drag is captured by the "+" button.
+    if (manager.placeStart != null) manager.updatePlace(clampedX, clampedY)
 
     if (manager.getWidget(clampedX, clampedY, manager.widgets) != undefined) {
       if (manager.placeStart != null) {
@@ -53,9 +61,33 @@ import TemplatesChoose from "./TemplatesChoose.svelte"
     mouseGridPos = { x: clampedX, y: clampedY, isInsideWidget: false }
   }
 
-  function onMouseLeave() {
+  // Touch pointers fire pointerleave when the finger lifts, which would hide the "+" before it can be tapped.
+  function onMouseLeave(e: PointerEvent) {
     if (!manager.enableInteractions) return
+    if (e.pointerType !== "mouse") return
     mouseGridPos = null
+  }
+
+  function onCanvasPointerDown(e: PointerEvent) {
+    if (!manager.enableInteractions || e.pointerType === "mouse" || !e.isPrimary) return
+    // Tap an empty cell to show the "+" under the finger.
+    if (section) {
+      const { x, y } = cellAt(e.clientX, e.clientY)
+      const onWidget = manager.getWidget(x, y, manager.widgets) != undefined
+      if (onWidget) {
+        if (manager.placeStart == null) mouseGridPos = null
+      } else if (manager.placeStart == null) {
+        mouseGridPos = { x, y, isInsideWidget: false }
+      }
+    }
+    swipeStart = e.target === section ? { id: e.pointerId, x: e.clientX, y: e.clientY } : null
+  }
+
+  function onCanvasPointerUp(e: PointerEvent) {
+    if (!swipeStart || e.pointerId !== swipeStart.id) return
+    const start = swipeStart
+    swipeStart = null
+    if (swipeToWorkspace(e.clientX - start.x, e.clientY - start.y)) mouseGridPos = null
   }
 
   let gridCells = $derived.by(() => {
@@ -126,7 +158,10 @@ import TemplatesChoose from "./TemplatesChoose.svelte"
   <div
     class="canvas"
     bind:this={section}
+    onpointerdown={onCanvasPointerDown}
     onpointermove={onPointerMove}
+    onpointerup={onCanvasPointerUp}
+    onpointercancel={() => (swipeStart = null)}
     onpointerleave={onMouseLeave}
     onkeydown={onCanvasKeydown}
     role="grid"
@@ -174,7 +209,7 @@ import TemplatesChoose from "./TemplatesChoose.svelte"
         {/if}
       {/each}
 
-      {#if mouseGridPos != null && !(manager.isMoving && manager.placeStart == null) && manager.tabName == ""}
+      {#if mouseGridPos != null && (manager.placeStart != null || manager.getWidget(mouseGridPos.x, mouseGridPos.y, manager.widgets) == undefined) && !(manager.isMoving && manager.placeStart == null) && manager.tabName == ""}
         <Overlay x={mouseGridPos.x} y={mouseGridPos.y} isMouse={true} />
       {/if}
     {/if}
@@ -203,7 +238,8 @@ import TemplatesChoose from "./TemplatesChoose.svelte"
     overscroll-behavior: contain;
     scrollbar-width: none;
     -ms-overflow-style: none;
-    touch-action: auto;
+    /* The viewport never scrolls natively; disabling browser panning lets background swipes reach the pointer handlers. */
+    touch-action: none;
   }
   .wrapper::-webkit-scrollbar { display: none; }
   .wrapper.preview {

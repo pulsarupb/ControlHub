@@ -21,6 +21,7 @@
 
     widget.isMoving = true
     pointerId = e.pointerId
+    ;(e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId)
     widget.move = {
       x: 0,
       y: 0,
@@ -69,5 +70,12 @@
     touch-action: none;
     width: fit-content;
     display: flex;
+  }
+  /* Larger touch target; padding is cancelled by the negative margin so the top bar layout does not change. */
+  @media (pointer: coarse) {
+    .icon {
+      padding: 0.5rem;
+      margin: -0.5rem;
+    }
   }
 </style>
