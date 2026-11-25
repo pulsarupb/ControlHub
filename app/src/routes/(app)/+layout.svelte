@@ -3,28 +3,32 @@
   import Topbar from "$lib/Topbar.svelte"
   import MotionBanner from "$lib/rover/MotionBanner.svelte"
   import { manager } from "$lib/grid/widgets.svelte"
-  import { STATUS_RATE_MS, UI_RATE_MS } from "$lib/constants"
   import { rover } from "$lib/rover-control.svelte"
   import { startGamepad, stopGamepad } from "$lib/gamepad-control.svelte"
   import { releaseGamepad } from "$lib/gamepad-control.svelte"
-  import { armTick, releaseArm, loadHardwareConfig } from "$lib/hardware.svelte"
+  import { releaseArm, loadHardwareConfig } from "$lib/hardware.svelte"
   import { roverConnection } from "$lib/rover-connection.svelte"
 
   setContext("manager", manager.manager)
 
+  let mounted = false
+
   $effect(() => {
-    roverConnection.baseUrl
-    untrack(() => { rover.releaseJoystick(); releaseArm(); releaseGamepad() })
+    const baseUrl = roverConnection.baseUrl
+    untrack(() => {
+      rover.releaseJoystick()
+      releaseArm()
+      releaseGamepad()
+      if (mounted) rover.startChannel(baseUrl)
+    })
   })
   $effect(() => {
     if (roverConnection.state === "online") untrack(() => { void loadHardwareConfig() })
   })
 
   onMount(() => {
-    rover.refreshStatus()
-    const controlTimer = setInterval(rover.sendControlTick, UI_RATE_MS)
-    const statusTimer = setInterval(rover.refreshStatus, STATUS_RATE_MS)
-    const armTimer = setInterval(armTick, 100)
+    mounted = true
+    rover.startChannel(roverConnection.baseUrl)
     // Losing focus must stop both motion devices, not just release the joystick.
     const stopForFocusLoss = (reason: string) => {
       releaseGamepad()
@@ -41,13 +45,11 @@
     startGamepad()
 
     return () => {
-      clearInterval(controlTimer)
-      clearInterval(statusTimer)
-      clearInterval(armTimer)
+      mounted = false
       window.removeEventListener("blur", handleBlur)
       document.removeEventListener("visibilitychange", handleVisibility)
       stopGamepad()
-      void rover.stopRover("client closed")
+      void rover.stopRover("client closed").finally(() => rover.stopChannel())
     }
   })
 

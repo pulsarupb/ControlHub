@@ -4,7 +4,7 @@ version.workspace = true
 edition = "2024"
 
 [dependencies]
-axum = "0.8.7"
+axum = { version = "0.8.7", features = ["ws"] }
 d435 = { path = "../d435" }
 roboteq = { path = "../roboteq" }
 kinova-control = { path = "../kinova-control" }
@@ -18,5 +18,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "sync",
 tower-http = { version = "0.7.0", features = ["cors"] }
 
 [dev-dependencies]
+futures-util = "0.3"
 tempfile = "3"
+tokio-tungstenite = "0.29"
 tower = { version = "0.5", features = ["util"] }

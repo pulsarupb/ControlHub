@@ -810,7 +810,7 @@ mod tests {
         assert!(validate_preview(&preview, 41, 99.0).is_err());
         let (state, _) = AppState::new(Default::default(), String::new(), true);
         assert!(check_generation(&state, 0).is_ok());
-        state.stop_arm();
+        state.stop_arm_with("stopped");
         assert!(check_generation(&state, 0).is_err());
     }
 

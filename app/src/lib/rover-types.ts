@@ -23,8 +23,6 @@ export type RoverControl = {
   readonly connectionState: ConnectionState;
   readonly stopped: boolean;
   readonly lastError: string;
-  refreshStatus: () => Promise<void>;
-  sendControlTick: () => Promise<void>;
   stopRover: (reason?: string) => Promise<void>;
   resetRover: () => Promise<void>;
   startJoystick: () => boolean;

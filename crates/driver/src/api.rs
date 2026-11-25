@@ -16,34 +16,58 @@ use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 use tower_http::cors::CorsLayer;
 
-type Error = (StatusCode, Json<Value>);
-fn bad(error: impl ToString) -> Error {
+pub(crate) type Error = (StatusCode, Json<Value>);
+pub(crate) fn bad(error: impl ToString) -> Error {
     (
         StatusCode::BAD_REQUEST,
         Json(json!({"error": error.to_string()})),
     )
 }
-fn unavailable(error: impl ToString) -> Error {
+pub(crate) fn unavailable(error: impl ToString) -> Error {
     (
         StatusCode::CONFLICT,
         Json(json!({"error": error.to_string()})),
     )
 }
 
+#[derive(Debug, Clone)]
+pub enum OpError {
+    Bad(String),
+    Conflict(String),
+}
+
+impl OpError {
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::Bad(_) => "bad_request",
+            Self::Conflict(_) => "conflict",
+        }
+    }
+
+    pub fn message(&self) -> &str {
+        match self {
+            Self::Bad(m) | Self::Conflict(m) => m,
+        }
+    }
+}
+
+impl From<OpError> for Error {
+    fn from(err: OpError) -> Self {
+        match err {
+            OpError::Bad(msg) => bad(msg),
+            OpError::Conflict(msg) => unavailable(msg),
+        }
+    }
+}
+
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/api/health", get(health))
-        .route("/api/status", get(status))
+        .route("/api/ws", get(crate::ws::upgrade))
         .route("/api/config", get(get_config).put(put_config))
-        .route("/api/control", post(control))
-        .route("/api/drive/enable", post(enable_drive))
-        .route("/api/drive/stop", post(stop_drive))
-        .route("/api/heartbeat", post(heartbeat))
-        .route("/api/stop", post(stop))
         .route("/api/system/shutdown", post(shutdown))
         .route("/api/system/reboot", post(reboot))
         .route("/api/arm/action", post(arm_action))
-        .route("/api/arm/jog", post(arm_jog))
         .route("/api/arm/stop", post(stop_arm))
         .route("/api/zed/map", get(zed_map))
         .route("/api/zed/mesh", get(zed_mesh).post(zed_generate_mesh))
@@ -103,29 +127,6 @@ async fn oak_frame(
     ))
 }
 
-async fn status(State(state): State<AppState>) -> Json<Value> {
-    let (armed, stop_reason) = {
-        let mut drive = state.drive.lock().unwrap();
-        let armed = drive.armed(Instant::now());
-        (armed, drive.take_stop_reason())
-    };
-    if let Some(reason) = stop_reason {
-        state.record_drive_stop(reason);
-    }
-    let mut status = state.status.lock().unwrap().clone();
-    status.drive.data.armed = armed;
-    status.kinova.data.armed = state.arm_enabled.load(Ordering::SeqCst);
-    status.zed.data.path.clear();
-    status.zed.data.points.clear();
-    status.zed.data.colors.clear();
-    let drive_stop = state.drive_stop_info.lock().unwrap().clone();
-    let arm_stop = state.arm_stop_info.lock().unwrap().clone();
-    let mut value = json!({"time": epoch(), "simulate": state.simulate, "devices": status});
-    value["devices"]["drive"]["stop_reason"] = json!(drive_stop);
-    value["devices"]["kinova"]["stop_reason"] = json!(arm_stop);
-    Json(value)
-}
-
 async fn get_config(State(state): State<AppState>) -> Json<config::Config> {
     let mut config = state.config.lock().unwrap().clone();
     // Blank means unchanged on PUT. Passwords are never returned to clients.
@@ -173,39 +174,28 @@ async fn put_config(
     Ok(Json(json!({"saved": true})))
 }
 
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Control {
-    throttle: f32,
-    steering: f32,
-}
-
-async fn control(
-    State(state): State<AppState>,
-    Json(payload): Json<Control>,
-) -> Result<Json<Value>, Error> {
+pub(crate) fn drive_control(state: &AppState, throttle: f32, steering: f32) -> Result<(), OpError> {
     let available = {
         let s = state.status.lock().unwrap();
         s.drive.enabled && s.drive.connected
     };
     if !available {
         state.stop_drive_preserving_reason("drive disabled or offline");
-        return Err(unavailable("drive disabled or offline"));
+        return Err(OpError::Conflict("drive disabled or offline".into()));
     }
     state
         .drive
         .lock()
         .unwrap()
-        .command(payload.throttle, payload.steering, Instant::now())
-        .map_err(bad)?;
-    Ok(Json(json!({"ok": true})))
+        .command(throttle, steering, Instant::now())
+        .map_err(OpError::Bad)
 }
 
-async fn enable_drive(State(state): State<AppState>) -> Result<Json<Value>, Error> {
+pub(crate) fn drive_enable(state: &AppState) -> Result<(), OpError> {
     let mesh = state.zed_mesh.lock().unwrap();
     if mesh.generating {
-        return Err(unavailable(
-            "Wait for mesh generation to finish before enabling the drive",
+        return Err(OpError::Conflict(
+            "Wait for mesh generation to finish before enabling the drive".into(),
         ));
     }
     let available = {
@@ -213,7 +203,7 @@ async fn enable_drive(State(state): State<AppState>) -> Result<Json<Value>, Erro
         s.drive.enabled && s.drive.connected
     };
     if !available {
-        return Err(unavailable("drive disabled or offline"));
+        return Err(OpError::Conflict("drive disabled or offline".into()));
     }
     let config = state.config.lock().unwrap();
     if config.drive.yaw_control.enabled {
@@ -222,14 +212,34 @@ async fn enable_drive(State(state): State<AppState>) -> Result<Json<Value>, Erro
             f.received.elapsed().as_millis()
                 < u128::from(config.drive.yaw_control.feedback_timeout_ms)
         }) {
-            return Err(unavailable(
-                "fresh measured ZED odometry required for yaw control",
+            return Err(OpError::Conflict(
+                "fresh measured ZED odometry required for yaw control".into(),
             ));
         }
     }
     state.drive.lock().unwrap().enable(Instant::now());
     state.clear_drive_stop();
-    Ok(Json(json!({"ok": true})))
+    Ok(())
+}
+
+pub(crate) fn global_stop(state: &AppState, reason: Option<String>) {
+    state.stop_all_with(reason.unwrap_or_else(|| "operator stop".into()));
+}
+
+pub(crate) fn arm_jog_cmd(state: &AppState, jog: arm::Jog) -> Result<(), OpError> {
+    jog.validate().map_err(|e| {
+        state.stop_arm_with("invalid arm jog");
+        OpError::Bad(e)
+    })?;
+    let mut pending_jog = state.arm_jog.lock().unwrap();
+    if !state.arm_enabled.load(Ordering::SeqCst) {
+        return Err(OpError::Conflict(
+            "arm stopped; explicit enable required".into(),
+        ));
+    }
+    *state.arm_seen.lock().unwrap() = Instant::now();
+    *pending_jog = Some((jog, Instant::now()));
+    Ok(())
 }
 
 #[derive(Deserialize)]
@@ -237,19 +247,10 @@ struct StopQuery {
     reason: Option<String>,
 }
 
-async fn stop_drive(State(state): State<AppState>, Query(query): Query<StopQuery>) -> Json<Value> {
-    state.stop_drive_with(query.reason.unwrap_or_else(|| "operator stop".into()));
-    Json(json!({"ok": true}))
-}
 async fn stop_arm(State(state): State<AppState>, Query(query): Query<StopQuery>) -> Json<Value> {
     state.stop_arm_with(query.reason.unwrap_or_else(|| "operator stop".into()));
     Json(json!({"ok": true}))
 }
-async fn stop(State(state): State<AppState>, Query(query): Query<StopQuery>) -> Json<Value> {
-    state.stop_all_with(query.reason.unwrap_or_else(|| "operator stop".into()));
-    Json(json!({"ok": true}))
-}
-
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct PowerRequest {
@@ -303,28 +304,6 @@ async fn power(
         )
     })?;
     Ok(Json(json!({"ok": true, "action": action.as_str()})))
-}
-
-async fn heartbeat(State(state): State<AppState>) -> Json<Value> {
-    *state.arm_seen.lock().unwrap() = Instant::now();
-    Json(json!({"ok": true}))
-}
-
-async fn arm_jog(
-    State(state): State<AppState>,
-    Json(jog): Json<arm::Jog>,
-) -> Result<Json<Value>, Error> {
-    jog.validate().map_err(|e| {
-        state.stop_arm_with("invalid arm jog");
-        bad(e)
-    })?;
-    let mut pending_jog = state.arm_jog.lock().unwrap();
-    if !state.arm_enabled.load(Ordering::SeqCst) {
-        return Err(unavailable("arm stopped; explicit enable required"));
-    }
-    *state.arm_seen.lock().unwrap() = Instant::now();
-    *pending_jog = Some((jog, Instant::now()));
-    Ok(Json(json!({"ok": true})))
 }
 
 async fn arm_action(
@@ -580,12 +559,7 @@ mod tests {
         let (state, router) = setup();
         online_drive(&state);
         state.zed_mesh.lock().unwrap().generating = true;
-        assert_eq!(
-            call(router.clone(), "POST", "/api/drive/enable", json!({}))
-                .await
-                .0,
-            StatusCode::CONFLICT
-        );
+        assert!(matches!(drive_enable(&state), Err(OpError::Conflict(_))));
         assert_eq!(
             call(router, "POST", "/api/zed/reset", json!({})).await.0,
             StatusCode::BAD_REQUEST
@@ -595,75 +569,54 @@ mod tests {
 
     #[tokio::test]
     async fn disabled_devices_cannot_move_or_enable() {
-        let (_, router) = setup();
-        for (path, body) in [
-            ("/api/control", json!({"throttle": 0.1, "steering": 0})),
-            ("/api/drive/enable", json!({})),
-            ("/api/arm/action", json!({"action":"enable"})),
-        ] {
-            assert_eq!(
-                call(router.clone(), "POST", path, body).await.0,
-                StatusCode::CONFLICT
-            );
-        }
-    }
-
-    #[tokio::test]
-    async fn invalid_demand_latches_stop_and_heartbeat_cannot_reenable() {
         let (state, router) = setup();
-        online_drive(&state);
-        assert_eq!(
-            call(router.clone(), "POST", "/api/drive/enable", json!({}))
-                .await
-                .0,
-            StatusCode::OK
-        );
-        assert_eq!(
-            call(
-                router.clone(),
-                "POST",
-                "/api/control",
-                json!({"throttle": 2, "steering":0})
-            )
-            .await
-            .0,
-            StatusCode::BAD_REQUEST
-        );
-        call(router.clone(), "POST", "/api/heartbeat", json!({})).await;
-        assert!(!state.drive.lock().unwrap().armed(Instant::now()));
+        assert!(matches!(
+            drive_control(&state, 0.1, 0.0),
+            Err(OpError::Conflict(_))
+        ));
+        assert!(matches!(drive_enable(&state), Err(OpError::Conflict(_))));
         assert_eq!(
             call(
                 router,
                 "POST",
-                "/api/control",
-                json!({"throttle":0.1, "steering":0})
+                "/api/arm/action",
+                json!({"action":"enable"})
             )
             .await
             .0,
-            StatusCode::BAD_REQUEST
+            StatusCode::CONFLICT
         );
     }
 
     #[tokio::test]
+    async fn invalid_demand_latches_stop_and_fresh_demand_cannot_reenable() {
+        let (state, _router) = setup();
+        online_drive(&state);
+        assert!(drive_enable(&state).is_ok());
+        assert!(matches!(
+            drive_control(&state, 2.0, 0.0),
+            Err(OpError::Bad(_))
+        ));
+        assert!(!state.drive.lock().unwrap().armed(Instant::now()));
+        assert!(matches!(
+            drive_control(&state, 0.1, 0.0),
+            Err(OpError::Bad(_))
+        ));
+    }
+
+    #[tokio::test]
     async fn expired_commands_cannot_revive_drive() {
-        let (state, router) = setup();
+        let (state, _router) = setup();
         online_drive(&state);
         state
             .drive
             .lock()
             .unwrap()
             .enable(Instant::now() - Duration::from_secs(1));
-        assert_eq!(
-            call(
-                router,
-                "POST",
-                "/api/control",
-                json!({"throttle":0.1, "steering":0})
-            )
-            .await
-            .0,
-            StatusCode::BAD_REQUEST
-        );
+        assert!(matches!(
+            drive_control(&state, 0.1, 0.0),
+            Err(OpError::Bad(_))
+        ));
     }
 
     #[tokio::test]
@@ -671,12 +624,7 @@ mod tests {
         let (state, router) = setup();
         online_drive(&state);
         state.config.lock().unwrap().drive.yaw_control.enabled = true;
-        assert_eq!(
-            call(router.clone(), "POST", "/api/drive/enable", json!({}))
-                .await
-                .0,
-            StatusCode::CONFLICT
-        );
+        assert!(matches!(drive_enable(&state), Err(OpError::Conflict(_))));
         let now = Instant::now();
         *state.yaw_feedback.lock().unwrap() = Some(roboteq::YawFeedback {
             yaw: 0.0,
@@ -684,12 +632,7 @@ mod tests {
             received: now - Duration::from_secs(1),
             epoch: 0,
         });
-        assert_eq!(
-            call(router.clone(), "POST", "/api/drive/enable", json!({}))
-                .await
-                .0,
-            StatusCode::CONFLICT
-        );
+        assert!(matches!(drive_enable(&state), Err(OpError::Conflict(_))));
         state
             .yaw_feedback
             .lock()
@@ -697,36 +640,26 @@ mod tests {
             .as_mut()
             .unwrap()
             .received = now;
-        assert_eq!(
-            call(router.clone(), "POST", "/api/drive/enable", json!({}))
-                .await
-                .0,
-            StatusCode::OK
-        );
+        assert!(drive_enable(&state).is_ok());
         state.status.lock().unwrap().zed.connected = true;
         assert_eq!(
-            call(router.clone(), "POST", "/api/zed/reset", json!({}))
-                .await
-                .0,
+            call(router, "POST", "/api/zed/reset", json!({})).await.0,
             StatusCode::OK
         );
         assert!(!state.drive.lock().unwrap().armed(Instant::now()));
         assert!(state.yaw_feedback.lock().unwrap().is_none());
-        assert_eq!(
-            call(router, "POST", "/api/drive/enable", json!({})).await.0,
-            StatusCode::CONFLICT
-        );
+        assert!(matches!(drive_enable(&state), Err(OpError::Conflict(_))));
     }
 
     #[tokio::test]
     async fn global_stop_affects_both_motion_devices_not_sensors() {
-        let (state, router) = setup();
+        let (state, _router) = setup();
         online_drive(&state);
         state.drive.lock().unwrap().enable(Instant::now());
         state.arm_enabled.store(true, Ordering::SeqCst);
         state.status.lock().unwrap().rtk.connected = true;
         let before = state.arm_stop.load(Ordering::SeqCst);
-        call(router, "POST", "/api/stop", json!({})).await;
+        global_stop(&state, None);
         assert!(!state.drive.lock().unwrap().armed(Instant::now()));
         assert!(!state.arm_enabled.load(Ordering::SeqCst));
         assert!(state.arm_stop.load(Ordering::SeqCst) > before);
@@ -771,31 +704,29 @@ mod tests {
 
     #[tokio::test]
     async fn arm_invalid_jog_stops_and_valid_jog_cannot_enable() {
-        let (state, router) = setup();
+        let (state, _router) = setup();
         state.arm_enabled.store(true, Ordering::SeqCst);
-        assert_eq!(
-            call(
-                router.clone(),
-                "POST",
-                "/api/arm/jog",
-                json!({"cartesian":[0,0,0,0,0,2]})
-            )
-            .await
-            .0,
-            StatusCode::BAD_REQUEST
-        );
+        assert!(matches!(
+            arm_jog_cmd(
+                &state,
+                arm::Jog {
+                    cartesian: Some([0.0, 0.0, 0.0, 0.0, 0.0, 2.0]),
+                    joints: None,
+                },
+            ),
+            Err(OpError::Bad(_))
+        ));
         assert!(!state.arm_enabled.load(Ordering::SeqCst));
-        assert_eq!(
-            call(
-                router,
-                "POST",
-                "/api/arm/jog",
-                json!({"cartesian":[0,0,0,0,0,0]})
-            )
-            .await
-            .0,
-            StatusCode::CONFLICT
-        );
+        assert!(matches!(
+            arm_jog_cmd(
+                &state,
+                arm::Jog {
+                    cartesian: Some([0.0; 6]),
+                    joints: None,
+                },
+            ),
+            Err(OpError::Conflict(_))
+        ));
     }
 
     #[tokio::test]
@@ -906,7 +837,7 @@ mod tests {
         );
         assert!(state.arm_enabled.load(Ordering::SeqCst));
         for action in ["retract", "home", "packaging", "zero", "rest"] {
-            call(router.clone(), "POST", "/api/heartbeat", json!({})).await;
+            *state.arm_seen.lock().unwrap() = Instant::now();
             assert_eq!(
                 call(
                     router.clone(),
@@ -928,7 +859,7 @@ mod tests {
         })
         .await
         .unwrap();
-        call(router.clone(), "POST", "/api/heartbeat", json!({})).await;
+        *state.arm_seen.lock().unwrap() = Instant::now();
         assert!(!state.arm_enabled.load(Ordering::SeqCst));
         for action in ["retract", "home", "packaging", "zero", "rest"] {
             assert_eq!(
@@ -944,17 +875,16 @@ mod tests {
                 "{action}"
             );
         }
-        assert_eq!(
-            call(
-                router.clone(),
-                "POST",
-                "/api/arm/jog",
-                json!({"cartesian":[0,0,0,0,0,0]})
-            )
-            .await
-            .0,
-            StatusCode::CONFLICT
-        );
+        assert!(matches!(
+            arm_jog_cmd(
+                &state,
+                arm::Jog {
+                    cartesian: Some([0.0; 6]),
+                    joints: None,
+                },
+            ),
+            Err(OpError::Conflict(_))
+        ));
         let (code, error) = call(
             router,
             "POST",
@@ -974,25 +904,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn stop_reason_is_exposed_in_status_and_accepts_a_query_reason() {
-        let (state, router) = setup();
+    async fn stop_reason_is_recorded_and_shared_with_ws_summaries() {
+        let (state, _router) = setup();
         state.drive.lock().unwrap().enable(Instant::now());
-        let (code, _) = call(
-            router.clone(),
-            "POST",
-            "/api/stop?reason=window%20lost%20focus",
-            json!({}),
-        )
-        .await;
-        assert_eq!(code, StatusCode::OK);
+        global_stop(&state, Some("window lost focus".into()));
 
-        let (code, body) = call(router, "GET", "/api/status", json!({})).await;
-        assert_eq!(code, StatusCode::OK);
-        assert_eq!(
-            body["devices"]["drive"]["stop_reason"]["reason"],
-            "window lost focus"
-        );
-        assert_eq!(body["devices"]["drive"]["data"]["armed"], false);
-        assert!(body["devices"]["kinova"]["stop_reason"].is_null());
+        let drive = state.drive_summary();
+        assert_eq!(drive.stop_reason.unwrap().reason, "window lost focus");
+        assert!(!drive.armed);
+        assert!(state.devices_summary().kinova.stop_reason.is_none());
     }
 }

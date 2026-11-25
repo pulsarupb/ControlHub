@@ -1,6 +1,6 @@
 import { ZERO_JOYSTICK } from "$lib/constants";
-import { apiFetch } from "$lib/api-client";
 import { clamp } from "$lib/math";
+import { MotionChannel, MotionChannelError } from "$lib/motion-channel.svelte";
 import type { ConnectionState, DriveAxis, JoystickPosition, RoverControl, RoverStatus } from "$lib/rover-types";
 import { roverConnection } from "$lib/rover-connection.svelte";
 import { hardware, releaseArm } from "$lib/hardware.svelte";
@@ -15,24 +15,18 @@ type RoverState = {
   // Which axes a pointer drag currently owns. Lets independent widgets drive one
   // axis each without one widget's release zeroing the other axis.
   dragAxes: Record<DriveAxis, boolean>;
-  pendingRequest: boolean;
   connectionState: ConnectionState;
   lastError: string;
 };
 
 const NO_DRAG: Record<DriveAxis, boolean> = { throttle: false, steering: false };
 
-class ApiError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-  ) {
-    super(message);
-    this.name = "ApiError";
-  }
-}
-
-function createRoverControl(): RoverControl {
+function createRoverControl(): RoverControl & {
+  startChannel: (baseUrl?: string) => void;
+  stopChannel: () => void;
+  releaseArmOverChannel: () => void;
+  takeChannelControl: () => Promise<void>;
+} {
   const state = $state<RoverState>({
     status: null,
     throttle: 0,
@@ -41,79 +35,96 @@ function createRoverControl(): RoverControl {
     mouseJoystickActive: false,
     joystick: { ...ZERO_JOYSTICK },
     dragAxes: { ...NO_DRAG },
-    pendingRequest: false,
     connectionState: "connecting",
     lastError: "",
   });
 
   const stopped = $derived(state.connectionState !== "online" || !state.status?.devices.drive.data.armed);
 
-  async function api(path: string, options: RequestInit = {}): Promise<RoverStatus> {
-    const motionRequest = path === "/api/status" || path.startsWith("/api/control");
-    const response = await apiFetch(
-      roverConnection.apiUrl(path),
-      {
-        headers: { "content-type": "application/json" },
-        ...options,
-      },
-      motionRequest ? 1500 : 3000,
-    );
-
-    if (!response.ok) {
-      const body = (await response.json().catch(() => null)) as { error?: string } | null;
-      throw new ApiError(response.status, body?.error ?? `${path} failed with ${response.status}`);
-    }
-
-    if (path === "/api/status") {
+  const channel = new MotionChannel({
+    onOpen: () => {
       const wasOffline = state.connectionState === "offline";
-      state.status = (await response.json()) as RoverStatus;
-      // A recovered link should not keep showing the old network error. Motion
-      // refusals (4xx) stay visible until the operator re-enables or stops.
       if (wasOffline) state.lastError = "";
-    }
-    state.connectionState = "online";
-    roverConnection.setState("online", "Rover API online");
-    return state.status!;
+      state.connectionState = "online";
+      roverConnection.setState("online", "Rover WebSocket online");
+    },
+    onClose: (reason) => {
+      // Never auto-enable on disconnect/reconnect; clear joystick demand and mark offline.
+      markOffline(new Error(reason));
+    },
+    onStatus: (nextStatus) => {
+      state.status = nextStatus;
+      const wasOffline = state.connectionState === "offline";
+      if (wasOffline) state.lastError = "";
+      state.connectionState = "online";
+      roverConnection.setState("online", "Rover WebSocket online");
+    },
+    onStopped: (devices, reason) => {
+      if (devices.includes("drive")) {
+        zeroControls();
+      }
+      if (devices.includes("kinova")) {
+        releaseArm();
+        hardware.preview = null;
+      }
+      if (state.status) {
+        const stopInfo = { reason, at: Date.now() / 1000 };
+        if (devices.includes("drive")) {
+          state.status.devices.drive.data.armed = false;
+          state.status.devices.drive.stop_reason = stopInfo;
+        }
+        if (devices.includes("kinova")) {
+          state.status.devices.kinova.data.armed = false;
+          state.status.devices.kinova.stop_reason = stopInfo;
+        }
+      }
+    },
+    onError: (message, code) => {
+      state.lastError = message;
+      if (code === "busy" || code === "conflict" || code === "bad_request") {
+        zeroControls();
+      }
+    },
+    readDriveDemand: () => ({
+      armed: !stopped,
+      throttle: state.throttle,
+      steering: state.steering,
+    }),
+    readArmState: () => ({
+      active:
+        typeof document !== "undefined" &&
+        !document.hidden &&
+        document.hasFocus() &&
+        Boolean(state.status?.devices.kinova.connected),
+      jog: hardware.jog,
+    }),
+    clearArmJog: () => {
+      hardware.jog = null;
+    },
+  });
+
+  function startChannel(baseUrl = roverConnection.baseUrl): void {
+    channel.start(baseUrl);
+  }
+
+  function stopChannel(): void {
+    channel.stop();
+  }
+
+  function releaseArmOverChannel(): void {
+    channel.releaseArmJog();
+  }
+
+  async function takeChannelControl(): Promise<void> {
+    await channel.takeControl();
+    state.lastError = "";
   }
 
   function markOffline(error?: unknown): void {
     zeroControls();
     state.connectionState = "offline";
-    // A failed fetch is a network-level failure: say what it means instead of the browser's wording.
-    state.lastError = error instanceof TypeError ? "Rover unreachable" : error instanceof Error ? error.message : "Rover API request failed";
+    state.lastError = error instanceof TypeError ? "Rover unreachable" : error instanceof Error ? error.message : "Rover WebSocket offline";
     roverConnection.setState("offline", state.lastError);
-  }
-
-  async function refreshStatus(): Promise<void> {
-    try {
-      await api("/api/status");
-    } catch (error) {
-      markOffline(error);
-    }
-  }
-
-  async function sendControlTick(): Promise<void> {
-    if (state.pendingRequest || stopped) return;
-
-    state.pendingRequest = true;
-    try {
-      await api("/api/control", {
-        method: "POST",
-        // Reverse the UI drive axes for this rover without changing backend or motor config.
-        body: JSON.stringify({ throttle: -state.throttle, steering: -state.steering }),
-      });
-    } catch (error) {
-      // A 4xx here is a motion refusal (for example "drive stopped; explicit
-      // enable required"), not a dead rover. Surface it instead of going offline.
-      if (error instanceof ApiError && error.status < 500) {
-        state.lastError = error.message;
-        void refreshStatus();
-      } else {
-        markOffline(error);
-      }
-    } finally {
-      state.pendingRequest = false;
-    }
   }
 
   function zeroControls(): void {
@@ -131,11 +142,14 @@ function createRoverControl(): RoverControl {
     hardware.preview = null;
 
     try {
-      await api(`/api/stop?reason=${encodeURIComponent(reason)}`, { method: "POST" });
+      await channel.stopAll(reason);
       state.lastError = "";
-      await refreshStatus();
     } catch (error) {
-      markOffline(error);
+      if (error instanceof MotionChannelError) {
+        state.lastError = error.message;
+      } else {
+        markOffline(error);
+      }
     }
   }
 
@@ -143,13 +157,11 @@ function createRoverControl(): RoverControl {
     zeroControls();
 
     try {
-      await api("/api/drive/enable", { method: "POST" });
+      await channel.enableDrive();
       state.lastError = "";
-      await refreshStatus();
     } catch (error) {
-      if (error instanceof ApiError && error.status < 500) {
+      if (error instanceof MotionChannelError) {
         state.lastError = error.message;
-        await refreshStatus();
       } else {
         markOffline(error);
       }
@@ -229,8 +241,10 @@ function createRoverControl(): RoverControl {
     get lastError() {
       return state.lastError;
     },
-    refreshStatus,
-    sendControlTick,
+    startChannel,
+    stopChannel,
+    releaseArmOverChannel,
+    takeChannelControl,
     stopRover,
     resetRover,
     startJoystick,

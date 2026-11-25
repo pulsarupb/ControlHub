@@ -8,6 +8,7 @@ mod sensors;
 mod state;
 mod system;
 mod wifi;
+mod ws;
 
 use std::time::Duration;
 
