@@ -21,6 +21,7 @@ type RoverState = {
 };
 
 const NO_DRAG: Record<DriveAxis, boolean> = { throttle: false, steering: false };
+const STATUS_OFFLINE_THRESHOLD = 3;
 
 class ApiError extends Error {
   constructor(
@@ -46,6 +47,8 @@ function createRoverControl(): RoverControl {
     lastError: "",
   });
 
+  let statusFailures = 0;
+
   const stopped = $derived(state.connectionState !== "online" || !state.status?.devices.drive.data.armed);
 
   async function api(path: string, options: RequestInit = {}): Promise<RoverStatus> {
@@ -54,6 +57,9 @@ function createRoverControl(): RoverControl {
       roverConnection.apiUrl(path),
       {
         headers: { "content-type": "application/json" },
+        // Cap TCP connect time on motion requests so packet loss fails fast
+        // instead of blocking behind OS SYN retries.
+        connectTimeout: motionRequest ? 1000 : 2500,
         ...options,
       },
       motionRequest ? 1500 : 3000,
@@ -70,7 +76,12 @@ function createRoverControl(): RoverControl {
       // A recovered link should not keep showing the old network error. Motion
       // refusals (4xx) stay visible until the operator re-enables or stops.
       if (wasOffline) state.lastError = "";
+    } else {
+      // Cancel/consume non-status bodies (especially /api/control) so Tauri's
+      // plugin-http releases the Rust ReqwestResponse and its socket every tick.
+      await response.body?.cancel().catch(() => {});
     }
+    statusFailures = 0;
     state.connectionState = "online";
     roverConnection.setState("online", "Rover API online");
     return state.status!;
@@ -88,7 +99,12 @@ function createRoverControl(): RoverControl {
     try {
       await api("/api/status");
     } catch (error) {
-      markOffline(error);
+      statusFailures += 1;
+      // Require 3 consecutive failed status polls before marking offline so a
+      // single transient poll glitch does not zero controls and starve the 500 ms drive lease.
+      if (statusFailures >= STATUS_OFFLINE_THRESHOLD) {
+        markOffline(error);
+      }
     }
   }
 
