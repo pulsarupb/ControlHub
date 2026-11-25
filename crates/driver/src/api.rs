@@ -16,24 +16,55 @@ use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 use tower_http::cors::CorsLayer;
 
-type Error = (StatusCode, Json<Value>);
-fn bad(error: impl ToString) -> Error {
+pub(crate) type Error = (StatusCode, Json<Value>);
+pub(crate) fn bad(error: impl ToString) -> Error {
     (
         StatusCode::BAD_REQUEST,
         Json(json!({"error": error.to_string()})),
     )
 }
-fn unavailable(error: impl ToString) -> Error {
+pub(crate) fn unavailable(error: impl ToString) -> Error {
     (
         StatusCode::CONFLICT,
         Json(json!({"error": error.to_string()})),
     )
 }
 
+#[derive(Debug, Clone)]
+pub enum OpError {
+    Bad(String),
+    Conflict(String),
+}
+
+impl OpError {
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::Bad(_) => "bad_request",
+            Self::Conflict(_) => "conflict",
+        }
+    }
+
+    pub fn message(&self) -> &str {
+        match self {
+            Self::Bad(m) | Self::Conflict(m) => m,
+        }
+    }
+}
+
+impl From<OpError> for Error {
+    fn from(err: OpError) -> Self {
+        match err {
+            OpError::Bad(msg) => bad(msg),
+            OpError::Conflict(msg) => unavailable(msg),
+        }
+    }
+}
+
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/api/health", get(health))
         .route("/api/status", get(status))
+        .route("/api/ws", get(crate::ws::upgrade))
         .route("/api/config", get(get_config).put(put_config))
         .route("/api/control", post(control))
         .route("/api/drive/enable", post(enable_drive))
@@ -103,27 +134,8 @@ async fn oak_frame(
     ))
 }
 
-async fn status(State(state): State<AppState>) -> Json<Value> {
-    let (armed, stop_reason) = {
-        let mut drive = state.drive.lock().unwrap();
-        let armed = drive.armed(Instant::now());
-        (armed, drive.take_stop_reason())
-    };
-    if let Some(reason) = stop_reason {
-        state.record_drive_stop(reason);
-    }
-    let mut status = state.status.lock().unwrap().clone();
-    status.drive.data.armed = armed;
-    status.kinova.data.armed = state.arm_enabled.load(Ordering::SeqCst);
-    status.zed.data.path.clear();
-    status.zed.data.points.clear();
-    status.zed.data.colors.clear();
-    let drive_stop = state.drive_stop_info.lock().unwrap().clone();
-    let arm_stop = state.arm_stop_info.lock().unwrap().clone();
-    let mut value = json!({"time": epoch(), "simulate": state.simulate, "devices": status});
-    value["devices"]["drive"]["stop_reason"] = json!(drive_stop);
-    value["devices"]["kinova"]["stop_reason"] = json!(arm_stop);
-    Json(value)
+async fn status(State(state): State<AppState>) -> Json<crate::state::FullStatusSummary> {
+    Json(state.full_status_summary())
 }
 
 async fn get_config(State(state): State<AppState>) -> Json<config::Config> {
@@ -180,32 +192,28 @@ struct Control {
     steering: f32,
 }
 
-async fn control(
-    State(state): State<AppState>,
-    Json(payload): Json<Control>,
-) -> Result<Json<Value>, Error> {
+pub(crate) fn drive_control(state: &AppState, throttle: f32, steering: f32) -> Result<(), OpError> {
     let available = {
         let s = state.status.lock().unwrap();
         s.drive.enabled && s.drive.connected
     };
     if !available {
         state.stop_drive_preserving_reason("drive disabled or offline");
-        return Err(unavailable("drive disabled or offline"));
+        return Err(OpError::Conflict("drive disabled or offline".into()));
     }
     state
         .drive
         .lock()
         .unwrap()
-        .command(payload.throttle, payload.steering, Instant::now())
-        .map_err(bad)?;
-    Ok(Json(json!({"ok": true})))
+        .command(throttle, steering, Instant::now())
+        .map_err(OpError::Bad)
 }
 
-async fn enable_drive(State(state): State<AppState>) -> Result<Json<Value>, Error> {
+pub(crate) fn drive_enable(state: &AppState) -> Result<(), OpError> {
     let mesh = state.zed_mesh.lock().unwrap();
     if mesh.generating {
-        return Err(unavailable(
-            "Wait for mesh generation to finish before enabling the drive",
+        return Err(OpError::Conflict(
+            "Wait for mesh generation to finish before enabling the drive".into(),
         ));
     }
     let available = {
@@ -213,7 +221,7 @@ async fn enable_drive(State(state): State<AppState>) -> Result<Json<Value>, Erro
         s.drive.enabled && s.drive.connected
     };
     if !available {
-        return Err(unavailable("drive disabled or offline"));
+        return Err(OpError::Conflict("drive disabled or offline".into()));
     }
     let config = state.config.lock().unwrap();
     if config.drive.yaw_control.enabled {
@@ -222,13 +230,50 @@ async fn enable_drive(State(state): State<AppState>) -> Result<Json<Value>, Erro
             f.received.elapsed().as_millis()
                 < u128::from(config.drive.yaw_control.feedback_timeout_ms)
         }) {
-            return Err(unavailable(
-                "fresh measured ZED odometry required for yaw control",
+            return Err(OpError::Conflict(
+                "fresh measured ZED odometry required for yaw control".into(),
             ));
         }
     }
     state.drive.lock().unwrap().enable(Instant::now());
     state.clear_drive_stop();
+    Ok(())
+}
+
+pub(crate) fn drive_stop(state: &AppState, reason: Option<String>) {
+    state.stop_drive_with(reason.unwrap_or_else(|| "operator stop".into()));
+}
+
+pub(crate) fn global_stop(state: &AppState, reason: Option<String>) {
+    state.stop_all_with(reason.unwrap_or_else(|| "operator stop".into()));
+}
+
+pub(crate) fn arm_jog_cmd(state: &AppState, jog: arm::Jog) -> Result<(), OpError> {
+    jog.validate().map_err(|e| {
+        state.stop_arm_with("invalid arm jog");
+        OpError::Bad(e)
+    })?;
+    let mut pending_jog = state.arm_jog.lock().unwrap();
+    if !state.arm_enabled.load(Ordering::SeqCst) {
+        return Err(OpError::Conflict(
+            "arm stopped; explicit enable required".into(),
+        ));
+    }
+    *state.arm_seen.lock().unwrap() = Instant::now();
+    *pending_jog = Some((jog, Instant::now()));
+    Ok(())
+}
+
+async fn control(
+    State(state): State<AppState>,
+    Json(payload): Json<Control>,
+) -> Result<Json<Value>, Error> {
+    drive_control(&state, payload.throttle, payload.steering)?;
+    Ok(Json(json!({"ok": true})))
+}
+
+async fn enable_drive(State(state): State<AppState>) -> Result<Json<Value>, Error> {
+    drive_enable(&state)?;
     Ok(Json(json!({"ok": true})))
 }
 
@@ -238,7 +283,7 @@ struct StopQuery {
 }
 
 async fn stop_drive(State(state): State<AppState>, Query(query): Query<StopQuery>) -> Json<Value> {
-    state.stop_drive_with(query.reason.unwrap_or_else(|| "operator stop".into()));
+    drive_stop(&state, query.reason);
     Json(json!({"ok": true}))
 }
 async fn stop_arm(State(state): State<AppState>, Query(query): Query<StopQuery>) -> Json<Value> {
@@ -246,7 +291,7 @@ async fn stop_arm(State(state): State<AppState>, Query(query): Query<StopQuery>)
     Json(json!({"ok": true}))
 }
 async fn stop(State(state): State<AppState>, Query(query): Query<StopQuery>) -> Json<Value> {
-    state.stop_all_with(query.reason.unwrap_or_else(|| "operator stop".into()));
+    global_stop(&state, query.reason);
     Json(json!({"ok": true}))
 }
 
@@ -314,16 +359,7 @@ async fn arm_jog(
     State(state): State<AppState>,
     Json(jog): Json<arm::Jog>,
 ) -> Result<Json<Value>, Error> {
-    jog.validate().map_err(|e| {
-        state.stop_arm_with("invalid arm jog");
-        bad(e)
-    })?;
-    let mut pending_jog = state.arm_jog.lock().unwrap();
-    if !state.arm_enabled.load(Ordering::SeqCst) {
-        return Err(unavailable("arm stopped; explicit enable required"));
-    }
-    *state.arm_seen.lock().unwrap() = Instant::now();
-    *pending_jog = Some((jog, Instant::now()));
+    arm_jog_cmd(&state, jog)?;
     Ok(Json(json!({"ok": true})))
 }
 
