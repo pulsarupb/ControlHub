@@ -96,6 +96,16 @@ fix confirmation. No drive or arm motion was commanded.
 - [ ] Interrupt command traffic, close/blur the client, unplug the gamepad and
       disconnect Wi-Fi separately. Confirm bounded stop latency; record it. Losing
       window focus must stop both drive and arm immediately.
+- [ ] Kill the client process mid-drive; confirm the drive stops within 500 ms
+      with `control link closed`.
+- [ ] Turn Wi-Fi off mid-drive; confirm the drive stops within the 500 ms lease
+      timeout (`drive command timeout (500 ms)`).
+- [ ] Reconnect after disconnect or Wi-Fi recovery; confirm drive remains stopped
+      and requires an explicit enable before moving.
+- [ ] Open a second client while the first owns `/api/ws`; confirm the second
+      client is read-only (`busy`) until it explicitly sends `take`.
+- [ ] Drive continuously for 30 minutes over `/api/ws` and verify open fd /
+      socket / handle counts on both driver and client stay flat.
 - [ ] Disconnect one controller with observer ready. Confirm both sides stop and
       require explicit enable after recovery; new commands/heartbeats cannot re-arm.
       Confirm the UI shows the controller fault as the drive stop reason.

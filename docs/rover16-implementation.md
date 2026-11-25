@@ -27,6 +27,7 @@
   target toggle, not simultaneous routing of the same input.
 - Map displays ZED pose/trajectory/point cloud. Separate RTK and wheel-status widgets;
   video and arm widgets are independently placeable. No autonomous navigation.
+- Persistent `/api/ws` WebSocket motion and status channel: one owner connection carries 20 Hz drive control, arm jog/keepalive, explicit enable/stop/`take`, 10 Hz `drive` telemetry, 2 Hz `devices` summaries (without ZED map arrays), and immediate `stopped` events, stopping the drive immediately (`control link closed`) on disconnect while retaining the 500 ms command lease for half-open links and HTTP endpoints for CLI/tests.
 - No robot is currently available. Hardware validation remains pending even when
   all local tests pass. Never substitute simulation silently for missing hardware.
 

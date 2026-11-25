@@ -24,7 +24,7 @@ Success means the driver can move the rover safely and the observer can understa
 
 ## Operating Context
 
-- **Live teleoperation:** drive is controlled by a gamepad or on-screen bars and joystick. Drive and arm stop when the client loses focus or becomes hidden, and every automatic stop records a reason.
+- **Live teleoperation:** drive is controlled by a gamepad or on-screen bars and joystick over a persistent `/api/ws` WebSocket channel (control and arm jog/keepalive frames at 20 Hz, `drive` status at 10 Hz, `devices` status at 2 Hz, immediate `stopped` events). Closing the control link stops drive immediately (`control link closed`), and drive and arm also stop when the client loses focus or becomes hidden, recording every stop reason.
 - **Commissioning and configuration:** devices are enabled and configured in Settings. Config is JSON with a credentials sidecar. Hardware validation follows `docs/robot-validation.md`.
 - **Devices and inputs:** laptops with touchscreens and a gamepad; Android phones; Nintendo Switch input (native `switch-input` plugin).
 - **Connection:** the rover API is reached on the rover LAN (`Local`, hotspot `Pulsar-Rover`) or in simulation (`Dev`).

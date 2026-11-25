@@ -173,11 +173,23 @@ ZED video, arm controls and arm 3D/IK target are independently placeable.
 
 ## API / safety notes
 
-`GET /api/health`, `/api/status`, `/api/config`, `/api/zed/map`;
-`PUT /api/config`; `POST /api/control`, `/api/drive/enable`, `/api/drive/stop`,
-`/api/arm/action`, `/api/arm/jog`, `/api/arm/stop`, `/api/heartbeat`, `/api/zed/reset`,
-`/api/stop`, `/api/system/shutdown`, `/api/system/reboot`;
-`GET /api/zed/frame/{color|depth}`.
+`GET /api/health`, `/api/status`, `/api/ws` (WebSocket), `/api/config`, `/api/zed/map`,
+`/api/zed/mesh`; `PUT /api/config`; `POST /api/control`, `/api/drive/enable`,
+`/api/drive/stop`, `/api/arm/action`, `/api/arm/jog`, `/api/arm/stop`,
+`/api/heartbeat`, `/api/zed/reset`, `/api/zed/mesh`, `/api/stop`,
+`/api/system/shutdown`, `/api/system/reboot`; `GET /api/zed/frame/{color|depth}`,
+`/api/oak/frame/{slot}/{color|depth}`, `/api/d435/frame/{color|crosshair}`.
+
+`GET /api/ws` upgrades a persistent JSON-text WebSocket channel used by Panels for
+teleoperation and status pushes (`drive` at 10 Hz, `devices` without ZED map arrays
+at 2 Hz, immediate `stopped` events, and client `c`/`enable`/`stop`/`jog`/`take`
+frames). Upgrade requests enforce an `Origin` allowlist (`tauri://localhost`,
+`http://tauri.localhost`, `localhost`/`127.0.0.1`, plus comma-separated entries
+in `ROVER_ALLOWED_ORIGINS`); non-browser clients omitting `Origin` are also
+accepted. Exactly one connection owns motion at a time (a second connection receives
+read-only `devices` frames and `{"t":"err","code":"busy"}` until it sends
+`{"t":"take"}`). Closing the owner socket immediately stops the drive with reason
+`control link closed`.
 
 The host power endpoints require a JSON body `{"confirm": true}`. They stop
 drive and arm motion, wait for the workers to flush a zero command, and then ask
@@ -191,10 +203,15 @@ with restrictive permissions on Unix, and passwords are redacted from GET.
 Blank password fields on save retain stored secrets. NTRIP uses the existing
 plain TCP/basic-auth transport; use trusted networks for correction credentials.
 
-Drive command timeout and controller watchdog are 500 ms. Arm jogging freshness is
-300 ms and client heartbeat timeout is 500 ms; Kortex's velocity-command duration
-is documented as unimplemented. Physical Stop behavior on process/network loss
-must be verified on the actual arm; keep a physical E-stop available.
+Drive command timeout and controller watchdog are 500 ms; Panels streams motion
+commands at 20 Hz and receives drive status at 10 Hz over the persistent
+`/api/ws` WebSocket rather than per-tick HTTP requests (the HTTP endpoints remain
+available for tests/CLI). Closing the owner WebSocket stops the drive immediately
+with `control link closed`, while the 500 ms lease still catches half-open TCP or
+Wi-Fi stalls. Arm jogging freshness is 300 ms and client heartbeat/jog liveness
+timeout is 500 ms; Kortex's velocity-command duration is documented as
+unimplemented. Physical Stop behavior on process/network loss must be verified on
+the actual arm; keep a physical E-stop available.
 
 The drive and arm stop when the client window loses focus or becomes hidden. Every
 automatic stop records a reason; `GET /api/status` exposes it as
