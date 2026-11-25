@@ -1,6 +1,7 @@
 import { friendlyError } from "$lib/friendly-error"
 import { getConfig, request, type FullConfig } from "$lib/config-api"
 import type { Preview } from "$lib/hardware-types"
+import { rover } from "$lib/rover-control.svelte"
 
 export const hardware = $state({
   config: null as FullConfig | null,
@@ -23,12 +24,19 @@ export async function armAction(action: Record<string, unknown>, timeoutMs = 500
 }
 
 export function releaseArm() {
-  if (hardware.jog) void request("/api/arm/jog", { cartesian: [0, 0, 0, 0, 0, 0] }, "POST", 1000).catch(() => {})
+  if (hardware.jog) {
+    if (rover.driveTransport === "ws") {
+      rover.releaseArmOverChannel()
+    } else {
+      void request("/api/arm/jog", { cartesian: [0, 0, 0, 0, 0, 0] }, "POST", 1000).catch(() => {})
+    }
+  }
   hardware.jog = null
 }
 
 let pending = false
 export async function armTick() {
+  if (rover.driveTransport === "ws") return
   if (pending || document.hidden || !document.hasFocus()) return
   pending = true
   try {

@@ -1,9 +1,12 @@
 import { ZERO_JOYSTICK } from "$lib/constants";
 import { apiFetch } from "$lib/api-client";
 import { clamp } from "$lib/math";
+import { MotionChannel, MotionChannelError } from "$lib/motion-channel.svelte";
 import type { ConnectionState, DriveAxis, JoystickPosition, RoverControl, RoverStatus } from "$lib/rover-types";
 import { roverConnection } from "$lib/rover-connection.svelte";
 import { hardware, releaseArm } from "$lib/hardware.svelte";
+
+export type DriveTransport = "ws" | "http";
 
 type RoverState = {
   status: RoverStatus | null;
@@ -18,6 +21,7 @@ type RoverState = {
   pendingRequest: boolean;
   connectionState: ConnectionState;
   lastError: string;
+  driveTransport: DriveTransport;
 };
 
 const NO_DRAG: Record<DriveAxis, boolean> = { throttle: false, steering: false };
@@ -33,7 +37,13 @@ class ApiError extends Error {
   }
 }
 
-function createRoverControl(): RoverControl {
+function createRoverControl(): RoverControl & {
+  startChannel: (baseUrl?: string) => void;
+  stopChannel: () => void;
+  setDriveTransport: (mode: DriveTransport) => void;
+  releaseArmOverChannel: () => void;
+  takeChannelControl: () => Promise<void>;
+} {
   const state = $state<RoverState>({
     status: null,
     throttle: 0,
@@ -45,11 +55,111 @@ function createRoverControl(): RoverControl {
     pendingRequest: false,
     connectionState: "connecting",
     lastError: "",
+    driveTransport: "ws",
   });
 
   let statusFailures = 0;
 
   const stopped = $derived(state.connectionState !== "online" || !state.status?.devices.drive.data.armed);
+
+  const channel = new MotionChannel({
+    onOpen: () => {
+      statusFailures = 0;
+      const wasOffline = state.connectionState === "offline";
+      if (wasOffline) state.lastError = "";
+      state.connectionState = "online";
+      roverConnection.setState("online", "Rover WebSocket online");
+    },
+    onClose: (reason) => {
+      // Never auto-enable on disconnect/reconnect; clear joystick demand and mark offline.
+      markOffline(new Error(reason));
+    },
+    onFallback: () => {
+      state.driveTransport = "http";
+      void refreshStatus();
+    },
+    onStatus: (nextStatus) => {
+      state.status = nextStatus;
+      statusFailures = 0;
+      const wasOffline = state.connectionState === "offline";
+      if (wasOffline) state.lastError = "";
+      state.connectionState = "online";
+      roverConnection.setState("online", "Rover WebSocket online");
+    },
+    onStopped: (devices, reason) => {
+      if (devices.includes("drive")) {
+        zeroControls();
+      }
+      if (devices.includes("kinova")) {
+        releaseArm();
+        hardware.preview = null;
+      }
+      if (state.status) {
+        const stopInfo = { reason, at: Date.now() / 1000 };
+        if (devices.includes("drive")) {
+          state.status.devices.drive.data.armed = false;
+          state.status.devices.drive.stop_reason = stopInfo;
+        }
+        if (devices.includes("kinova")) {
+          state.status.devices.kinova.data.armed = false;
+          state.status.devices.kinova.stop_reason = stopInfo;
+        }
+      }
+    },
+    onError: (message, code) => {
+      state.lastError = message;
+      if (code === "busy" || code === "conflict" || code === "bad_request") {
+        zeroControls();
+      }
+    },
+    readDriveDemand: () => ({
+      armed: !stopped,
+      throttle: state.throttle,
+      steering: state.steering,
+    }),
+    readArmState: () => ({
+      active:
+        typeof document !== "undefined" &&
+        !document.hidden &&
+        document.hasFocus() &&
+        Boolean(state.status?.devices.kinova.connected),
+      jog: hardware.jog,
+    }),
+    clearArmJog: () => {
+      hardware.jog = null;
+    },
+  });
+
+  function startChannel(baseUrl = roverConnection.baseUrl): void {
+    if (state.driveTransport === "ws") {
+      channel.start(baseUrl);
+    } else {
+      void refreshStatus();
+    }
+  }
+
+  function stopChannel(): void {
+    channel.stop();
+  }
+
+  function setDriveTransport(mode: DriveTransport): void {
+    state.driveTransport = mode;
+    if (mode === "ws") {
+      channel.start(roverConnection.baseUrl);
+    } else {
+      channel.stop();
+      void refreshStatus();
+    }
+  }
+
+  function releaseArmOverChannel(): void {
+    channel.releaseArmJog();
+  }
+
+  async function takeChannelControl(): Promise<void> {
+    await channel.takeControl();
+    state.lastError = "";
+  }
 
   async function api(path: string, options: RequestInit = {}): Promise<RoverStatus> {
     const motionRequest = path === "/api/status" || path.startsWith("/api/control");
@@ -96,6 +206,9 @@ function createRoverControl(): RoverControl {
   }
 
   async function refreshStatus(): Promise<void> {
+    if (state.driveTransport === "ws" && channel.isOpen()) {
+      return;
+    }
     try {
       await api("/api/status");
     } catch (error) {
@@ -109,6 +222,7 @@ function createRoverControl(): RoverControl {
   }
 
   async function sendControlTick(): Promise<void> {
+    if (state.driveTransport === "ws") return;
     if (state.pendingRequest || stopped) return;
 
     state.pendingRequest = true;
@@ -146,6 +260,20 @@ function createRoverControl(): RoverControl {
     releaseArm();
     hardware.preview = null;
 
+    if (state.driveTransport === "ws" && channel.isOpen()) {
+      try {
+        await channel.stopAll(reason);
+        state.lastError = "";
+      } catch (error) {
+        if (error instanceof MotionChannelError) {
+          state.lastError = error.message;
+        } else {
+          markOffline(error);
+        }
+      }
+      return;
+    }
+
     try {
       await api(`/api/stop?reason=${encodeURIComponent(reason)}`, { method: "POST" });
       state.lastError = "";
@@ -157,6 +285,20 @@ function createRoverControl(): RoverControl {
 
   async function resetRover(): Promise<void> {
     zeroControls();
+
+    if (state.driveTransport === "ws" && channel.isOpen()) {
+      try {
+        await channel.enableDrive();
+        state.lastError = "";
+      } catch (error) {
+        if (error instanceof MotionChannelError) {
+          state.lastError = error.message;
+        } else {
+          markOffline(error);
+        }
+      }
+      return;
+    }
 
     try {
       await api("/api/drive/enable", { method: "POST" });
@@ -245,6 +387,14 @@ function createRoverControl(): RoverControl {
     get lastError() {
       return state.lastError;
     },
+    get driveTransport() {
+      return state.driveTransport;
+    },
+    startChannel,
+    stopChannel,
+    setDriveTransport,
+    releaseArmOverChannel,
+    takeChannelControl,
     refreshStatus,
     sendControlTick,
     stopRover,

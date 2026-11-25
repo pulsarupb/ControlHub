@@ -12,18 +12,31 @@
 
   setContext("manager", manager.manager)
 
+  let mounted = false
+
   $effect(() => {
-    roverConnection.baseUrl
-    untrack(() => { rover.releaseJoystick(); releaseArm(); releaseGamepad() })
+    const baseUrl = roverConnection.baseUrl
+    untrack(() => {
+      rover.releaseJoystick()
+      releaseArm()
+      releaseGamepad()
+      if (mounted) {
+        rover.setDriveTransport("ws")
+        rover.startChannel(baseUrl)
+      }
+    })
   })
   $effect(() => {
     if (roverConnection.state === "online") untrack(() => { void loadHardwareConfig() })
   })
 
   onMount(() => {
-    rover.refreshStatus()
+    mounted = true
+    rover.startChannel(roverConnection.baseUrl)
     const controlTimer = setInterval(rover.sendControlTick, UI_RATE_MS)
-    const statusTimer = setInterval(rover.refreshStatus, STATUS_RATE_MS)
+    const statusTimer = setInterval(() => {
+      if (rover.driveTransport === "http") void rover.refreshStatus()
+    }, STATUS_RATE_MS)
     const armTimer = setInterval(armTick, 100)
     // Losing focus must stop both motion devices, not just release the joystick.
     const stopForFocusLoss = (reason: string) => {
@@ -41,13 +54,14 @@
     startGamepad()
 
     return () => {
+      mounted = false
       clearInterval(controlTimer)
       clearInterval(statusTimer)
       clearInterval(armTimer)
       window.removeEventListener("blur", handleBlur)
       document.removeEventListener("visibilitychange", handleVisibility)
       stopGamepad()
-      void rover.stopRover("client closed")
+      void rover.stopRover("client closed").finally(() => rover.stopChannel())
     }
   })
 

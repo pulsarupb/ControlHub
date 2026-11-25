@@ -23,6 +23,7 @@ export type RoverControl = {
   readonly connectionState: ConnectionState;
   readonly stopped: boolean;
   readonly lastError: string;
+  readonly driveTransport?: "ws" | "http";
   refreshStatus: () => Promise<void>;
   sendControlTick: () => Promise<void>;
   stopRover: (reason?: string) => Promise<void>;
