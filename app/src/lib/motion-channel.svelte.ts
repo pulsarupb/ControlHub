@@ -1,5 +1,4 @@
 import { UI_RATE_MS } from "$lib/constants"
-import { roverConnection } from "$lib/rover-connection.svelte"
 import type { Devices, StopInfo } from "$lib/hardware-types"
 import type { RoverStatus } from "$lib/rover-types"
 
@@ -50,25 +49,23 @@ export class MotionChannelError extends Error {
 }
 
 export type MotionChannelCallbacks = {
-  onOpen: () => void
-  onClose: (reason: string) => void
-  onFallback: () => void
-  onStatus: (status: RoverStatus) => void
-  onStopped: (devices: string[], reason: string) => void
-  onError: (message: string, code: string) => void
-  readDriveDemand: () => { armed: boolean; throttle: number; steering: number }
+  onOpen: () => void;
+  onClose: (reason: string) => void;
+  onStatus: (status: RoverStatus) => void;
+  onStopped: (devices: string[], reason: string) => void;
+  onError: (message: string, code: string) => void;
+  readDriveDemand: () => { armed: boolean; throttle: number; steering: number };
   readArmState: () => {
-    active: boolean
-    jog: { cartesian: number[] } | { joints: number[] } | null
-  }
-  clearArmJog: () => void
-}
+    active: boolean;
+    jog: { cartesian: number[] } | { joints: number[] } | null;
+  };
+  clearArmJog: () => void;
+};
 
-const RECONNECT_MIN_MS = 250
-const RECONNECT_MAX_MS = 2000
-const COMMAND_TIMEOUT_MS = 1000
-const CONTROL_TIMEOUT_MS = 400
-const FALLBACK_CONNECT_FAILURES = 4
+const RECONNECT_MIN_MS = 250;
+const RECONNECT_MAX_MS = 2000;
+const COMMAND_TIMEOUT_MS = 1000;
+const CONTROL_TIMEOUT_MS = 400;
 
 export function buildWsUrl(baseUrl: string): string {
   const url = new URL(baseUrl)
@@ -81,12 +78,11 @@ export function buildWsUrl(baseUrl: string): string {
 
 export class MotionChannel {
   private ws: WebSocket | null = null
-  private started = false
-  private currentBaseUrl = ""
-  private nextId = 1
-  private reconnectDelay = RECONNECT_MIN_MS
-  private consecutiveConnectFailures = 0
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  private started = false;
+  private currentBaseUrl = "";
+  private nextId = 1;
+  private reconnectDelay = RECONNECT_MIN_MS;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private sendTimer: ReturnType<typeof setInterval> | null = null
   private armCounter = 0
   private controlInFlight = false
@@ -123,12 +119,11 @@ export class MotionChannel {
 
   constructor(private readonly callbacks: MotionChannelCallbacks) {}
 
-  start(baseUrl = roverConnection.baseUrl): void {
+  start(baseUrl: string): void {
     if (this.started && this.currentBaseUrl === baseUrl && this.ws) return
     this.stop()
     this.started = true
     this.currentBaseUrl = baseUrl
-    this.consecutiveConnectFailures = 0
     this.reconnectDelay = RECONNECT_MIN_MS
     this.openSocket()
   }
@@ -182,7 +177,7 @@ export class MotionChannel {
     try {
       wsUrl = buildWsUrl(this.currentBaseUrl)
     } catch {
-      this.callbacks.onFallback()
+      this.callbacks.onClose("Invalid rover WebSocket URL")
       return
     }
 
@@ -190,7 +185,8 @@ export class MotionChannel {
     try {
       socket = new WebSocket(wsUrl)
     } catch {
-      this.handleConnectFailure("WebSocket unavailable")
+      this.callbacks.onClose("WebSocket unavailable")
+      this.scheduleReconnect()
       return
     }
 
@@ -200,7 +196,6 @@ export class MotionChannel {
     socket.onopen = () => {
       if (this.ws !== socket || !this.started) return
       opened = true
-      this.consecutiveConnectFailures = 0
       this.reconnectDelay = RECONNECT_MIN_MS
       this.startSendLoop()
       this.callbacks.onOpen()
@@ -212,7 +207,7 @@ export class MotionChannel {
     }
 
     socket.onerror = () => {
-      // onclose runs after onerror and drives cleanup + reconnect/fallback.
+      // onclose runs after onerror and drives cleanup + reconnect.
     }
 
     socket.onclose = () => {
@@ -221,24 +216,9 @@ export class MotionChannel {
       this.stopSendLoop()
       this.rejectAllPending(new Error("Control link closed"))
       if (!this.started) return
-      if (!opened) {
-        this.handleConnectFailure("WebSocket connection failed")
-      } else {
-        this.callbacks.onClose("Control link closed")
-        this.scheduleReconnect()
-      }
+      this.callbacks.onClose(opened ? "Control link closed" : "WebSocket connection failed")
+      this.scheduleReconnect()
     }
-  }
-
-  private handleConnectFailure(reason: string): void {
-    this.consecutiveConnectFailures += 1
-    this.callbacks.onClose(reason)
-    if (this.consecutiveConnectFailures >= FALLBACK_CONNECT_FAILURES) {
-      this.stop()
-      this.callbacks.onFallback()
-      return
-    }
-    this.scheduleReconnect()
   }
 
   private scheduleReconnect(): void {

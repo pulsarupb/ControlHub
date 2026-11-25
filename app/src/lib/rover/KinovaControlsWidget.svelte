@@ -69,12 +69,12 @@
   }
   async function enable() {
     releaseArm(); enabling = true
-    try { await armAction({ action: "enable" }); await rover.refreshStatus() }
+    try { await armAction({ action: "enable" }) }
     finally { enabling = false }
   }
   async function stop() {
     releaseArm(); pendingConfirmation = null; hardware.preview = null
-    try { await request("/api/arm/stop"); await rover.refreshStatus() }
+    try { await request("/api/arm/stop") }
     catch (e) { hardware.error = friendlyError(e) }
   }
   function useMeasured() {
@@ -99,8 +99,8 @@
   async function installRearZone() {
     if (!device?.connected || device.data.armed || !device.data.rear_boundary) return
     hardware.error = ""
-    try { await request("/api/arm/action", { action: "install_rear_zone" }, "POST", 20000); await rover.refreshStatus() }
-    catch (e) { hardware.error = friendlyError(e); await rover.refreshStatus() }
+    try { await request("/api/arm/action", { action: "install_rear_zone" }, "POST", 20000) }
+    catch (e) { hardware.error = friendlyError(e) }
   }
   async function confirmPendingAction() {
     if (!confirmationValid) return
@@ -120,7 +120,7 @@
       await request("/api/arm/action", { action: "move_cartesian", pose: [...hardware.target] }, "POST", 25000)
       moveMessage = "Cartesian move completed"
     } catch (e) { hardware.error = friendlyError(e); moveMessage = "Cartesian move failed or stopped" }
-    finally { moving = false; await rover.refreshStatus() }
+    finally { moving = false }
   }
 </script>
 

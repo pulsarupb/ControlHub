@@ -3,11 +3,10 @@
   import Topbar from "$lib/Topbar.svelte"
   import MotionBanner from "$lib/rover/MotionBanner.svelte"
   import { manager } from "$lib/grid/widgets.svelte"
-  import { STATUS_RATE_MS, UI_RATE_MS } from "$lib/constants"
   import { rover } from "$lib/rover-control.svelte"
   import { startGamepad, stopGamepad } from "$lib/gamepad-control.svelte"
   import { releaseGamepad } from "$lib/gamepad-control.svelte"
-  import { armTick, releaseArm, loadHardwareConfig } from "$lib/hardware.svelte"
+  import { releaseArm, loadHardwareConfig } from "$lib/hardware.svelte"
   import { roverConnection } from "$lib/rover-connection.svelte"
 
   setContext("manager", manager.manager)
@@ -20,10 +19,7 @@
       rover.releaseJoystick()
       releaseArm()
       releaseGamepad()
-      if (mounted) {
-        rover.setDriveTransport("ws")
-        rover.startChannel(baseUrl)
-      }
+      if (mounted) rover.startChannel(baseUrl)
     })
   })
   $effect(() => {
@@ -33,11 +29,6 @@
   onMount(() => {
     mounted = true
     rover.startChannel(roverConnection.baseUrl)
-    const controlTimer = setInterval(rover.sendControlTick, UI_RATE_MS)
-    const statusTimer = setInterval(() => {
-      if (rover.driveTransport === "http") void rover.refreshStatus()
-    }, STATUS_RATE_MS)
-    const armTimer = setInterval(armTick, 100)
     // Losing focus must stop both motion devices, not just release the joystick.
     const stopForFocusLoss = (reason: string) => {
       releaseGamepad()
@@ -55,9 +46,6 @@
 
     return () => {
       mounted = false
-      clearInterval(controlTimer)
-      clearInterval(statusTimer)
-      clearInterval(armTimer)
       window.removeEventListener("blur", handleBlur)
       document.removeEventListener("visibilitychange", handleVisibility)
       stopGamepad()

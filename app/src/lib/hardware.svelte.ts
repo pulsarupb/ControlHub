@@ -24,26 +24,8 @@ export async function armAction(action: Record<string, unknown>, timeoutMs = 500
 }
 
 export function releaseArm() {
-  if (hardware.jog) {
-    if (rover.driveTransport === "ws") {
-      rover.releaseArmOverChannel()
-    } else {
-      void request("/api/arm/jog", { cartesian: [0, 0, 0, 0, 0, 0] }, "POST", 1000).catch(() => {})
-    }
-  }
+  if (hardware.jog) rover.releaseArmOverChannel()
   hardware.jog = null
-}
-
-let pending = false
-export async function armTick() {
-  if (rover.driveTransport === "ws") return
-  if (pending || document.hidden || !document.hasFocus()) return
-  pending = true
-  try {
-    await request("/api/heartbeat", undefined, "POST", 1000)
-    if (hardware.jog) await request("/api/arm/jog", hardware.jog, "POST", 1000)
-  } catch (e) { hardware.error = friendlyError(e); hardware.jog = null }
-  finally { pending = false }
 }
 
 export async function solveTarget() {
