@@ -112,7 +112,7 @@ fix confirmation. No drive or arm motion was commanded.
 - [ ] Test server termination and USB failure. Verify hardware watchdog stops motors
       even if software cannot send zero. Keep clear of wheels throughout.
 - [ ] Test invalid input and settings save while enabled. No restart may resume old
-      demand or bypass a previous Stop. Verify global Stop without waiting for UI polls.
+      demand or bypass a previous Stop. Verify global Stop without waiting for the next status frame.
 
 ## 4. Arm, clear workspace (separate motion approval required)
 

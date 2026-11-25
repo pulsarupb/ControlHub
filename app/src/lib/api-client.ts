@@ -1,16 +1,12 @@
 import { fetch as tauriFetch } from "@tauri-apps/plugin-http"
 
-export type ApiRequestInit = RequestInit & {
-  connectTimeout?: number
-}
-
 function isTauriRuntime(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window
 }
 
 export function apiFetch(
   input: RequestInfo | URL,
-  init?: ApiRequestInit,
+  init?: RequestInit,
   timeoutMs = 3000,
 ): Promise<Response> {
   const controller = new AbortController()
@@ -36,14 +32,9 @@ export function apiFetch(
     }, timeoutMs)
   })
 
-  const { connectTimeout, ...fetchInit } = init ?? {}
   const request = isTauriRuntime()
-    ? tauriFetch(input.toString(), {
-        ...fetchInit,
-        signal: controller.signal,
-        ...(connectTimeout !== undefined ? { connectTimeout } : {}),
-      })
-    : fetch(input, { ...fetchInit, signal: controller.signal })
+    ? tauriFetch(input.toString(), { ...init, signal: controller.signal })
+    : fetch(input, { ...init, signal: controller.signal })
 
   // A hung request must not wedge status, camera or config refreshes forever.
   return Promise.race([request, timeout]).finally(() => {

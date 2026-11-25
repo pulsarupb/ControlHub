@@ -168,10 +168,6 @@ impl AppState {
     pub fn clear_arm_stop(&self) {
         *self.arm_stop_info.lock().unwrap() = None;
     }
-    #[allow(dead_code)]
-    pub fn stop_drive(&self) {
-        self.stop_drive_with("stopped");
-    }
     pub fn stop_drive_with(&self, reason: impl Into<String>) {
         let was_armed = {
             let mut drive = self.drive.lock().unwrap();
@@ -210,10 +206,6 @@ impl AppState {
             }
         }
     }
-    #[allow(dead_code)]
-    pub fn stop_arm(&self) {
-        self.stop_arm_with("stopped");
-    }
     pub fn stop_arm_with(&self, reason: impl Into<String>) {
         let was_armed = self.arm_enabled.load(Ordering::SeqCst);
         {
@@ -250,10 +242,6 @@ impl AppState {
                 });
             }
         }
-    }
-    #[allow(dead_code)]
-    pub fn stop_all(&self) {
-        self.stop_all_with("operator stop");
     }
     pub fn stop_all_with(&self, reason: impl Into<String>) {
         let reason = reason.into();
