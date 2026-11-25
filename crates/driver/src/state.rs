@@ -72,22 +72,6 @@ pub struct DevicesSummary {
     pub oak: Device<oakd::Snapshot>,
 }
 
-#[derive(Clone, Debug, Serialize)]
-pub struct FullStatusSummary {
-    pub time: f64,
-    pub simulate: bool,
-    pub devices: FullStatusDevices,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct FullStatusDevices {
-    pub drive: DeviceWithStop<DriveData>,
-    pub kinova: DeviceWithStop<ArmData>,
-    pub rtk: Device<RtkData>,
-    pub zed: Device<ZedSummary>,
-    pub oak: Device<oakd::Snapshot>,
-}
-
 #[derive(Clone)]
 pub struct AppState {
     pub config: Arc<Mutex<Config>>,
@@ -378,68 +362,6 @@ impl AppState {
             },
             rtk: status.rtk.clone(),
             oak: status.oak.clone(),
-        }
-    }
-
-    /// Lean `/api/status` DTO built inside the lock without cloning ZED point-cloud/path arrays.
-    pub fn full_status_summary(&self) -> FullStatusSummary {
-        let (armed, stop_reason) = {
-            let mut drive = self.drive.lock().unwrap();
-            let armed = drive.armed(Instant::now());
-            (armed, drive.take_stop_reason())
-        };
-        if let Some(reason) = stop_reason {
-            self.record_drive_stop(reason);
-        }
-        let arm_armed = self.arm_enabled.load(Ordering::SeqCst);
-        let drive_stop = self.drive_stop_info.lock().unwrap().clone();
-        let arm_stop = self.arm_stop_info.lock().unwrap().clone();
-        let status = self.status.lock().unwrap();
-        let mut drive_data = status.drive.data.clone();
-        drive_data.armed = armed;
-        let mut kinova_data = status.kinova.data.clone();
-        kinova_data.armed = arm_armed;
-        FullStatusSummary {
-            time: epoch(),
-            simulate: self.simulate,
-            devices: FullStatusDevices {
-                drive: DeviceWithStop {
-                    enabled: status.drive.enabled,
-                    connected: status.drive.connected,
-                    simulated: status.drive.simulated,
-                    updated_at: status.drive.updated_at,
-                    error: status.drive.error.clone(),
-                    data: drive_data,
-                    stop_reason: drive_stop,
-                },
-                kinova: DeviceWithStop {
-                    enabled: status.kinova.enabled,
-                    connected: status.kinova.connected,
-                    simulated: status.kinova.simulated,
-                    updated_at: status.kinova.updated_at,
-                    error: status.kinova.error.clone(),
-                    data: kinova_data,
-                    stop_reason: arm_stop,
-                },
-                rtk: status.rtk.clone(),
-                zed: Device {
-                    enabled: status.zed.enabled,
-                    connected: status.zed.connected,
-                    simulated: status.zed.simulated,
-                    updated_at: status.zed.updated_at,
-                    error: status.zed.error.clone(),
-                    data: ZedSummary {
-                        camera_ready: status.zed.data.camera_ready,
-                        camera_model: status.zed.data.camera_model.clone(),
-                        serial: status.zed.data.serial.clone(),
-                        fps: status.zed.data.fps,
-                        pose: status.zed.data.pose.clone(),
-                        imu: status.zed.data.imu.clone(),
-                        error: status.zed.data.error.clone(),
-                    },
-                },
-                oak: status.oak.clone(),
-            },
         }
     }
 }

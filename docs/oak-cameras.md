@@ -36,8 +36,8 @@ NumPy/OpenCV from the image. Initial dependency installation requires network ac
 Capture uses bounded latest-frame queues and three independent camera threads.
 Unplugging one camera clears its view and retries without stopping the others.
 Frames older than three seconds are rejected; simulation never opens hardware or
-fabricates images. `GET /api/status` includes `devices.oak.data.cameras`; JPEGs
-are available at `GET /api/oak/frame/{0|1|2}/{color|depth}`.
+fabricates images. The WebSocket `devices` frame includes `oak.data.cameras`;
+JPEGs are available at `GET /api/oak/frame/{0|1|2}/{color|depth}`.
 
 ## Verification
 

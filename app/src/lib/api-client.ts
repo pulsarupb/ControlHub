@@ -45,7 +45,7 @@ export function apiFetch(
       })
     : fetch(input, { ...fetchInit, signal: controller.signal })
 
-  // A hung request must not wedge the control/heartbeat loops forever.
+  // A hung request must not wedge status, camera or config refreshes forever.
   return Promise.race([request, timeout]).finally(() => {
     clearTimeout(timer)
     externalSignal?.removeEventListener("abort", onExternalAbort)

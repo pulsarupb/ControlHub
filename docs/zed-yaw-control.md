@@ -73,7 +73,7 @@ creates positive feedback. Do not change the sign to conceal incorrect motor wir
    power caps and command watchdog still apply. The underlying tank mixer clips at
    its limits, so steering authority can be reduced at high throttle.
 
-The Wheels / controllers panel and `/api/status` drive data expose measured and
+The Wheels / controllers panel and WebSocket `drive` frames expose measured and
 target yaw rate, correction, active state and heading-hold state.
 
 ## Failure behavior
